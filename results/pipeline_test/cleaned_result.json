@@ -1,0 +1,108 @@
+{
+  "cleaned_document": "Sistema: Recording started\n\nJo\u00e3o Silva: Bom dia pessoal, vamos come\u00e7ar.\n\nMaria Santos: Bom dia! Tenho os dados aqui.\n\nJo\u00e3o Silva: \u00d3timo, pode compartilhar?\n\nMaria Santos: Como podem ver no gr\u00e1fico...",
+  "document_variants": {
+    "full": "Sistema: Recording started\n\nJo\u00e3o Silva: Bom dia pessoal, vamos come\u00e7ar.\n\nMaria Santos: Bom dia! Tenho os dados aqui.\n\nJo\u00e3o Silva: \u00d3timo, pode compartilhar?\n\nMaria Santos: Como podem ver no gr\u00e1fico...",
+    "participants_only": "Sistema: Recording started\n\nJo\u00e3o Silva: Bom dia pessoal, vamos come\u00e7ar.\n\nMaria Santos: Bom dia! Tenho os dados aqui.\n\nJo\u00e3o Silva: \u00d3timo, pode compartilhar?\n\nMaria Santos: Como podem ver no gr\u00e1fico..."
+  },
+  "speaker_map": {
+    "Sistema": {
+      "first_appearance": 0,
+      "utterances": [
+        {
+          "index": 0,
+          "timestamp": null,
+          "word_count": 2
+        }
+      ],
+      "total_words": 2,
+      "original_names": []
+    },
+    "Jo\u00e3o Silva": {
+      "first_appearance": 1,
+      "utterances": [
+        {
+          "index": 1,
+          "timestamp": null,
+          "word_count": 5
+        },
+        {
+          "index": 3,
+          "timestamp": null,
+          "word_count": 3
+        }
+      ],
+      "total_words": 8,
+      "original_names": []
+    },
+    "Maria Santos": {
+      "first_appearance": 2,
+      "utterances": [
+        {
+          "index": 2,
+          "timestamp": null,
+          "word_count": 6
+        },
+        {
+          "index": 4,
+          "timestamp": null,
+          "word_count": 5
+        }
+      ],
+      "total_words": 11,
+      "original_names": []
+    }
+  },
+  "transcript_metadata": {
+    "duration_seconds": null,
+    "duration_formatted": null,
+    "total_utterances": 5,
+    "total_words": 21,
+    "unique_speakers": 3,
+    "speakers": [
+      "Sistema",
+      "Maria Santos",
+      "Jo\u00e3o Silva"
+    ],
+    "avg_words_per_utterance": 4.2,
+    "has_timestamps": false
+  },
+  "quality_report": {
+    "checks_performed": [
+      "encoding",
+      "speaker_consistency",
+      "timestamp_format"
+    ],
+    "issues": [
+      "Speakers com poucas falas: ['Sistema', 'Jo\u00e3o Silva', 'Maria Santos']"
+    ],
+    "stats": {
+      "encoding_issues": 0,
+      "unique_speakers": 3,
+      "speaker_distribution": {
+        "Sistema": 1,
+        "Jo\u00e3o Silva": 2,
+        "Maria Santos": 2
+      },
+      "timestamp_formats": []
+    },
+    "quality_score": 90
+  },
+  "processing_params": {
+    "remove_timestamps": true,
+    "fix_speaker_names": true,
+    "merge_continued_speech": true,
+    "remove_system_messages": true,
+    "create_variants": [
+      "full",
+      "participants_only"
+    ],
+    "speaker_aliases": {},
+    "quality_checks": [
+      "encoding",
+      "speaker_consistency",
+      "timestamp_format"
+    ]
+  },
+  "original_length": 302,
+  "cleaned_length": 199
+}

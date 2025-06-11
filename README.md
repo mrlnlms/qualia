@@ -57,24 +57,32 @@ plugins/               # Seus scripts viram plugins aqui!
 └── your_plugin/       # Adicione os seus!
 ```
 
-## 📦 Instalação
+## 🚀 Quickstart
 
 ```bash
-# Clonar repositório
+# 1. Clonar e instalar
 git clone https://github.com/mrlnlms/qualia.git
 cd qualia
-
-# Criar e ativar ambiente virtual
 python3 -m venv venv
-source venv/bin/activate  # macOS/Linux
-# ou
-venv\Scripts\activate     # Windows
+source venv/bin/activate
+pip install -e .
 
-# Instalar dependências
-pip install -r requirements.txt
+# 2. Ver plugins disponíveis
+qualia list
 
-# Testar instalação
-python -m qualia.core
+# 3. Analisar um documento
+qualia analyze seu_documento.txt --plugin word_frequency
+
+# 4. Criar visualização (Python)
+python -c "
+from plugins.wordcloud_viz import WordCloudVisualizer
+import json
+with open('results/freq.json') as f: data = json.load(f)
+WordCloudVisualizer().render(data, {}, 'wordcloud.png')
+"
+
+# 5. Ver resultado
+open wordcloud.png
 ```
 
 ## 🎨 Como Funciona
@@ -89,58 +97,89 @@ print(len(core.plugins))  # 0 - vazio!
 
 # Descobre plugins disponíveis
 core.discover_plugins()
+print(len(core.plugins))  # 4 - descobriu word_frequency, teams_cleaner, wordcloud_viz, frequency_chart
 ```
 
-### 2. Plugins se Auto-Descrevem
+### 2. Análise de Frequência
+```bash
+# Análise básica
+qualia analyze documento.txt --plugin word_frequency
+
+# Com parâmetros customizados
+qualia analyze documento.txt -p word_frequency \
+  -P min_word_length=4 \
+  -P remove_stopwords=true \
+  -P language=portuguese
+```
+
+### 3. Limpeza de Transcrições
+```bash
+# Limpar transcrição do Teams
+qualia process transcript.txt --plugin teams_cleaner \
+  --save-as transcript_limpo.txt
+```
+
+### 4. Pipeline Completo
+```bash
+# Executar pipeline de análise
+qualia pipeline documento.txt \
+  --config configs/pipelines/full_visual.yaml \
+  --output-dir results/
+```
+
+### 5. Visualizações (via Python por enquanto)
 ```python
-class YourAnalyzer(IAnalyzerPlugin):
-    def meta(self):
-        return PluginMetadata(
-            provides=["word_frequencies", "vocabulary_size"],
-            requires=[],  # Dependências auto-resolvidas
-            parameters={...}  # Schema completo
-        )
+from plugins.wordcloud_viz import WordCloudVisualizer
+from plugins.frequency_chart import FrequencyChartVisualizer
+
+# Criar nuvem de palavras
+wc = WordCloudVisualizer()
+wc.render(data, {"colormap": "viridis"}, "wordcloud.png")
+
+# Criar gráfico interativo
+fc = FrequencyChartVisualizer()
+fc.render(data, {"chart_type": "horizontal_bar"}, "chart.html")
 ```
 
-### 3. Execução Agnóstica
-```python
-# Core não sabe que "word_frequency" conta palavras!
-result = core.execute_plugin("word_frequency", document)
-```
+## 🧪 Status: Alpha
 
-## 🧪 Status: Pre-Alpha
+Framework funcional com plugins de análise e visualização.
 
-Este é um projeto experimental em desenvolvimento ativo. A API pode mudar.
-
-### Implementado
+### ✅ Implementado
 - [x] Core bare metal funcional
-- [x] Sistema de plugins com auto-descrição
-- [x] Resolução de dependências
-- [x] Cache inteligente
-- [x] Exemplo: Word Frequency Analyzer
-- [x] Exemplo: Teams Transcript Cleaner
+- [x] Sistema de plugins com auto-descoberta
+- [x] Resolução de dependências automática
+- [x] Cache inteligente por análise
+- [x] CLI completa com comandos ricos
+- [x] 4 Plugins funcionais:
+  - **Analyzers**: `word_frequency`, `teams_cleaner`
+  - **Visualizers**: `wordcloud_viz`, `frequency_chart`
+- [x] Pipelines de análise configuráveis
+- [x] Visualizações interativas (HTML) e estáticas (PNG)
+- [x] Instalação via pip (`pip install -e .`)
 
-### Em Desenvolvimento
-- [ ] CLI completa
+### 🚧 Em Desenvolvimento
+- [ ] Comando `visualize` na CLI
+- [ ] Dashboard composer
+- [ ] Sentiment analyzer
 - [ ] API REST
 - [ ] Plugin Obsidian
-- [ ] Mais analyzers
-- [ ] Sistema de configuração YAML
+- [ ] Testes unitários
 
-## 🤝 Contribuindo
+## 📊 Plugins Disponíveis
 
-Este projeto está em fase inicial. Contribuições são bem-vindas!
+### Analyzers
+- **word_frequency**: Análise de frequência de palavras com suporte a múltiplos idiomas
+- **teams_cleaner**: Limpeza e estruturação de transcrições do Microsoft Teams
 
-### Como Criar um Plugin
-1. Crie uma pasta em `plugins/seu_plugin/`
-2. Implemente uma das interfaces (IAnalyzerPlugin, etc)
-3. Declare metadados completos
-4. O Core descobrirá automaticamente!
+### Visualizers  
+- **wordcloud_viz**: Gera nuvens de palavras em PNG, SVG ou HTML interativo
+- **frequency_chart**: Cria gráficos de barras, linhas e área (Plotly/Matplotlib)
 
-### Princípios
-- **Modularidade extrema** - tudo é plugin
-- **Zero conhecimento no Core** - inteligência nos plugins  
-- **Seus scripts são valiosos** - transforme em plugins permanentes
+### Em Desenvolvimento
+- **sentiment_analyzer**: Análise de sentimentos (TextBlob/VADER)
+- **lda_analyzer**: Topic modeling com LDA
+- **dashboard_composer**: Combina múltiplas visualizações
 
 ## 📚 Documentação
 
