@@ -2,12 +2,21 @@
 pydantic>=2.0
 click>=8.0
 pyyaml>=6.0
-pathlib
+rich>=13.0
 
 # Para os exemplos
 nltk>=3.8
 numpy
-pandas
+pandas>=2.0.0  # Atualizado para export
+matplotlib>=3.8.0  # Descomentado - usado nos plugins
+wordcloud>=1.9.0   # Para wordcloud_viz plugin
+plotly>=5.18.0     # Para frequency_chart plugin
+kaleido>=0.2.1     # Para exportar plotly como imagem
+
+# Novos comandos CLI
+watchdog>=3.0.0    # Para comando watch (monitoramento)
+openpyxl>=3.1.0    # Para export Excel
+tabulate>=0.9.0    # Para export markdown tables
 
 # Development
 pytest>=7.0
@@ -17,6 +26,6 @@ mypy
 
 # Future plugins (comentados por enquanto)
 # scikit-learn
-# matplotlib
-# plotly
-rich>=13.0
+# textblob>=0.17.1    # Para sentiment_analyzer
+# spacy>=3.5.0        # Para NLP avançado
+# gensim>=4.3.0       # Para topic modeling

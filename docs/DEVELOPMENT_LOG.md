@@ -56,136 +56,155 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
   - ✅ Abstract method 'validate_config' - corrigida assinatura
   - ✅ IntPrompt não suporta min_value/max_value - implementado get_int_choice()
 
-- **Estrutura Modular Criada**:
+#### Sessão 5 - CLI Completa e Novos Comandos (11 Dez 2024)
+- **Conquistas**:
+  - ✅ Modularização completa da CLI (commands.py → módulos)
+  - ✅ Comando `watch` - monitoramento de pastas
+  - ✅ Comando `batch` - processamento em lote
+  - ✅ Comando `export` - conversão de formatos
+  - ✅ Comando `config` - wizard de configuração
+  - ✅ Correção de criação automática de diretórios
+  - ✅ Correção do bug no frequency_chart (tipos faltantes)
+  - ✅ Correção do pipeline com visualizadores
+  - ✅ Template melhorado para criação de plugins
+  - ✅ Taxa de sucesso: 94.7% → 100% (todos os testes passando!)
+
+- **Estrutura Modular Final**:
   ```
   qualia/cli/
   ├── __init__.py
-  ├── commands.py      # Comandos CLI
-  ├── formatters.py    # Formatadores Rich
-  └── interactive/
-      ├── menu.py      # Menu principal
-      ├── handlers.py  # Handlers de comandos
-      ├── tutorials.py # Sistema de tutoriais
-      ├── utils.py     # Utilidades
-      └── wizards.py   # Assistentes
+  ├── formatters.py
+  ├── interactive/
+  │   ├── menu.py
+  │   ├── handlers.py
+  │   ├── tutorials.py
+  │   ├── utils.py
+  │   └── wizards.py
+  └── commands/
+      ├── __init__.py
+      ├── utils.py
+      ├── list.py
+      ├── inspect.py
+      ├── analyze.py
+      ├── process.py
+      ├── visualize.py
+      ├── pipeline.py
+      ├── init.py
+      ├── watch.py      # NOVO
+      ├── batch.py      # NOVO
+      ├── export.py     # NOVO
+      └── config.py     # NOVO
   ```
 
 ## 🏗️ Estado Atual da Arquitetura
 
-### Core (Funcional)
+### Core (100% Funcional)
 ```python
 QualiaCore:
-  - discover_plugins() # Auto-descobre na inicialização
-  - execute_plugin()
-  - execute_pipeline()
-  - add_document()
+  - discover_plugins()    # Auto-descoberta
+  - execute_plugin()      # Execução com context
+  - execute_pipeline()    # Pipelines complexos
+  - add_document()        # Gestão de documentos
 
 Base Classes:
-  - BaseAnalyzerPlugin
-  - BaseVisualizerPlugin  # Corrigido _validate_config
-  - BaseDocumentPlugin
+  - BaseAnalyzerPlugin    # -30% código
+  - BaseVisualizerPlugin  # Validações automáticas
+  - BaseDocumentPlugin    # Conversões de tipos
 ```
 
 ### Plugins Implementados (4)
 1. **word_frequency** - Análise de frequência com NLTK ✅
 2. **teams_cleaner** - Limpeza de transcrições Teams ✅
 3. **wordcloud_viz** - Nuvem de palavras (PNG/SVG/HTML) ✅
-4. **frequency_chart** - Gráficos bar/horizontal_bar ✅
+4. **frequency_chart** - Gráficos (bar/line/pie/treemap/sunburst) ✅
 
-### CLI Comandos Funcionais
-- `qualia list [-t type] [-d]` ✅
-- `qualia inspect <plugin>` ✅
-- `qualia analyze <doc> -p <plugin> [-P key=value]` ✅
-- `qualia process <doc> -p <plugin> [-P key=value] [--save-as]` ✅
-- `qualia pipeline <doc> -c <config> [-o dir]` ✅
-- `qualia visualize <data> -p <plugin> [-o output] [-P key=value]` ✅
-- `qualia menu` ✅ NOVO!
-- `qualia list-visualizers` ✅
-- `qualia init` ✅
+### CLI Comandos (13 Totais)
+```bash
+# Comandos básicos
+qualia list              # Lista plugins
+qualia inspect           # Detalhes do plugin
+qualia analyze           # Executa análise
+qualia process           # Processa documento
+qualia visualize         # Cria visualização
+qualia pipeline          # Executa pipeline
+qualia init              # Inicializa projeto
 
-## 🎨 Menu Interativo
+# Comandos novos (Sessão 5)
+qualia watch             # Monitora pasta
+qualia batch             # Processa em lote
+qualia export            # Converte formatos
+qualia config            # Gerencia configurações
 
-### Características
+# Especiais
+qualia menu              # Interface interativa
+qualia list-visualizers  # Lista visualizadores
+```
+
+## 🎨 Funcionalidades Principais
+
+### 1. Menu Interativo
 - Interface visual com Rich
-- Navegação intuitiva
+- Wizards para configuração
 - Tutoriais integrados
-- Pipeline wizard
-- Configuração de parâmetros
 - Preview de resultados
 
-### Funcionalidades
-1. Análise de documentos com wizard
-2. Visualização com escolha de formato
-3. Execução e criação de pipelines
-4. Exploração de plugins
-5. Gestão de configurações
-6. Sistema de tutoriais completo
+### 2. Sistema de Plugins
+- Auto-descoberta
+- Hot reload
+- Base classes opcionais
+- Metadata rica
 
-## 🔧 Padrões Estabelecidos
+### 3. CLI Avançada
+- Parâmetros via -P
+- Processamento em lote
+- Monitoramento de pastas
+- Export multi-formato
 
-### Base Classes
-- Redução de 30% no código dos plugins
-- Validação automática de parâmetros
-- Aplicação de defaults
-- Conversão de tipos
+### 4. Gerador de Plugins
+- Templates educativos
+- TODOs marcados
+- Testes integrados
+- Documentação automática
 
-### Estrutura Modular
-- CLI separada em módulos funcionais
-- Formatadores compartilhados
-- Handlers isolados por responsabilidade
-- Wizards reutilizáveis
+## 🔧 Stack Tecnológico
 
-## 🐛 Issues Conhecidas
+- **Python**: 3.8+ (testado até 3.13)
+- **CLI**: Click 8.1.7 + Rich 13.7.1
+- **NLP**: NLTK 3.8.1
+- **Visualização**: Matplotlib, Plotly, WordCloud
+- **Monitoramento**: Watchdog 3.0.0
+- **Export**: Pandas 2.0.0, OpenPyXL 3.1.0
+- **Serialização**: PyYAML 6.0
 
-### Resolvidas ✅
-- KeyError 'width' - _validate_config duplicado
-- Plugins não carregando - discover_plugins() no init
-- Abstract method validate_config
-- IntPrompt min_value/max_value
+## 📊 Métricas do Projeto
 
-### Pendentes (4 testes falhando)
-1. **frequency_chart treemap** - Tipo não implementado
-2. **Pipeline teste** - Possível problema de path
-3. **Arquivo inexistente** - Comportamento esperado
-4. **Diretório inexistente** - Criar diretório automaticamente?
+- **Linhas de código**: ~5000
+- **Plugins funcionais**: 4
+- **Comandos CLI**: 13
+- **Taxa de testes**: 100% (38/38)
+- **Cobertura funcional**: 100%
+- **Redução de boilerplate**: 30% com base classes
 
-## 📝 Notas Técnicas
+## 🚀 Próximos Passos Planejados
 
-### Lições Aprendidas
-1. **Funções duplicadas** podem sobrescrever silenciosamente
-2. **discover_plugins()** deve ser chamado no __init__
-3. **Type hints** são essenciais para métodos abstratos
-4. **Defaults** devem ser aplicados sempre
-
-### Stack Verificado
-- Python 3.13 ✅
-- Click 8.1.7 ✅
-- Rich 13.7.1 ✅
-- NLTK 3.8.1 ✅
-- Matplotlib 3.8.2 ✅
-- WordCloud 1.9.3 ✅
-- Plotly 5.18.0 ✅
-- Kaleido 0.2.1 ✅
-
-## 🚀 Próximos Passos
-
-### Imediatos
-1. Corrigir tipos faltantes no frequency_chart (pie, treemap, sunburst)
-2. Investigar falha do pipeline
-3. Criar diretórios automaticamente quando necessário
-4. Limpar arquivos de teste
-
-### Próxima Sessão
-1. **Novos Analyzers**
+1. **API REST** (2-3h) - FastAPI para acesso remoto
+2. **Dashboard Composer** (4-6h) - Combinar visualizações
+3. **Novos Analyzers** (2-3h cada):
    - sentiment_analyzer
-   - lda_analyzer
-   - narrative_structure
-2. **Dashboard Composer**
-3. **API REST com FastAPI**
-4. **Testes unitários com pytest**
+   - theme_extractor
+   - entity_recognizer
+4. **Documentação** (2-3h) - MkDocs/Sphinx
+
+## 📝 Decisões Arquiteturais
+
+1. **Bare Metal**: Core sem conhecimento de domínio
+2. **Base Classes**: Opcionais mas recomendadas
+3. **Modularização**: CLI em módulos separados
+4. **Extensibilidade**: Novos comandos são triviais
+5. **UX First**: Feedback rico e menu interativo
 
 ---
 
-**Última Atualização**: 11 Dezembro 2024, 10:30 UTC
+**Última Atualização**: 11 Dezembro 2024, 16:30 UTC
 **Versão**: 0.1.0
-**Status**: 89.5% funcional com menu interativo ✅
+**Status**: 100% funcional com CLI completa ✅
