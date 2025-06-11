@@ -1,0 +1,16 @@
+name: full_visual_analysis
+description: Pipeline completo com análise e visualizações
+
+steps:
+  - plugin: teams_cleaner
+    config:
+      remove_timestamps: true
+      remove_system_messages: true
+    output_name: cleaned
+
+  - plugin: word_frequency
+    config:
+      min_word_length: 4
+      remove_stopwords: true
+      max_words: 100
+    output_name: frequencies

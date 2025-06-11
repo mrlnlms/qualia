@@ -19,3 +19,4 @@ mypy
 # scikit-learn
 # matplotlib
 # plotly
+rich>=13.0

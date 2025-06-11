@@ -1,0 +1,2 @@
+[console_scripts]
+qualia = qualia.cli:cli

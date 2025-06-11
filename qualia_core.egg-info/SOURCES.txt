@@ -1,0 +1,16 @@
+README.md
+setup.py
+qualia/__init__.py
+qualia/__main__.py
+qualia/cli.py
+qualia/core/__init__.py
+qualia/document_lab/__init__.py
+qualia/para_meta/__init__.py
+qualia/quali_metrics/__init__.py
+qualia/visual_engine/__init__.py
+qualia_core.egg-info/PKG-INFO
+qualia_core.egg-info/SOURCES.txt
+qualia_core.egg-info/dependency_links.txt
+qualia_core.egg-info/entry_points.txt
+qualia_core.egg-info/requires.txt
+qualia_core.egg-info/top_level.txt
