@@ -1,0 +1,11 @@
+name: example_pipeline
+description: Pipeline de exemplo para análise de transcrições
+steps:
+  - plugin: teams_cleaner
+    config:
+      remove_timestamps: false
+      remove_system_messages: true
+  - plugin: word_frequency
+    config:
+      min_word_length: 4
+      remove_stopwords: true

@@ -1,0 +1,6 @@
+[00:00:00] Sistema: Recording started
+[00:00:05] João Silva: Bom dia pessoal, vamos começar.
+[00:00:10] Maria Santos: Bom dia! Tenho os dados aqui.
+[00:00:15] João Silva: Ótimo, pode compartilhar?
+[00:00:20] Sistema: Maria Santos is now presenting
+[00:00:25] Maria Santos: Como podem ver no gráfico...

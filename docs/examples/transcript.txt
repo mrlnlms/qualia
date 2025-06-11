@@ -1,0 +1,4 @@
+[00:00:00] Sistema: Recording started
+[00:00:05] João Silva: Olá pessoal, vamos começar?
+[00:00:10] Maria Santos: Sim, podemos começar.
+[00:00:15] João Silva: Ótimo, primeiro item...

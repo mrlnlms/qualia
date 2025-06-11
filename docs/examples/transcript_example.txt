@@ -1,0 +1,11 @@
+[00:00:00] Sistema: Recording Started
+[00:00:05] João Silva: Bom dia pessoal, vamos começar nossa reunião semanal
+[00:00:10] Maria Santos: Bom dia! Sim, podemos começar
+[00:00:15] Sistema: Pedro Oliveira joined the meeting
+[00:00:20] Pedro Oliveira: Oi, desculpem o atraso
+[00:00:25] João Silva: Sem problemas Pedro. Vamos ao primeiro item da pauta
+[00:00:30] Maria Santos: Sobre o projeto Qualia, temos novidades?
+[00:00:35] Pedro Oliveira: Sim! O framework está funcional
+[00:00:40] João Silva: Excelente notícia!
+[00:00:45] Maria Santos: Podemos ver uma demo?
+[00:00:50] Sistema: Pedro Oliveira is presenting

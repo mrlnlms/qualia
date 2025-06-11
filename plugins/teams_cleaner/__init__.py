@@ -1,663 +1,571 @@
 # plugins/teams_cleaner/__init__.py
 """
-Teams Transcript Cleaner Plugin
+Plugin para limpeza e estruturação de transcrições do Microsoft Teams
 
-Este é um exemplo de como aquele script útil de limpeza do Teams
-que estava perdido em alguma pasta vira um plugin PERMANENTE!
-
-Agora em vez de procurar "teams_clean_v3_final_FINAL.py",
-você só precisa rodar:
-
-$ qualia process transcript.txt --plugin="teams_cleaner"
-
-E ele sempre estará lá, com a mesma configuração que funcionou!
+Processa transcrições exportadas do Teams, removendo ruído e estruturando
+o conteúdo para análise posterior.
 """
 
 import re
-from typing import Dict, Any, Tuple, Optional, List
+from typing import Dict, Any, List, Tuple
 from datetime import datetime
 
-from qualia.core import (
-    IDocumentPlugin,
-    PluginMetadata,
-    PluginType,
-    Document
-)
+# MUDANÇA: Importar BaseDocumentPlugin
+from qualia.core import BaseDocumentPlugin, PluginMetadata, PluginType, Document
 
 
-class TeamsTranscriptCleaner(IDocumentPlugin):
+class TeamsTranscriptCleaner(BaseDocumentPlugin):  # MUDANÇA: Herdar de Base
     """
     Limpa e estrutura transcrições do Microsoft Teams
     
-    Transforma aquele script perdido em funcionalidade permanente!
+    Features:
+    - Remove mensagens do sistema (joined/left meeting)
+    - Normaliza nomes de participantes
+    - Agrupa falas consecutivas do mesmo speaker
+    - Gera variantes do documento (por speaker, apenas participantes)
+    - Relatório de qualidade da transcrição
+    
+    Exemplo de uso via CLI:
+        qualia process transcript.txt -p teams_cleaner --save-as cleaned.txt
+        qualia process meeting.txt -p teams_cleaner -P remove_timestamps=true
+    
+    Exemplo de uso via Python:
+        from qualia.core import QualiaCore
+        
+        core = QualiaCore()
+        doc = core.add_document("meeting", open("transcript.txt").read())
+        
+        result = core.execute_plugin("teams_cleaner", doc, {
+            "remove_system_messages": True,
+            "merge_consecutive": True
+        })
+        
+        # Salvar documento limpo
+        with open("cleaned.txt", "w") as f:
+            f.write(result["cleaned_document"])
+            
+        # Ver estatísticas
+        print(f"Speakers: {len(result['speakers'])}")
+        print(f"Quality score: {result['quality_report']['quality_score']}/100")
+    
+    Formatos suportados:
+    - [10:23:45] João Silva: Texto da fala
+    - João Silva (10:23:45): Texto da fala  
+    - João Silva: Texto da fala
     """
     
     def meta(self) -> PluginMetadata:
-        """Auto-descrição do plugin"""
         return PluginMetadata(
             id="teams_cleaner",
+            name="Teams Transcript Cleaner", 
             type=PluginType.DOCUMENT,
-            name="Microsoft Teams Transcript Cleaner",
-            description="Limpa e estrutura transcrições exportadas do Teams",
             version="1.0.0",
-            
+            description="Limpa e estrutura transcrições exportadas do Microsoft Teams",
             provides=[
-                "cleaned_document",     # Documento limpo
-                "document_variants",    # Variantes (moderator_only, etc)
-                "speaker_map",         # Mapeamento de speakers
-                "transcript_metadata", # Metadados extraídos
-                "quality_report"       # Relatório de qualidade
+                "cleaned_document",      # Documento limpo principal
+                "document_variants",     # Variantes (por speaker, etc)
+                "speakers",             # Lista de participantes
+                "quality_report",       # Relatório de qualidade
+                "metadata"              # Metadados extraídos
             ],
-            
-            requires=[],  # Não depende de outros plugins
-            
             parameters={
                 "remove_timestamps": {
                     "type": "boolean",
-                    "default": True,
-                    "description": "Remove timestamps do Teams"
-                },
-                "fix_speaker_names": {
-                    "type": "boolean",
-                    "default": True,
-                    "description": "Normaliza nomes de speakers"
-                },
-                "merge_continued_speech": {
-                    "type": "boolean",
-                    "default": True,
-                    "description": "Junta falas continuadas do mesmo speaker"
+                    "default": False,
+                    "description": "Remover timestamps das falas"
                 },
                 "remove_system_messages": {
+                    "type": "boolean", 
+                    "default": True,
+                    "description": "Remover mensagens do sistema (joined/left)"
+                },
+                "normalize_speakers": {
                     "type": "boolean",
                     "default": True,
-                    "description": "Remove mensagens do sistema"
+                    "description": "Normalizar nomes dos participantes"
+                },
+                "merge_consecutive": {
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Mesclar falas consecutivas do mesmo speaker"
+                },
+                "min_utterance_length": {
+                    "type": "integer",
+                    "default": 2,
+                    "description": "Tamanho mínimo de fala para manter (palavras)"
                 },
                 "create_variants": {
-                    "type": "list",
-                    "default": ["full", "participants_only"],
-                    "options": [
-                        "full",
-                        "participants_only",
-                        "moderator_only",
-                        "no_timestamps",
-                        "speaker_separated"
-                    ],
-                    "description": "Variantes do documento para criar"
-                },
-                "speaker_aliases": {
-                    "type": "dict",
-                    "default": {},
-                    "description": "Mapeamento de aliases (ex: {'João Silva': 'João'})"
-                },
-                "quality_checks": {
-                    "type": "list",
-                    "default": ["encoding", "speaker_consistency", "timestamp_format"],
-                    "options": [
-                        "encoding",
-                        "speaker_consistency", 
-                        "timestamp_format",
-                        "audio_quality_markers",
-                        "interruptions"
-                    ],
-                    "description": "Verificações de qualidade a executar"
+                    "type": "boolean",
+                    "default": True,
+                    "description": "Criar variantes do documento (por speaker, etc)"
                 }
             }
         )
     
-    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Valida configuração"""
-        meta = self.meta()
-        
-        for param, value in config.items():
-            if param not in meta.parameters:
-                return False, f"Parâmetro desconhecido: {param}"
-            
-            param_schema = meta.parameters[param]
-            param_type = param_schema.get("type")
-            
-            # Validação de tipos
-            if param_type == "boolean" and not isinstance(value, bool):
-                return False, f"{param} deve ser booleano"
-            elif param_type == "list" and not isinstance(value, list):
-                return False, f"{param} deve ser uma lista"
-            elif param_type == "dict" and not isinstance(value, dict):
-                return False, f"{param} deve ser um dicionário"
-            
-            # Validação de opções em listas
-            if param_type == "list" and "options" in param_schema:
-                valid_options = param_schema["options"]
-                for item in value:
-                    if item not in valid_options:
-                        return False, f"{item} não é uma opção válida para {param}"
-        
-        return True, None
-    
-    def process(self, raw_content: str, config: Dict[str, Any]) -> Dict[str, Any]:
+    # MUDANÇA: Renomear process para _process_impl
+    def _process_impl(self, document: Document, config: Dict[str, Any], 
+                      context: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Processa transcrição do Teams
+        Processa e limpa a transcrição
         
-        Este é o método principal que transforma o conteúdo bruto
+        Args:
+            document: Documento com a transcrição
+            config: Configurações (já validadas)
+            context: Contexto de execução
+            
+        Returns:
+            Dict com documento limpo, variantes, speakers, etc.
         """
-        params = self._apply_defaults(config)
         
-        # Detecta formato e extrai estrutura
-        transcript_data = self._parse_teams_format(raw_content)
+        original_text = document.content
+        lines = original_text.split('\n')
         
-        # Aplica limpezas configuradas
-        if params["remove_timestamps"]:
-            transcript_data = self._remove_timestamps(transcript_data)
+        # Extrair utterances (falas)
+        utterances = self._extract_utterances(lines, config)
         
-        if params["fix_speaker_names"]:
-            transcript_data = self._normalize_speakers(
-                transcript_data, 
-                params.get("speaker_aliases", {})
-            )
+        # Limpar e filtrar
+        utterances = self._clean_utterances(utterances, config)
         
-        if params["merge_continued_speech"]:
-            transcript_data = self._merge_continued_speech(transcript_data)
+        # Mesclar consecutivas se configurado
+        if config['merge_consecutive']:
+            utterances = self._merge_consecutive_utterances(utterances)
         
-        if params["remove_system_messages"]:
-            transcript_data = self._remove_system_messages(transcript_data)
+        # Gerar texto limpo
+        cleaned_text = self._format_utterances(utterances, config)
         
-        # Cria documento limpo principal
-        cleaned_text = self._rebuild_transcript(transcript_data)
+        # Extrair informações
+        speakers = self._extract_speakers(utterances)
+        metadata = self._extract_metadata(original_text, utterances)
         
-        # Executa verificações de qualidade
-        quality_report = self._run_quality_checks(
-            transcript_data, 
-            params["quality_checks"]
+        # Criar variantes se solicitado
+        variants = {}
+        if config['create_variants']:
+            variants = self._create_variants(utterances, config)
+        
+        # Gerar relatório de qualidade
+        quality_report = self._generate_quality_report(
+            original_text, cleaned_text, utterances
         )
         
-        # Cria variantes solicitadas
-        variants = self._create_variants(
-            transcript_data,
-            params["create_variants"]
-        )
-        
-        # Extrai metadados
-        metadata = self._extract_metadata(transcript_data)
-        
-        # Monta resultado completo
         return {
             "cleaned_document": cleaned_text,
+            "original_length": len(original_text),
+            "cleaned_length": len(cleaned_text),
             "document_variants": variants,
-            "speaker_map": self._build_speaker_map(transcript_data),
-            "transcript_metadata": metadata,
+            "speakers": speakers,
+            "metadata": metadata,
             "quality_report": quality_report,
-            "processing_params": params,
-            "original_length": len(raw_content),
-            "cleaned_length": len(cleaned_text)
+            "utterance_count": len(utterances)
         }
     
-    def _apply_defaults(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Aplica valores default"""
-        meta = self.meta()
-        params = {}
-        
-        for param_name, param_schema in meta.parameters.items():
-            if param_name in config:
-                params[param_name] = config[param_name]
-            else:
-                params[param_name] = param_schema.get("default")
-        
-        return params
-    
-    def _parse_teams_format(self, raw_content: str) -> List[Dict[str, Any]]:
+    def _extract_utterances(self, lines: List[str], 
+                           config: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Parseia formato típico do Teams
+        Extrai utterances (falas) das linhas da transcrição
         
-        Formato esperado:
-        [timestamp] Speaker Name: Text
+        Suporta múltiplos formatos:
+        - [HH:MM:SS] Speaker: Text
+        - Speaker (HH:MM:SS): Text
+        - Speaker: Text
         """
-        lines = raw_content.strip().split('\n')
-        transcript_data = []
+        utterances = []
         
-        # Patterns comuns no Teams
+        # Padrões regex para diferentes formatos
         patterns = [
-            # [00:00:00] João Silva: Texto
-            r'\[(\d{2}:\d{2}:\d{2})\]\s*([^:]+):\s*(.*)',
-            # 00:00:00 João Silva: Texto
-            r'(\d{2}:\d{2}:\d{2})\s*([^:]+):\s*(.*)',
-            # João Silva (00:00:00): Texto
-            r'([^(]+)\s*\((\d{2}:\d{2}:\d{2})\):\s*(.*)',
+            # [10:23:45] João Silva: Olá pessoal
+            (r'^\[?(\d{1,2}:\d{2}:\d{2})\]?\s*([^:]+):\s*(.+)$', 
+             lambda m: (m.group(2), m.group(3), m.group(1))),
+            
+            # João Silva (10:23:45): Olá pessoal
+            (r'^([^(]+)\s*\((\d{1,2}:\d{2}:\d{2})\):\s*(.+)$',
+             lambda m: (m.group(1), m.group(3), m.group(2))),
+            
+            # João Silva: Olá pessoal (sem timestamp)
+            (r'^([^:]+):\s*(.+)$',
+             lambda m: (m.group(1), m.group(2), None))
         ]
         
-        current_entry = None
-        
-        for line in lines:
+        for i, line in enumerate(lines):
             line = line.strip()
             if not line:
                 continue
             
-            matched = False
-            for pattern in patterns:
+            # Tentar cada padrão
+            for pattern, extractor in patterns:
                 match = re.match(pattern, line)
                 if match:
-                    # Salva entrada anterior se existir
-                    if current_entry:
-                        transcript_data.append(current_entry)
+                    speaker, text, timestamp = extractor(match)
                     
-                    # Cria nova entrada
-                    groups = match.groups()
-                    if len(groups) == 3:
-                        timestamp, speaker, text = groups
-                    else:
-                        # Ajusta ordem se necessário
-                        speaker, timestamp, text = groups
-                    
-                    current_entry = {
-                        'timestamp': timestamp,
+                    utterances.append({
+                        'line_number': i,
                         'speaker': speaker.strip(),
                         'text': text.strip(),
-                        'original_line': line
-                    }
-                    matched = True
+                        'timestamp': timestamp
+                    })
                     break
+        
+        return utterances
+    
+    def _clean_utterances(self, utterances: List[Dict[str, Any]], 
+                         config: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        Limpa e filtra utterances baseado na configuração
+        """
+        cleaned = []
+        
+        # Indicadores de mensagens do sistema
+        system_indicators = [
+            'Recording Started', 'Recording Stopped',
+            'Gravação Iniciada', 'Gravação Parada',
+            'joined the meeting', 'left the meeting',
+            'entrou na reunião', 'saiu da reunião',
+            'started recording', 'stopped recording',
+            'iniciou a gravação', 'parou a gravação',
+            'is presenting', 'stopped presenting',
+            'está apresentando', 'parou de apresentar',
+            'was admitted', 'foi admitido'
+        ]
+        
+        for utt in utterances:
+            # Filtrar mensagens do sistema
+            if config['remove_system_messages']:
+                if any(indicator in utt['text'] for indicator in system_indicators):
+                    continue
+                
+                # Também filtrar por speaker suspeito
+                if any(sys in utt['speaker'].lower() 
+                      for sys in ['teams', 'system', 'recording', 'gravação']):
+                    continue
             
-            if not matched and current_entry:
-                # Continuação da fala anterior
-                current_entry['text'] += ' ' + line
-        
-        # Adiciona última entrada
-        if current_entry:
-            transcript_data.append(current_entry)
-        
-        return transcript_data
-    
-    def _remove_timestamps(self, transcript_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Remove timestamps mantendo a estrutura"""
-        for entry in transcript_data:
-            entry['timestamp'] = None
-        return transcript_data
-    
-    def _normalize_speakers(self, 
-                           transcript_data: List[Dict[str, Any]], 
-                           aliases: Dict[str, str]) -> List[Dict[str, Any]]:
-        """Normaliza nomes de speakers"""
-        # Primeiro, aplica aliases explícitos
-        for entry in transcript_data:
-            speaker = entry['speaker']
-            if speaker in aliases:
-                entry['speaker'] = aliases[speaker]
-                entry['original_speaker'] = speaker
-        
-        # Depois, tenta detectar variações do mesmo nome
-        speaker_variations = {}
-        
-        for entry in transcript_data:
-            speaker = entry['speaker']
-            normalized = self._normalize_name(speaker)
+            # Filtrar por tamanho mínimo
+            word_count = len(utt['text'].split())
+            if word_count < config['min_utterance_length']:
+                continue
             
-            if normalized not in speaker_variations:
-                speaker_variations[normalized] = []
-            speaker_variations[normalized].append(speaker)
+            # Normalizar nome do speaker
+            if config['normalize_speakers']:
+                utt['speaker'] = self._normalize_speaker_name(utt['speaker'])
+            
+            cleaned.append(utt)
         
-        # Cria mapeamento de normalização
-        normalization_map = {}
-        for normalized, variations in speaker_variations.items():
-            if len(variations) > 1:
-                # Usa a variação mais comum
-                most_common = max(set(variations), key=variations.count)
-                for variation in variations:
-                    if variation != most_common:
-                        normalization_map[variation] = most_common
-        
-        # Aplica normalização
-        for entry in transcript_data:
-            speaker = entry['speaker']
-            if speaker in normalization_map:
-                entry['speaker'] = normalization_map[speaker]
-                if 'original_speaker' not in entry:
-                    entry['original_speaker'] = speaker
-        
-        return transcript_data
+        return cleaned
     
-    def _normalize_name(self, name: str) -> str:
-        """Normaliza nome para comparação"""
-        # Remove títulos comuns
-        titles = ['Dr.', 'Dra.', 'Prof.', 'Profa.', 'Sr.', 'Sra.']
+    def _normalize_speaker_name(self, name: str) -> str:
+        """
+        Normaliza nome do participante
+        
+        - Remove sufixos como (Guest), (Convidado), etc
+        - Padroniza capitalização
+        - Remove espaços extras
+        """
+        # Sufixos comuns para remover
+        suffixes_to_remove = [
+            '(Guest)', '(Convidado)', '(External)', '(Externo)',
+            '(Organizer)', '(Organizador)', '(Presenter)', '(Apresentador)',
+            '[Guest]', '[Convidado]', '[External]', '[Externo]'
+        ]
+        
         normalized = name
-        for title in titles:
-            normalized = normalized.replace(title, '')
+        for suffix in suffixes_to_remove:
+            normalized = normalized.replace(suffix, '')
         
-        # Remove espaços extras e converte para minúsculas
-        normalized = ' '.join(normalized.split()).lower()
+        # Limpar espaços e capitalizar
+        normalized = normalized.strip()
         
-        return normalized
+        # Capitalizar cada palavra (exceto conectivos)
+        words = normalized.split()
+        conectivos = {'de', 'da', 'do', 'dos', 'das', 'e'}
+        
+        capitalized = []
+        for i, word in enumerate(words):
+            if i == 0 or word.lower() not in conectivos:
+                capitalized.append(word.capitalize())
+            else:
+                capitalized.append(word.lower())
+        
+        return ' '.join(capitalized)
     
-    def _merge_continued_speech(self, 
-                               transcript_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Junta falas continuadas do mesmo speaker"""
-        if not transcript_data:
-            return transcript_data
+    def _merge_consecutive_utterances(self, 
+                                     utterances: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Mescla falas consecutivas do mesmo speaker
+        
+        Útil quando alguém envia múltiplas mensagens seguidas
+        """
+        if not utterances:
+            return []
         
         merged = []
-        current = transcript_data[0].copy()
+        current = utterances[0].copy()
         
-        for entry in transcript_data[1:]:
-            if entry['speaker'] == current['speaker']:
-                # Mesmo speaker, junta o texto
-                current['text'] += ' ' + entry['text']
-                # Mantém timestamp da primeira fala
+        for utt in utterances[1:]:
+            if utt['speaker'] == current['speaker']:
+                # Mesclar com a fala atual
+                current['text'] += ' ' + utt['text']
+                # Manter o timestamp da primeira fala
             else:
-                # Speaker diferente, salva atual e começa novo
+                # Adicionar a atual e começar nova
                 merged.append(current)
-                current = entry.copy()
+                current = utt.copy()
         
-        # Adiciona última entrada
+        # Adicionar a última
         merged.append(current)
         
         return merged
     
-    def _remove_system_messages(self, 
-                               transcript_data: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Remove mensagens do sistema Teams"""
-        system_patterns = [
-            r'.*joined the meeting.*',
-            r'.*left the meeting.*',
-            r'.*started recording.*',
-            r'.*stopped recording.*',
-            r'.*is now presenting.*',
-            r'.*stopped presenting.*',
-        ]
-        
-        filtered = []
-        for entry in transcript_data:
-            is_system = False
-            for pattern in system_patterns:
-                if re.match(pattern, entry['text'], re.IGNORECASE):
-                    is_system = True
-                    break
-            
-            if not is_system:
-                filtered.append(entry)
-        
-        return filtered
-    
-    def _rebuild_transcript(self, transcript_data: List[Dict[str, Any]]) -> str:
-        """Reconstrói transcrição limpa"""
+    def _format_utterances(self, utterances: List[Dict[str, Any]], 
+                          config: Dict[str, Any]) -> str:
+        """
+        Formata utterances em texto limpo e legível
+        """
         lines = []
         
-        for entry in transcript_data:
-            if entry.get('timestamp'):
-                line = f"[{entry['timestamp']}] {entry['speaker']}: {entry['text']}"
+        for utt in utterances:
+            # Formatar linha baseado na configuração
+            if config['remove_timestamps'] or not utt.get('timestamp'):
+                line = f"{utt['speaker']}: {utt['text']}"
             else:
-                line = f"{entry['speaker']}: {entry['text']}"
+                line = f"[{utt['timestamp']}] {utt['speaker']}: {utt['text']}"
+            
             lines.append(line)
         
+        # Separar com linha em branco para melhor legibilidade
         return '\n\n'.join(lines)
     
-    def _run_quality_checks(self, 
-                           transcript_data: List[Dict[str, Any]], 
-                           checks: List[str]) -> Dict[str, Any]:
-        """Executa verificações de qualidade"""
-        report = {
-            'checks_performed': checks,
-            'issues': [],
-            'stats': {},
-            'quality_score': 100  # Começa com 100 e deduz por problemas
-        }
+    def _extract_speakers(self, utterances: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Extrai informações sobre os participantes
+        """
+        speaker_stats = {}
         
-        if 'encoding' in checks:
-            # Verifica problemas de encoding
-            encoding_issues = 0
-            for entry in transcript_data:
-                if '�' in entry['text'] or '???' in entry['text']:
-                    encoding_issues += 1
+        for utt in utterances:
+            speaker = utt['speaker']
             
-            if encoding_issues > 0:
-                report['issues'].append(f"Encontrados {encoding_issues} possíveis problemas de encoding")
-                report['quality_score'] -= min(20, encoding_issues * 2)
-            
-            report['stats']['encoding_issues'] = encoding_issues
-        
-        if 'speaker_consistency' in checks:
-            # Verifica consistência de speakers
-            speakers = set(entry['speaker'] for entry in transcript_data)
-            speaker_counts = {}
-            for entry in transcript_data:
-                speaker = entry['speaker']
-                speaker_counts[speaker] = speaker_counts.get(speaker, 0) + 1
-            
-            # Detecta speakers com poucas falas (possível erro)
-            rare_speakers = [s for s, count in speaker_counts.items() if count < 3]
-            if rare_speakers:
-                report['issues'].append(f"Speakers com poucas falas: {rare_speakers}")
-                report['quality_score'] -= 10
-            
-            report['stats']['unique_speakers'] = len(speakers)
-            report['stats']['speaker_distribution'] = speaker_counts
-        
-        if 'timestamp_format' in checks:
-            # Verifica formato consistente de timestamps
-            timestamp_formats = set()
-            for entry in transcript_data:
-                if entry.get('timestamp'):
-                    # Detecta formato
-                    if re.match(r'\d{2}:\d{2}:\d{2}', entry['timestamp']):
-                        timestamp_formats.add('HH:MM:SS')
-                    elif re.match(r'\d{2}:\d{2}', entry['timestamp']):
-                        timestamp_formats.add('MM:SS')
-                    else:
-                        timestamp_formats.add('OTHER')
-            
-            if len(timestamp_formats) > 1:
-                report['issues'].append("Formatos inconsistentes de timestamp")
-                report['quality_score'] -= 15
-            
-            report['stats']['timestamp_formats'] = list(timestamp_formats)
-        
-        if 'audio_quality_markers' in checks:
-            # Detecta marcadores de problemas de áudio
-            quality_markers = ['[inaudível]', '[inaudible]', '???', '...', '[ruído]']
-            quality_issues = 0
-            
-            for entry in transcript_data:
-                for marker in quality_markers:
-                    if marker in entry['text']:
-                        quality_issues += 1
-                        break
-            
-            if quality_issues > 0:
-                percentage = (quality_issues / len(transcript_data)) * 100
-                report['issues'].append(f"{quality_issues} trechos com problemas de áudio ({percentage:.1f}%)")
-                report['quality_score'] -= min(30, int(percentage * 3))
-            
-            report['stats']['audio_quality_issues'] = quality_issues
-        
-        # Garante que o score não fique negativo
-        report['quality_score'] = max(0, report['quality_score'])
-        
-        return report
-    
-    def _create_variants(self, 
-                        transcript_data: List[Dict[str, Any]], 
-                        variants: List[str]) -> Dict[str, str]:
-        """Cria variantes do documento"""
-        result = {}
-        
-        if 'full' in variants:
-            result['full'] = self._rebuild_transcript(transcript_data)
-        
-        if 'participants_only' in variants:
-            # Assume que moderador tem certas palavras-chave no nome
-            moderator_keywords = ['moderator', 'moderador', 'host', 'apresentador']
-            filtered = []
-            
-            for entry in transcript_data:
-                is_moderator = any(
-                    keyword in entry['speaker'].lower() 
-                    for keyword in moderator_keywords
-                )
-                if not is_moderator:
-                    filtered.append(entry)
-            
-            result['participants_only'] = self._rebuild_transcript(filtered)
-        
-        if 'moderator_only' in variants:
-            moderator_keywords = ['moderator', 'moderador', 'host', 'apresentador']
-            filtered = []
-            
-            for entry in transcript_data:
-                is_moderator = any(
-                    keyword in entry['speaker'].lower() 
-                    for keyword in moderator_keywords
-                )
-                if is_moderator:
-                    filtered.append(entry)
-            
-            result['moderator_only'] = self._rebuild_transcript(filtered)
-        
-        if 'no_timestamps' in variants:
-            no_ts_data = [
-                {**entry, 'timestamp': None} 
-                for entry in transcript_data
-            ]
-            result['no_timestamps'] = self._rebuild_transcript(no_ts_data)
-        
-        if 'speaker_separated' in variants:
-            # Agrupa por speaker
-            by_speaker = {}
-            for entry in transcript_data:
-                speaker = entry['speaker']
-                if speaker not in by_speaker:
-                    by_speaker[speaker] = []
-                by_speaker[speaker].append(entry['text'])
-            
-            separated_text = []
-            for speaker, texts in by_speaker.items():
-                separated_text.append(f"=== {speaker} ===")
-                separated_text.extend(texts)
-                separated_text.append("")  # Linha em branco
-            
-            result['speaker_separated'] = '\n'.join(separated_text)
-        
-        return result
-    
-    def _build_speaker_map(self, transcript_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Constrói mapa detalhado de speakers"""
-        speaker_map = {}
-        
-        for i, entry in enumerate(transcript_data):
-            speaker = entry['speaker']
-            
-            if speaker not in speaker_map:
-                speaker_map[speaker] = {
-                    'first_appearance': i,
-                    'utterances': [],
-                    'total_words': 0,
-                    'original_names': set()
+            if speaker not in speaker_stats:
+                speaker_stats[speaker] = {
+                    'name': speaker,
+                    'utterance_count': 0,
+                    'word_count': 0,
+                    'avg_utterance_length': 0,
+                    'first_appearance': utt.get('line_number', 0),
+                    'timestamps': []
                 }
             
-            word_count = len(entry['text'].split())
-            speaker_map[speaker]['utterances'].append({
-                'index': i,
-                'timestamp': entry.get('timestamp'),
-                'word_count': word_count
-            })
-            speaker_map[speaker]['total_words'] += word_count
+            # Atualizar estatísticas
+            stats = speaker_stats[speaker]
+            stats['utterance_count'] += 1
+            words = len(utt['text'].split())
+            stats['word_count'] += words
             
-            if 'original_speaker' in entry:
-                speaker_map[speaker]['original_names'].add(entry['original_speaker'])
+            if utt.get('timestamp'):
+                stats['timestamps'].append(utt['timestamp'])
         
-        # Converte sets para listas para serialização
-        for speaker_data in speaker_map.values():
-            speaker_data['original_names'] = list(speaker_data['original_names'])
+        # Calcular médias
+        for stats in speaker_stats.values():
+            if stats['utterance_count'] > 0:
+                stats['avg_utterance_length'] = round(
+                    stats['word_count'] / stats['utterance_count'], 1
+                )
         
-        return speaker_map
+        return list(speaker_stats.values())
     
-    def _extract_metadata(self, transcript_data: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Extrai metadados da transcrição"""
-        if not transcript_data:
-            return {}
+    def _extract_metadata(self, original_text: str, 
+                         utterances: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Extrai metadados da transcrição
+        """
+        metadata = {}
         
-        # Calcula duração se tiver timestamps
-        duration = None
-        if transcript_data[0].get('timestamp') and transcript_data[-1].get('timestamp'):
+        # Tentar encontrar data
+        date_patterns = [
+            r'(\d{4}-\d{2}-\d{2})',  # 2024-01-15
+            r'(\d{2}/\d{2}/\d{4})',  # 15/01/2024
+            r'(\d{2}-\d{2}-\d{4})'   # 15-01-2024
+        ]
+        
+        for pattern in date_patterns:
+            match = re.search(pattern, original_text[:500])  # Buscar no início
+            if match:
+                metadata['date'] = match.group(1)
+                break
+        
+        # Duração baseada em timestamps
+        if utterances and utterances[0].get('timestamp') and utterances[-1].get('timestamp'):
+            metadata['start_time'] = utterances[0]['timestamp']
+            metadata['end_time'] = utterances[-1]['timestamp']
+            
+            # Calcular duração (simplificado)
             try:
-                # Assume formato HH:MM:SS
-                start_parts = transcript_data[0]['timestamp'].split(':')
-                end_parts = transcript_data[-1]['timestamp'].split(':')
+                # Parse HH:MM:SS
+                start_parts = utterances[0]['timestamp'].split(':')
+                end_parts = utterances[-1]['timestamp'].split(':')
                 
-                if len(start_parts) == 3 and len(end_parts) == 3:
-                    start_seconds = int(start_parts[0]) * 3600 + int(start_parts[1]) * 60 + int(start_parts[2])
-                    end_seconds = int(end_parts[0]) * 3600 + int(end_parts[1]) * 60 + int(end_parts[2])
-                    duration = end_seconds - start_seconds
+                start_seconds = int(start_parts[0]) * 3600 + int(start_parts[1]) * 60 + int(start_parts[2])
+                end_seconds = int(end_parts[0]) * 3600 + int(end_parts[1]) * 60 + int(end_parts[2])
+                
+                duration_seconds = end_seconds - start_seconds
+                hours = duration_seconds // 3600
+                minutes = (duration_seconds % 3600) // 60
+                
+                metadata['duration'] = f"{hours}h {minutes}min"
             except:
-                pass
+                metadata['duration'] = None
         
-        # Conta palavras e turnos
-        total_words = sum(len(entry['text'].split()) for entry in transcript_data)
-        speakers = list(set(entry['speaker'] for entry in transcript_data))
+        # Estatísticas gerais
+        metadata['total_speakers'] = len(set(utt['speaker'] for utt in utterances))
+        metadata['total_utterances'] = len(utterances)
+        metadata['total_words'] = sum(len(utt['text'].split()) for utt in utterances)
+        
+        return metadata
+    
+    def _create_variants(self, utterances: List[Dict[str, Any]], 
+                        config: Dict[str, Any]) -> Dict[str, str]:
+        """
+        Cria variantes do documento para análises específicas
+        """
+        variants = {}
+        
+        # Variante 1: Apenas participantes (sem sistema)
+        participant_utterances = [
+            utt for utt in utterances
+            if not any(sys in utt['speaker'].lower() 
+                      for sys in ['system', 'teams', 'recording', 'gravação'])
+        ]
+        
+        if participant_utterances:
+            variants['participants_only'] = self._format_utterances(
+                participant_utterances, config
+            )
+        
+        # Variante 2: Por speaker individual
+        speakers = set(utt['speaker'] for utt in utterances)
+        
+        for speaker in speakers:
+            speaker_utterances = [
+                utt for utt in utterances 
+                if utt['speaker'] == speaker
+            ]
+            
+            if speaker_utterances:
+                # Criar nome seguro para arquivo
+                safe_name = re.sub(r'[^\w\s-]', '', speaker)
+                safe_name = safe_name.replace(' ', '_').lower()
+                
+                variant_key = f'speaker_{safe_name}'
+                variants[variant_key] = self._format_utterances(
+                    speaker_utterances, config
+                )
+        
+        # Variante 3: Apenas perguntas (experimental)
+        questions = [
+            utt for utt in utterances
+            if '?' in utt['text']
+        ]
+        
+        if questions:
+            variants['questions_only'] = self._format_utterances(questions, config)
+        
+        return variants
+    
+    def _generate_quality_report(self, original: str, cleaned: str, 
+                                utterances: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Gera relatório de qualidade da transcrição
+        
+        Avalia aspectos como:
+        - Quantidade de conteúdo preservado
+        - Proporção de falas muito curtas
+        - Presença de timestamps
+        - Problemas identificados
+        """
+        issues = []
+        warnings = []
+        
+        # Verificar se encontrou falas
+        if not utterances:
+            issues.append("Nenhuma fala identificada - verificar formato")
+            quality_score = 0
+        else:
+            # Calcular métricas
+            total_utterances = len(utterances)
+            
+            # Falas muito curtas
+            short_utterances = sum(1 for utt in utterances 
+                                 if len(utt['text'].split()) < 5)
+            short_percentage = (short_utterances / total_utterances) * 100
+            
+            if short_percentage > 50:
+                issues.append(f"{short_percentage:.0f}% das falas são muito curtas (< 5 palavras)")
+            elif short_percentage > 30:
+                warnings.append(f"{short_percentage:.0f}% das falas são curtas")
+            
+            # Verificar timestamps
+            with_timestamps = sum(1 for utt in utterances if utt.get('timestamp'))
+            if with_timestamps == 0:
+                warnings.append("Nenhum timestamp encontrado")
+            elif with_timestamps < total_utterances * 0.5:
+                warnings.append("Poucos timestamps encontrados")
+            
+            # Verificar speakers
+            speakers = set(utt['speaker'] for utt in utterances)
+            if len(speakers) == 1:
+                warnings.append("Apenas um participante identificado")
+            elif len(speakers) > 20:
+                warnings.append(f"Muitos participantes ({len(speakers)}) - possível erro de parsing")
+            
+            # Calcular score
+            quality_score = 100
+            quality_score -= len(issues) * 20
+            quality_score -= len(warnings) * 10
+            quality_score = max(0, min(100, quality_score))
+        
+        # Estatísticas adicionais
+        reduction_pct = ((len(original) - len(cleaned)) / len(original)) * 100 if original else 0
+        
+        avg_utterance_length = (
+            sum(len(utt['text'].split()) for utt in utterances) / len(utterances)
+        ) if utterances else 0
         
         return {
-            'duration_seconds': duration,
-            'duration_formatted': f"{duration // 3600:02d}:{(duration % 3600) // 60:02d}:{duration % 60:02d}" if duration else None,
-            'total_utterances': len(transcript_data),
-            'total_words': total_words,
-            'unique_speakers': len(speakers),
-            'speakers': speakers,
-            'avg_words_per_utterance': total_words / len(transcript_data) if transcript_data else 0,
-            'has_timestamps': any(entry.get('timestamp') for entry in transcript_data)
+            'quality_score': quality_score,
+            'issues': issues,
+            'warnings': warnings,
+            'reduction_percentage': round(reduction_pct, 1),
+            'avg_utterance_length': round(avg_utterance_length, 1),
+            'statistics': {
+                'original_chars': len(original),
+                'cleaned_chars': len(cleaned),
+                'total_utterances': len(utterances),
+                'unique_speakers': len(set(utt['speaker'] for utt in utterances)) if utterances else 0
+            }
         }
 
 
-# ============================================================================
-# EXEMPLO DE USO
-# ============================================================================
-
+# Teste standalone
 if __name__ == "__main__":
-    # Simula uma transcrição do Teams
-    sample_transcript = """
-[00:00:00] Sistema: Recording started
-[00:00:05] João Silva: Bom dia pessoal, vamos começar nossa reunião sobre o projeto.
-[00:00:12] Maria Santos: Bom dia João! Estou com os dados aqui.
-[00:00:15] Maria Santos: Deixa eu compartilhar a tela...
-[00:00:18] Sistema: Maria Santos is now presenting
-[00:00:20] João Silva: Perfeito, Maria. Enquanto isso, gostaria de [inaudível]
-[00:00:25] Pedro Oliveira: Desculpem o atraso, tive problemas com o áudio.
-[00:00:30] João Silva: Sem problemas, Pedro. Maria estava mostrando os resultados.
-[00:00:35] Maria Santos: Isso, como vocês podem ver no gráfico...
-[00:00:40] Maria Santos: Os números mostram uma tendência interessante.
-[00:00:45] Dr. João Silva: Muito bom! Isso confirma nossa hipótese.
-[00:00:50] Pedro Oliveira: Concordo, mas acho que precisamos considerar [ruído]
-[00:00:55] Sistema: Maria Santos stopped presenting
-[00:01:00] Maria Santos: Obrigada pessoal, alguma pergunta?
-"""
+    # Exemplo de transcrição Teams
+    sample = """
+[00:00:00] Recording Started
+[00:00:05] João Silva: Bom dia pessoal, vamos começar a reunião?
+[00:00:10] Maria Santos: Bom dia! Sim, podemos começar.
+[00:00:15] João Silva: Ótimo.
+[00:00:16] João Silva: Primeiro item da pauta...
+[00:00:20] Pedro Oliveira (Guest): Oi, desculpem o atraso
+[00:00:25] Maria Santos: Sem problemas Pedro!
+[00:00:30] Sistema: Pedro Oliveira is now presenting
+    """
     
-    # Cria e testa o plugin
+    from qualia.core import Document
+    
     cleaner = TeamsTranscriptCleaner()
+    doc = Document(id="test", content=sample)
     
-    # Configuração customizada
-    config = {
-        "remove_timestamps": False,  # Mantém timestamps neste teste
-        "fix_speaker_names": True,
-        "merge_continued_speech": True,
-        "speaker_aliases": {
-            "Dr. João Silva": "João Silva"  # Normaliza variação
-        },
-        "create_variants": ["full", "participants_only", "speaker_separated"],
-        "quality_checks": ["encoding", "speaker_consistency", "audio_quality_markers"]
-    }
+    result = cleaner._process_impl(doc, {
+        "remove_system_messages": True,
+        "merge_consecutive": True
+    }, {})
     
-    # Processa
-    result = cleaner.process(sample_transcript, config)
-    
-    print("=== RESULTADO DO PROCESSAMENTO ===\n")
-    
-    print("Documento Limpo:")
-    print("-" * 50)
-    print(result['cleaned_document'][:500] + "...\n")
-    
-    print("Metadados Extraídos:")
-    print(result['transcript_metadata'])
-    print()
-    
-    print("Relatório de Qualidade:")
-    print(f"Score: {result['quality_report']['quality_score']}/100")
-    print(f"Problemas: {result['quality_report']['issues']}")
-    print()
-    
-    print("Mapa de Speakers:")
-    for speaker, data in result['speaker_map'].items():
-        print(f"- {speaker}: {data['total_words']} palavras em {len(data['utterances'])} falas")
+    print("Documento limpo:")
+    print(result['cleaned_document'])
+    print(f"\nQualidade: {result['quality_report']['quality_score']}/100")
+    print(f"Speakers: {[s['name'] for s in result['speakers']]}")

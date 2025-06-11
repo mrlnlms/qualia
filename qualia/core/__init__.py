@@ -21,7 +21,7 @@ import importlib.util
 import inspect
 from datetime import datetime
 from enum import Enum
-
+from typing import Dict, Any, List, Optional, Union, Set, Tuple
 
 # ============================================================================
 # CONTRATOS (O Core só conhece estas interfaces)
@@ -150,6 +150,172 @@ class Document:
         """Recupera variante específica"""
         return self._variants.get(name)
 
+
+# ============================================================================
+# # BASE CLASSES
+# ============================================================================
+
+# Adicionar estas classes em qualia/core/__init__.py após as interfaces
+# IMPORTANTE: Adicionar no topo do arquivo, junto com os outros imports:
+# from typing import Dict, Any, List, Optional, Union, Set, Tuple
+
+class BaseAnalyzerPlugin(IAnalyzerPlugin):
+    """Base class com funcionalidades comuns para analyzers"""
+    
+    # meta() NÃO é abstrato aqui - será implementado pelas subclasses
+    # Removemos @abstractmethod para não conflitar
+    
+    def analyze(self, document: Document, config: Dict[str, Any], 
+                context: Dict[str, Any]) -> Dict[str, Any]:
+        """Wrapper que valida e prepara antes de chamar _analyze_impl"""
+        validated_config = self._validate_config(config)
+        return self._analyze_impl(document, validated_config, context)
+    
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Implementação concreta do validate_config"""
+        # Por enquanto sempre retorna True
+        # TODO: implementar validação baseada em meta().parameters
+        return True, None
+    
+    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida e aplica defaults aos parâmetros"""
+        meta = self.meta()
+        validated = {}
+        
+        for param_name, param_spec in meta.parameters.items():
+            if param_name in config:
+                validated[param_name] = config[param_name]
+            else:
+                validated[param_name] = param_spec.get('default')
+        
+        return validated
+    
+    def _analyze_impl(self, document: Document, config: Dict[str, Any], 
+                      context: Dict[str, Any]) -> Dict[str, Any]:
+        """Implementação real do analyzer - override este método"""
+        raise NotImplementedError("Subclasse deve implementar _analyze_impl()")
+
+
+class BaseVisualizerPlugin(IVisualizerPlugin):
+    """Base class com funcionalidades comuns para visualizers"""
+    
+    def render(self, data: Dict[str, Any], config: Dict[str, Any], 
+               output_path: Union[str, Path]) -> Union[str, Path]:
+        """Wrapper que valida e prepara antes de chamar _render_impl"""
+        # Garantir que output_path é Path
+        output_path = self._ensure_path(output_path)
+        
+        # Criar diretório se necessário
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Validar config
+        validated_config = self._validate_config(config)
+        
+        # Validar que temos os dados necessários
+        self._validate_data(data)
+        
+        # Chamar implementação real
+        return self._render_impl(data, validated_config, output_path)
+    
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Implementação concreta do validate_config"""
+        return True, None
+    
+    def _ensure_path(self, path: Union[str, Path]) -> Path:
+        """Converte para Path se necessário"""
+        return Path(path) if not isinstance(path, Path) else path
+    
+    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Valida e aplica defaults aos parâmetros"""
+        meta = self.meta()
+        validated = {}
+        
+        for param_name, param_spec in meta.parameters.items():
+            if param_name in config:
+                # Validação especial para 'choice'
+                if param_spec.get('type') == 'choice' and 'options' in param_spec:
+                    if config[param_name] not in param_spec['options']:
+                        raise ValueError(
+                            f"Parâmetro '{param_name}' deve ser um de {param_spec['options']}, "
+                            f"recebido: {config[param_name]}"
+                        )
+                validated[param_name] = config[param_name]
+            else:
+                validated[param_name] = param_spec.get('default')
+        
+        return validated
+    
+    def _validate_data(self, data: Dict[str, Any]):
+        """Valida que os dados têm os campos necessários"""
+        meta = self.meta()
+        if meta.requires:
+            for required_field in meta.requires:
+                if required_field not in data:
+                    raise ValueError(
+                        f"Visualizador '{meta.id}' requer campo '{required_field}' nos dados"
+                    )
+    
+    def _render_impl(self, data: Dict[str, Any], config: Dict[str, Any], 
+                     output_path: Path) -> Path:
+        """Implementação real do visualizer - override este método"""
+        raise NotImplementedError("Subclasse deve implementar _render_impl()")
+
+
+class BaseDocumentPlugin(IDocumentPlugin):
+    """Base class para document processors"""
+    
+    def process(self, document: Document, config: Dict[str, Any], 
+                context: Dict[str, Any]) -> Dict[str, Any]:
+        """Wrapper que valida antes de processar"""
+        validated_config = self._validate_config(config)
+        return self._process_impl(document, validated_config, context)
+    
+    def validate_config(self, config: Dict[str, Any]) -> bool:
+        """Implementação concreta do validate_config"""
+        return True, None
+    
+    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Reutiliza lógica de validação"""
+        meta = self.meta()
+        validated = {}
+        
+        for param_name, param_spec in meta.parameters.items():
+            if param_name in config:
+                validated[param_name] = config[param_name]
+            else:
+                validated[param_name] = param_spec.get('default')
+        
+        return validated
+    
+    def _process_impl(self, document: Document, config: Dict[str, Any], 
+                      context: Dict[str, Any]) -> Dict[str, Any]:
+        """Implementação real - override este método"""
+        raise NotImplementedError("Subclasse deve implementar _process_impl()")
+
+
+
+# Exportar as novas classes
+__all__ = [
+    'QualiaCore',
+    'PluginType', 
+    'PluginMetadata',
+    'IPlugin',
+    'IAnalyzerPlugin',
+    'IFilterPlugin', 
+    'IVisualizerPlugin',
+    'IDocumentPlugin',
+    'IComposerPlugin',
+    'BaseAnalyzerPlugin',      # novo
+    'BaseVisualizerPlugin',    # novo
+    'BaseDocumentPlugin',      # novo
+    'Document',
+    'DependencyResolver',
+    'CacheManager',
+    'PluginLoader',
+    'ExecutionContext',
+    'PipelineStep',
+    'PipelineConfig'
+]
 
 # ============================================================================
 # DEPENDENCY RESOLVER
@@ -291,6 +457,8 @@ class PluginLoader:
                         
                         # Procura por classes que implementam IPlugin
                         for name, obj in inspect.getmembers(module):
+                            if name.startswith('Base'):
+                                continue
                             if (inspect.isclass(obj) and 
                                 issubclass(obj, IPlugin) and 
                                 obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin, 
@@ -393,68 +561,73 @@ class QualiaCore:
         return self.registry
     
     def execute_plugin(self, 
-                      plugin_id: str, 
-                      document: Document,
-                      config: Dict[str, Any] = None) -> Dict[str, Any]:
-        """
-        Executa um plugin sem saber o que ele faz
-        Resolve dependências automaticamente
-        """
-        if plugin_id not in self.plugins:
-            raise ValueError(f"Plugin '{plugin_id}' não encontrado")
-        
-        config = config or {}
-        plugin = self.plugins[plugin_id]
-        metadata = self.registry[plugin_id]
-        
-        # Valida configuração
-        valid, error = plugin.validate_config(config)
-        if not valid:
-            raise ValueError(f"Configuração inválida: {error}")
-        
-        # Verifica cache
-        cached = self.cache.get(document.id, plugin_id, config)
-        if cached is not None:
-            return cached
-        
-        # Cria contexto de execução
-        context = ExecutionContext(document=document)
-        
-        # Resolve e executa dependências
-        dependencies = self.resolver.resolve([plugin_id])
-        dependencies.remove(plugin_id)  # Remove o próprio plugin
-        
-        for dep_id in dependencies:
-            if dep_id in self.plugins:
-                dep_result = self.execute_plugin(dep_id, document, {})
-                context.add_result(dep_id, dep_result)
-        
-        # Executa o plugin baseado em seu tipo
-        result = None
-        dep_results = context.get_dependency_results(metadata.requires)
-        
-        if metadata.type == PluginType.ANALYZER:
-            result = plugin.analyze(document, config, dep_results)
-        elif metadata.type == PluginType.FILTER:
-            # Precisa de dados para filtrar
-            data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
-            result = plugin.filter(data, config)
-        elif metadata.type == PluginType.DOCUMENT:
-            result = plugin.process(document.content, config)
-        elif metadata.type == PluginType.VISUALIZER:
-            # Precisa de dados para visualizar
-            data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
-            output_path = Path(f"./output/{document.id}_{plugin_id}.png")
-            result = plugin.render(data, config, output_path)
-        elif metadata.type == PluginType.COMPOSER:
-            result = plugin.compose(dep_results, config)
-        
-        # Armazena no cache e no documento
-        if result is not None:
-            self.cache.set(document.id, plugin_id, config, result)
-            document.add_analysis(plugin_id, result)
-        
-        return result or {}
+                  plugin_id: str, 
+                  document: Document,
+                  config: Dict[str, Any] = None,
+                  context: Dict[str, Any] = None) -> Dict[str, Any]:  # ADICIONAR context aqui
+                    """
+                    Executa um plugin sem saber o que ele faz
+                    Resolve dependências automaticamente
+                    """
+                    config = config or {}
+                    # REMOVER a linha: context = context or {}  # Essa linha está causando erro
+                    
+                    if plugin_id not in self.plugins:
+                        raise ValueError(f"Plugin '{plugin_id}' não encontrado")
+                    
+                    # REMOVER config = config or {} duplicado
+                    plugin = self.plugins[plugin_id]
+                    metadata = self.registry[plugin_id]
+                    
+                    # Valida configuração
+                    valid, error = plugin.validate_config(config)
+                    if not valid:
+                        raise ValueError(f"Configuração inválida: {error}")
+                    
+                    # Verifica cache
+                    cached = self.cache.get(document.id, plugin_id, config)
+                    if cached is not None:
+                        return cached
+                    
+                    # Cria contexto de execução (RENOMEAR para exec_context para não conflitar)
+                    exec_context = ExecutionContext(document=document)
+                    
+                    # Resolve e executa dependências
+                    dependencies = self.resolver.resolve([plugin_id])
+                    dependencies.remove(plugin_id)  # Remove o próprio plugin
+                    
+                    for dep_id in dependencies:
+                        if dep_id in self.plugins:
+                            dep_result = self.execute_plugin(dep_id, document, {})
+                            exec_context.add_result(dep_id, dep_result)
+                    
+                    # Executa o plugin baseado em seu tipo
+                    result = None
+                    dep_results = exec_context.get_dependency_results(metadata.requires)
+                    
+                    if metadata.type == PluginType.ANALYZER:
+                        result = plugin.analyze(document, config, dep_results)
+                    elif metadata.type == PluginType.FILTER:
+                        # Precisa de dados para filtrar
+                        data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
+                        result = plugin.filter(data, config)
+                    elif metadata.type == PluginType.DOCUMENT:
+                        # CORRIGIR: passar document (não document.content) e context simples
+                        result = plugin.process(document, config, context or {})
+                    elif metadata.type == PluginType.VISUALIZER:
+                        # Precisa de dados para visualizar
+                        data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
+                        output_path = Path(f"./output/{document.id}_{plugin_id}.png")
+                        result = plugin.render(data, config, output_path)
+                    elif metadata.type == PluginType.COMPOSER:
+                        result = plugin.compose(dep_results, config)
+                    
+                    # Armazena no cache e no documento
+                    if result is not None:
+                        self.cache.set(document.id, plugin_id, config, result)
+                        document.add_analysis(plugin_id, result)
+                    
+                    return result or {}
     
     def execute_pipeline(self, 
                         pipeline_config: PipelineConfig,

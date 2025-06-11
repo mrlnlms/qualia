@@ -1,0 +1,14 @@
+[00:00:00] Sistema: Recording Started
+[00:00:05] Ana Silva: Bom dia! Vamos começar nossa análise do projeto.
+[00:00:10] Carlos Santos: Olá Ana! Estou muito animado com os resultados.
+[00:00:15] Ana Silva: Sim, o framework Qualia está superando expectativas!
+[00:00:20] Sistema: Bruno Oliveira joined the meeting
+[00:00:25] Bruno Oliveira: Desculpem o atraso. O que perdi?
+[00:00:30] Carlos Santos: Estávamos falando sobre o sucesso do Qualia.
+[00:00:35] Ana Silva: Bruno, você precisa ver as visualizações que geramos!
+[00:00:40] Bruno Oliveira: Incrível! Isso vai revolucionar nossa pesquisa.
+[00:00:45] Carlos Santos: Concordo. A análise qualitativa nunca foi tão fácil.
+[00:00:50] Ana Silva: Vamos preparar uma apresentação para a diretoria?
+[00:00:55] Bruno Oliveira: Ótima ideia! Podemos mostrar casos reais.
+[00:01:00] Carlos Santos: Perfeito. Vou documentar tudo.
+[00:01:05] Sistema: Recording Stopped

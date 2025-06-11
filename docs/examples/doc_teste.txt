@@ -1,0 +1,5 @@
+Qualia Core é um framework bare metal para análise qualitativa. 
+O framework permite transformar dados qualitativos em insights quantificados.
+Bare metal significa que o core não conhece tipos de análise.
+Toda inteligência está nos plugins. Plugins são wrappers inteligentes.
+Framework framework framework teste teste.

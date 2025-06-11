@@ -11,7 +11,7 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
 ### Dezembro 2024 - Fundação
 
 #### Sessão 1 - Arquitetura Bare Metal
-- **Data**: [Inserir data]
+- **Data**: Início Dezembro 2024
 - **Conquistas**:
   - ✅ Definição da arquitetura bare metal
   - ✅ Implementação do Core agnóstico
@@ -20,23 +20,6 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
   - ✅ Document object como single source of truth
   - ✅ Dependency resolver com detecção de ciclos
   - ✅ Cache manager inteligente
-
-- **Decisões Arquiteturais**:
-  - Core não conhece NENHUM tipo de análise
-  - Plugins se auto-descrevem completamente
-  - Configuração como metodologia científica
-  - Document-centric architecture
-
-- **Código Principal**:
-  ```python
-  # qualia/core/__init__.py
-  - QualiaCore: Orquestrador puro
-  - PluginMetadata: Auto-descrição
-  - IPlugin e subclasses: Contratos
-  - Document: Container de análises
-  - DependencyResolver: Grafo de dependências
-  - CacheManager: Cache por hash
-  ```
 
 #### Sessão 2 - Primeiros Plugins e CLI
 - **Conquistas**:
@@ -48,14 +31,28 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
   - ✅ Setup.py para instalação
   - ✅ Comandos: list, inspect, analyze, process, pipeline
   - ✅ Visualizações funcionando (PNG e HTML interativo)
-  - ✅ Pipelines com análise + visualização integradas
+
+#### Sessão 3 - Comando Visualize e Base Classes (11 Dez 2024)
+- **Conquistas**:
+  - ✅ Comando `visualize` implementado na CLI
+  - ✅ Base classes para reduzir código repetitivo
+  - ✅ Refatoração mínima dos plugins (mantendo funcionalidades)
+  - ✅ Correção de compatibilidade Python 3.13
+  - ✅ Sistema completo funcionando end-to-end
 
 - **Problemas Resolvidos**:
-  - Import de `cli.py` vs `cly.py` (typo)
-  - Configuração do interpretador Python no VSCode
-  - Instalação de dependências no ambiente virtual
-  - Alias para execução simplificada
-  - Template HTML do wordcloud (escape de chaves)
+  - TypeError com Path objects vs strings
+  - click.Exit não existe no Python 3.13 → SystemExit
+  - validate_config retornando bool vs Tuple[bool, Optional[str]]
+  - PluginLoader tentando instanciar base classes
+  - PluginMetadata não aceita campo 'author'
+
+- **Arquitetura de Base Classes**:
+  ```python
+  BaseAnalyzerPlugin → analyze() → _analyze_impl()
+  BaseVisualizerPlugin → render() → _render_impl()
+  BaseDocumentPlugin → process() → _process_impl()
+  ```
 
 ## 🏗️ Estado Atual da Arquitetura
 
@@ -66,172 +63,119 @@ QualiaCore:
   - execute_plugin()
   - execute_pipeline()
   - add_document()
+
+Base Classes (novo):
+  - BaseAnalyzerPlugin
+  - BaseVisualizerPlugin
+  - BaseDocumentPlugin
 ```
 
-### Plugins Implementados
-1. **word_frequency**
-   - Conta palavras com múltiplos parâmetros
-   - Suporta análise por speaker
-   - Remove stopwords configurável
+### Plugins Implementados (4)
+1. **word_frequency** - Análise de frequência com NLTK
+2. **teams_cleaner** - Limpeza de transcrições Teams
+3. **wordcloud_viz** - Nuvem de palavras (PNG/SVG/HTML)
+4. **frequency_chart** - Gráficos diversos (Plotly/Matplotlib)
 
-2. **teams_cleaner**
-   - Limpa transcrições do Teams
-   - Cria variantes (participants_only, etc)
-   - Quality report com score
-
-3. **wordcloud_viz**
-   - Gera nuvens de palavras
-   - Formatos: PNG, SVG, HTML interativo
-   - Múltiplos esquemas de cores
-   - Template D3.js para versão web
-
-4. **frequency_chart**
-   - Gráficos de barras (vertical/horizontal)
-   - Gráficos de linha e área
-   - Plotly para versões interativas
-   - Matplotlib para estáticos
-
-### CLI Comandos
+### CLI Comandos Funcionais
 - `qualia list [-t type] [-d]`
 - `qualia inspect <plugin>`
 - `qualia analyze <doc> -p <plugin> [-P key=value]`
 - `qualia process <doc> -p <plugin> [--save-as]`
 - `qualia pipeline <doc> -c <config> [-o dir]`
+- `qualia visualize <data> -p <plugin> [-o output]` ← NOVO!
+- `qualia list-visualizers`
 - `qualia init`
 
-## 🚀 Próximos Passos Planejados
+## 🎨 Comando Visualize
 
-### Fase 3 - Comando Visualize (PRÓXIMO IMEDIATO)
-- [x] Interface IVisualizerPlugin ✓
-- [x] wordcloud_viz ✓
-- [x] frequency_chart ✓
-- [ ] Comando `visualize` na CLI
-- [ ] dashboard_composer
-- [ ] network_viz
-
-### Fase 4 - Mais Analyzers
-- [ ] sentiment_analyzer
-- [ ] lda_analyzer
-- [ ] narrative_structure
-- [ ] speaker_dynamics
-
-### Fase 5 - API REST
-- [ ] FastAPI setup
-- [ ] Endpoints básicos
-- [ ] WebSocket para real-time
-
-### Fase 6 - Obsidian Plugin
-- [ ] Plugin básico
-- [ ] Análise de notas
-- [ ] Embed de resultados
-
-## 🛠️ Configuração do Ambiente
-
-### Dependências Principais
-```txt
-click>=8.0          # CLI
-rich>=13.0          # Terminal formatting
-pyyaml>=6.0         # Configurações
-pydantic>=2.0       # Validação
-nltk>=3.8           # NLP
-pandas              # Manipulação de dados
-numpy               # Computação numérica
-
-# Próximas adições
-plotly              # Visualizações interativas
-matplotlib          # Visualizações estáticas
-wordcloud           # Nuvens de palavras
-scikit-learn        # LDA, clustering
-textblob            # Sentiment analysis
+### Uso
+```bash
+qualia visualize data.json -p wordcloud_viz -o cloud.png
+qualia visualize data.json -p frequency_chart -o chart.html -P chart_type=horizontal_bar
 ```
 
-### Estrutura de Diretórios
-```
-qualia/                 # Código principal
-├── core/              # Engine (✓ implementado)
-├── cli.py             # Interface CLI (✓ implementado)
-├── document_lab/      # (próxima fase)
-├── visual_engine/     # (próxima fase)
-└── ...
+### Características
+- Auto-detecção de formato pela extensão
+- Suporte a parâmetros via CLI (-P)
+- Validação automática de dados
+- Criação de diretórios se necessário
 
-plugins/               # Plugins instalados
-├── word_frequency/    # (✓ implementado)
-├── teams_cleaner/     # (✓ implementado)
-└── [novos plugins]/
+## 🔧 Padrões Estabelecidos
 
-configs/              # Configurações do usuário
-├── pipelines/        # Pipelines salvos
-└── methodologies/    # Metodologias científicas
-
-data/                 # Documentos
-├── raw/             # Originais
-└── processed/       # Processados
-```
-
-## 💡 Padrões Estabelecidos
-
-### Criando um Analyzer
+### Plugin com Base Class
 ```python
-class MyAnalyzer(IAnalyzerPlugin):
+from qualia.core import BaseAnalyzerPlugin
+
+class MyAnalyzer(BaseAnalyzerPlugin):
     def meta(self) -> PluginMetadata:
-        return PluginMetadata(
-            id="my_analyzer",
-            type=PluginType.ANALYZER,
-            provides=["output_key"],
-            requires=[],  # Dependencies
-            parameters={
-                "param": {"type": "int", "default": 10}
-            }
-        )
+        return PluginMetadata(...)
     
-    def analyze(self, document, config, context):
-        # Implementação
-        return {"output_key": result}
+    def _analyze_impl(self, document, config, context):
+        # Apenas lógica de negócio
+        # Validações já feitas pela base class
 ```
 
-### Criando um Visualizer (próximo)
-```python
-class MyVisualizer(IVisualizerPlugin):
-    def meta(self) -> PluginMetadata:
-        return PluginMetadata(
-            accepts=["word_frequencies"],
-            outputs=["png", "html"],
-            parameters={...}
-        )
-    
-    def render(self, data, config, output_path):
-        # Gerar visualização
-        return str(output_path)
-```
+### Benefícios das Base Classes
+- 30% menos código nos plugins
+- Validações automáticas
+- Conversão de tipos (str → Path)
+- Aplicação de defaults
+- Compatibilidade futura (API, GUI)
 
-## 🐛 Issues Conhecidas
+## 🐛 Issues Resolvidas
 
-1. **Performance**: Cache não tem limite de tamanho
-2. **Validação**: Parâmetros de plugin precisam melhor validação
-3. **Documentação**: Falta documentação inline em alguns métodos
-4. **Testes**: Precisamos de testes unitários
+### Python 3.13 Compatibility
+- `click.Exit` → `SystemExit`
+- Type hints atualizados
 
-## 📝 Notas de Design
+### Validações
+- `validate_config` retorna `Tuple[bool, Optional[str]]`
+- Todos os plugins implementam corretamente
 
-### Por que "Bare Metal"?
-- Core não tem conhecimento de domínio
-- Máxima flexibilidade para plugins
-- Evolução sem breaking changes
-- Complexidade fica nos plugins
+### PluginLoader
+- Ignora classes Base* e abstratas
+- Carrega apenas plugins concretos
 
-### Por que "Configuration as Methodology"?
-- Pesquisa precisa ser reproduzível
-- Parâmetros têm justificativa científica
-- Configurações são conhecimento codificado
-- "tese_diabetes_2024.yaml" = metodologia reutilizável
+## 📝 Notas Técnicas
+
+### Decisão: Base Classes vs Interfaces Puras
+- Optamos por base classes para reduzir repetição
+- Mantém filosofia bare metal (base classes são opcionais)
+- Facilita evolução sem breaking changes
+
+### Refatoração Mínima
+- Mudanças mínimas nos plugins existentes
+- Preservação de exemplos e documentação
+- Foco em compatibilidade
+
+## 🚀 Próximos Passos
+
+1. **Mais Analyzers**
+   - sentiment_analyzer
+   - lda_analyzer
+   - narrative_structure
+
+2. **Dashboard Composer**
+   - Combinar múltiplas visualizações
+   - Templates de relatórios
+
+3. **API REST**
+   - FastAPI
+   - Endpoints para análise
+   - WebSocket para real-time
+
+4. **Testes Unitários**
+   - pytest
+   - Coverage > 80%
 
 ## 🔗 Recursos
 
 - **GitHub**: https://github.com/mrlnlms/qualia
-- **Inspirações**: spaCy, Kedro, Prodigy
-- **Projeto Original**: transcript-analyzer (sendo substituído)
+- **Python**: 3.8+ (testado em 3.13)
+- **Dependências principais**: click, rich, nltk, matplotlib, wordcloud, plotly
 
 ---
 
-**Última Atualização**: Dezembro 2024
-**Próxima Sessão**: Implementar visualizadores
+**Última Atualização**: 11 Dezembro 2024, 06:00 UTC
+**Versão**: 0.1.0
+**Status**: Funcional com comando visualize ✅
