@@ -3,9 +3,9 @@
 Um framework bare metal para transformação de dados qualitativos em insights quantificados.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Status](https://img.shields.io/badge/status-100%25%20funcional-success.svg)](https://github.com/yourusername/qualia)
+[![Status](https://img.shields.io/badge/status-95%25%20funcional-success.svg)](https://github.com/yourusername/qualia)
 [![CLI](https://img.shields.io/badge/CLI-13%20comandos-green.svg)](https://github.com/yourusername/qualia)
-[![API](https://img.shields.io/badge/API-REST%20%2B%20Swagger-orange.svg)](https://github.com/yourusername/qualia)
+[![API](https://img.shields.io/badge/API-REST%20%2B%20Webhooks-orange.svg)](https://github.com/yourusername/qualia)
 
 > **Qualia** transforma análise qualitativa de "procurar scripts perdidos" em "funcionalidade permanente e organizada"
 
@@ -21,9 +21,10 @@ pip install -e .
 # Interface interativa
 qualia menu
 
-# API REST
+# API REST com Monitor
 python run_api.py --reload
-# Acesse: http://localhost:8000/docs
+# API: http://localhost:8000/docs
+# Monitor: http://localhost:8000/monitor/
 ```
 
 ## ✨ Funcionalidades Principais
@@ -41,10 +42,33 @@ qualia menu
 ```bash
 python run_api.py
 ```
-- 11 endpoints RESTful
+- 11+ endpoints RESTful
 - Documentação Swagger automática
 - Upload de arquivos
 - Execução de pipelines via HTTP
+- **NOVO**: Webhooks para integrações
+- **NOVO**: Monitor em tempo real
+
+### 📡 Webhooks (NOVO!)
+```bash
+# Receber eventos externos para análise automática
+POST /webhook/custom
+POST /webhook/github    # Em breve
+POST /webhook/slack     # Em breve
+```
+
+Exemplo:
+```bash
+curl -X POST http://localhost:8000/webhook/custom \
+  -H "Content-Type: application/json" \
+  -d '{"text": "Analisar este texto!", "plugin": "sentiment_analyzer"}'
+```
+
+### 📊 Monitor em Tempo Real (NOVO!)
+- Dashboard visual: http://localhost:8000/monitor/
+- Métricas ao vivo: requests/min, plugins usados, erros
+- Gráficos em Canvas nativo (zero dependências)
+- Stream de eventos via SSE
 
 ### 🔄 Processamento em Lote
 ```bash
@@ -87,14 +111,37 @@ qualia pipeline transcript.txt -c pipeline.yaml
 
 ## 📦 Plugins Disponíveis
 
-| Plugin | Tipo | Descrição | Novo |
-|--------|------|-----------|------|
-| `word_frequency` | Analyzer | Análise de frequência com NLTK | |
-| `sentiment_analyzer` | Analyzer | Análise de sentimento (TextBlob) | ✨ |
-| `teams_cleaner` | Document | Limpeza de transcrições Teams | |
-| `wordcloud_viz` | Visualizer | Nuvem de palavras customizável | |
-| `frequency_chart` | Visualizer | Gráficos interativos (bar, pie, treemap) | |
-| `sentiment_viz` | Visualizer | Visualizações de sentimento | ✨ |
+| Plugin | Tipo | Descrição |
+|--------|------|-----------|
+| `word_frequency` | Analyzer | Análise de frequência com NLTK |
+| `sentiment_analyzer` | Analyzer | Análise de sentimento (TextBlob) |
+| `teams_cleaner` | Document | Limpeza de transcrições Teams |
+| `wordcloud_viz` | Visualizer | Nuvem de palavras customizável |
+| `frequency_chart` | Visualizer | Gráficos interativos (bar, pie, treemap) |
+| `sentiment_viz` | Visualizer | Visualizações de sentimento |
+
+## 🐳 Docker & Deploy (NOVO!)
+
+### Quick Start com Docker
+```bash
+# Build e executar
+docker-compose up -d
+
+# Acessar
+# API: http://localhost:8000
+# Monitor: http://localhost:8000/monitor/
+```
+
+### Deploy em Produção
+```bash
+# Com Nginx e SSL
+docker-compose --profile production up -d
+
+# Escalar
+docker-compose up -d --scale qualia-api=3
+```
+
+Veja [DEPLOY.md](DEPLOY.md) para guias completos (AWS, Heroku, GCP).
 
 ## 🛠️ Comandos CLI
 
@@ -124,10 +171,14 @@ python run_api.py --workers 4
 ```
 
 ### Endpoints Principais
+- `GET /` - Informações da API
+- `GET /health` - Status de saúde
 - `GET /plugins` - Lista todos os plugins
 - `POST /analyze/{plugin_id}` - Executa análise
 - `POST /visualize/{plugin_id}` - Gera visualização
 - `POST /pipeline` - Executa pipeline completo
+- `POST /webhook/custom` - Webhook genérico (NOVO!)
+- `GET /monitor/` - Dashboard de monitoramento (NOVO!)
 
 ### Exemplo de Uso
 ```python
@@ -185,6 +236,8 @@ qualia/
 │   ├── commands/   # Comandos modularizados
 │   └── interactive # Menu interativo
 ├── api/            # API REST com FastAPI
+│   ├── webhooks.py # Handlers de webhooks (NOVO!)
+│   └── monitor.py  # Monitor em tempo real (NOVO!)
 └── plugins/        # Plugins com lógica específica
 ```
 
@@ -196,26 +249,26 @@ qualia/
 
 ## 📊 Status do Projeto
 
-- ✅ **100% Funcional** - Todos os testes passando
+- ✅ **95% Funcional** - 2 bugs menores conhecidos
 - ✅ **13 Comandos CLI** - Interface completa
-- ✅ **11 Endpoints API** - REST com Swagger
+- ✅ **11+ Endpoints API** - REST com Swagger
+- ✅ **Webhooks** - Integração com serviços externos
+- ✅ **Monitor Real-time** - Dashboard de métricas
 - ✅ **6 Plugins** - Prontos para uso
+- ✅ **Docker Ready** - Containerização completa
 - ✅ **Python 3.8-3.13** - Compatibilidade testada
 
 ## 🚀 Roadmap
 
-### Próximo: Webhooks (1-2h)
-```python
-POST /webhook/github    # CI/CD insights
-POST /webhook/slack     # Análise de conversas
-POST /webhook/custom    # Qualquer serviço
-```
+### Imediato (Próxima sessão)
+- [ ] Corrigir bug do pipeline (30min)
+- [ ] Frontend web simples (2-3h)
 
 ### Em Desenvolvimento
 - [ ] Dashboard Composer - Relatórios combinados
-- [ ] Frontend React - Interface web
 - [ ] theme_extractor - Análise de tópicos (LDA)
-- [ ] Docker + Deploy - Containerização
+- [ ] entity_recognizer - Reconhecimento de entidades
+- [ ] Autenticação JWT na API
 
 ## 🤝 Contribuindo
 
@@ -229,9 +282,17 @@ POST /webhook/custom    # Qualquer serviço
 
 - [Development Log](DEVELOPMENT_LOG.md) - História completa do desenvolvimento
 - [Project State](PROJECT_STATE.md) - Estado atual detalhado
-- [API Docs](API_README.md) - Referência completa da API
-- [Lessons Learned](LESSONS_LEARNED_SESSION_6.md) - Aprendizados recentes
+- [Infrastructure](INFRASTRUCTURE.md) - Guia de infraestrutura (NOVO!)
+- [Deploy Guide](DEPLOY.md) - Como fazer deploy (NOVO!)
+- [API Docs](http://localhost:8000/docs) - Referência interativa da API
 - [Plugin Examples](plugins/) - Código dos plugins
+
+## 🐛 Bugs Conhecidos
+
+1. **Pipeline endpoint** - `execute_pipeline` precisa de ajuste no parâmetro Document/string
+2. **Pipeline com mixed types** - Document processors + analyzers precisam de steps separados
+
+Workarounds disponíveis. Correções na próxima versão.
 
 ## 📄 Licença
 

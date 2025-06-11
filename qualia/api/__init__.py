@@ -17,6 +17,15 @@ import io
 
 from qualia.core import QualiaCore, Document
 
+# Import new modules
+try:
+    from qualia.api.webhooks import router as webhook_router, init_webhooks
+    from qualia.api.monitor import router as monitor_router, track_request, track_webhook
+    HAS_EXTENSIONS = True
+except ImportError:
+    HAS_EXTENSIONS = False
+    print("Warning: Webhook and monitor modules not found. Running in basic mode.")
+
 # Initialize FastAPI app
 app = FastAPI(
     title="Qualia Core API",
@@ -36,6 +45,16 @@ app.add_middleware(
 # Initialize Qualia Core
 core = QualiaCore()
 core.discover_plugins()
+
+# Initialize extensions if available
+if HAS_EXTENSIONS:
+    # Initialize webhooks with core instance
+    init_webhooks(core)
+#     set_tracking_callback(track_webhook)
+    
+    # Include routers
+    app.include_router(webhook_router)
+    app.include_router(monitor_router)
 
 # Pydantic models for request/response
 class AnalyzeRequest(BaseModel):
@@ -93,17 +112,30 @@ def plugin_to_info(plugin_id: str) -> PluginInfo:
 @app.get("/")
 def root():
     """Root endpoint with API information"""
+    endpoints = {
+        "plugins": "/plugins",
+        "analyze": "/analyze/{plugin_id}",
+        "process": "/process/{plugin_id}",
+        "visualize": "/visualize/{plugin_id}",
+        "pipeline": "/pipeline",
+        "health": "/health"
+    }
+    
+    # Add extension endpoints if available
+    if HAS_EXTENSIONS:
+        endpoints.update({
+            "webhooks": "/webhook/{provider}",
+            "webhook_stats": "/webhook/stats",
+            "monitor": "/monitor/",
+            "monitor_stream": "/monitor/stream"
+        })
+    
     return {
         "name": "Qualia Core API",
         "version": "0.1.0",
         "description": "REST API for qualitative analysis",
-        "endpoints": {
-            "plugins": "/plugins",
-            "analyze": "/analyze/{plugin_id}",
-            "process": "/process/{plugin_id}",
-            "visualize": "/visualize/{plugin_id}",
-            "pipeline": "/pipeline"
-        }
+        "endpoints": endpoints,
+        "documentation": "/docs"
     }
 
 @app.get("/plugins", response_model=List[PluginInfo])
@@ -132,12 +164,19 @@ async def analyze(plugin_id: str, request: AnalyzeRequest):
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, request.config, request.context)
         
+        # Track metrics if available
+        if HAS_EXTENSIONS:
+            await track_request(f"/analyze/{plugin_id}", plugin_id)
+        
         return {
             "status": "success",
             "plugin_id": plugin_id,
             "result": result
         }
     except Exception as e:
+        # Track error if monitoring available
+        if HAS_EXTENSIONS:
+            await track_request(f"/analyze/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/analyze/{plugin_id}/file")
@@ -163,6 +202,10 @@ async def analyze_file(
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, config_dict, context_dict)
         
+        # Track metrics if available
+        if HAS_EXTENSIONS:
+            await track_request(f"/analyze/{plugin_id}/file", plugin_id)
+        
         return {
             "status": "success",
             "plugin_id": plugin_id,
@@ -170,6 +213,9 @@ async def analyze_file(
             "result": result
         }
     except Exception as e:
+        # Track error if monitoring available
+        if HAS_EXTENSIONS:
+            await track_request(f"/analyze/{plugin_id}/file", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/process/{plugin_id}")
@@ -186,12 +232,19 @@ async def process(plugin_id: str, request: ProcessRequest):
         if isinstance(result, Document):
             result = result.content
         
+        # Track metrics if available
+        if HAS_EXTENSIONS:
+            await track_request(f"/process/{plugin_id}", plugin_id)
+        
         return {
             "status": "success",
             "plugin_id": plugin_id,
             "processed_text": result
         }
     except Exception as e:
+        # Track error if monitoring available
+        if HAS_EXTENSIONS:
+            await track_request(f"/process/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/visualize/{plugin_id}")
@@ -210,6 +263,10 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
         
         # Visualizers expect: render(data, config, output_path)
         plugin.render(request.data, request.config, output_path)
+        
+        # Track metrics if available
+        if HAS_EXTENSIONS:
+            await track_request(f"/visualize/{plugin_id}", plugin_id)
         
         # Return file based on format
         if request.output_format in ["png", "svg"]:
@@ -251,6 +308,9 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
             )
             
     except Exception as e:
+        # Track error if monitoring available
+        if HAS_EXTENSIONS:
+            await track_request(f"/visualize/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/pipeline")
@@ -273,7 +333,11 @@ async def execute_pipeline(request: PipelineRequest):
         }
         
         # Execute pipeline
-        results = core.execute_pipeline(doc, pipeline_config)
+        results = core.execute_pipeline(doc.id, pipeline_config)
+        
+        # Track metrics if available
+        if HAS_EXTENSIONS:
+            await track_request("/pipeline")
         
         return {
             "status": "success",
@@ -282,6 +346,9 @@ async def execute_pipeline(request: PipelineRequest):
             "results": results
         }
     except Exception as e:
+        # Track error if monitoring available
+        if HAS_EXTENSIONS:
+            await track_request("/pipeline", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
 
 @app.get("/health")
@@ -294,6 +361,10 @@ def health_check():
             "analyzers": len([p for p in core.plugins.values() if p.meta().type.value == "analyzer"]),
             "visualizers": len([p for p in core.plugins.values() if p.meta().type.value == "visualizer"]),
             "document_processors": len([p for p in core.plugins.values() if p.meta().type.value == "document"])
+        },
+        "extensions": {
+            "webhooks": HAS_EXTENSIONS,
+            "monitoring": HAS_EXTENSIONS
         }
     }
 
