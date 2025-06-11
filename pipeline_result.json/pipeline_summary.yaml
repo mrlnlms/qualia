@@ -1,0 +1,7 @@
+document: test_pipeline.txt
+pipeline: "An\xE1lise Completa com Sentimento"
+results:
+- word_frequency
+- sentiment_analyzer
+steps_executed: 2
+timestamp: '2025-06-11 13:06:05'

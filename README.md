@@ -3,24 +3,28 @@
 Um framework bare metal para transformação de dados qualitativos em insights quantificados.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Status](https://img.shields.io/badge/status-100%25%20funcional-success.svg)](https://github.com/mrlnlms/qualia)
-[![CLI](https://img.shields.io/badge/CLI-13%20comandos-green.svg)](https://github.com/mrlnlms/qualia)
+[![Status](https://img.shields.io/badge/status-100%25%20funcional-success.svg)](https://github.com/yourusername/qualia)
+[![CLI](https://img.shields.io/badge/CLI-13%20comandos-green.svg)](https://github.com/yourusername/qualia)
+[![API](https://img.shields.io/badge/API-REST%20%2B%20Swagger-orange.svg)](https://github.com/yourusername/qualia)
 
 > **Qualia** transforma análise qualitativa de "procurar scripts perdidos" em "funcionalidade permanente e organizada"
 
 ## 🚀 Quick Start
 
 ```bash
-# Instalar e iniciar
-git clone https://github.com/mrlnlms/qualia
+# Instalar
+git clone https://github.com/yourusername/qualia
 cd qualia
+pip install -r requirements.txt
 pip install -e .
 
 # Interface interativa
 qualia menu
-```
 
-![Menu Demo](docs/images/menu_demo.gif) *(exemplo do menu interativo)*
+# API REST
+python run_api.py --reload
+# Acesse: http://localhost:8000/docs
+```
 
 ## ✨ Funcionalidades Principais
 
@@ -32,6 +36,15 @@ qualia menu
 - Configuração visual de parâmetros  
 - Preview de resultados
 - Tutoriais integrados
+
+### 🌐 API REST com Documentação
+```bash
+python run_api.py
+```
+- 11 endpoints RESTful
+- Documentação Swagger automática
+- Upload de arquivos
+- Execução de pipelines via HTTP
 
 ### 🔄 Processamento em Lote
 ```bash
@@ -47,35 +60,41 @@ qualia watch inbox/ -p teams_cleaner -o processed/
 # Análise de frequência
 qualia analyze doc.txt -p word_frequency -P min_length=4
 
-# Gerar nuvem de palavras
+# Análise de sentimento
+qualia analyze feedback.txt -p sentiment_analyzer
+
+# Gerar visualizações
 qualia visualize data.json -p wordcloud_viz -o cloud.png
+qualia visualize sentiment.json -p sentiment_viz -o dashboard.html
 ```
 
 ### 🔁 Pipelines Configuráveis
 ```yaml
 # pipeline.yaml
-name: research_pipeline
+name: complete_analysis
 steps:
   - plugin: teams_cleaner
     config: {remove_timestamps: true}
+  - plugin: sentiment_analyzer
+    config: {analyze_sentences: true}
   - plugin: word_frequency
     config: {min_word_length: 4}
-  - plugin: wordcloud_viz
-    config: {colormap: viridis}
 ```
 
 ```bash
-qualia pipeline doc.txt -c pipeline.yaml
+qualia pipeline transcript.txt -c pipeline.yaml
 ```
 
 ## 📦 Plugins Disponíveis
 
-| Plugin | Tipo | Descrição |
-|--------|------|-----------|
-| `word_frequency` | Analyzer | Análise de frequência com NLTK |
-| `teams_cleaner` | Document | Limpeza de transcrições Teams |
-| `wordcloud_viz` | Visualizer | Nuvem de palavras customizável |
-| `frequency_chart` | Visualizer | Gráficos interativos (bar, pie, treemap) |
+| Plugin | Tipo | Descrição | Novo |
+|--------|------|-----------|------|
+| `word_frequency` | Analyzer | Análise de frequência com NLTK | |
+| `sentiment_analyzer` | Analyzer | Análise de sentimento (TextBlob) | ✨ |
+| `teams_cleaner` | Document | Limpeza de transcrições Teams | |
+| `wordcloud_viz` | Visualizer | Nuvem de palavras customizável | |
+| `frequency_chart` | Visualizer | Gráficos interativos (bar, pie, treemap) | |
+| `sentiment_viz` | Visualizer | Visualizações de sentimento | ✨ |
 
 ## 🛠️ Comandos CLI
 
@@ -87,94 +106,132 @@ qualia pipeline doc.txt -c pipeline.yaml
 - `qualia visualize` - Cria visualização
 - `qualia pipeline` - Executa pipeline
 
-### Comandos Avançados (Novo!)
+### Comandos Avançados
 - `qualia watch` - Monitora pasta continuamente
 - `qualia batch` - Processa múltiplos arquivos
 - `qualia export` - Converte formatos (CSV, Excel, HTML)
 - `qualia config` - Cria configurações interativamente
 
+## 🌐 API REST
+
+### Executar API
+```bash
+# Desenvolvimento (com auto-reload)
+python run_api.py --reload
+
+# Produção
+python run_api.py --workers 4
+```
+
+### Endpoints Principais
+- `GET /plugins` - Lista todos os plugins
+- `POST /analyze/{plugin_id}` - Executa análise
+- `POST /visualize/{plugin_id}` - Gera visualização
+- `POST /pipeline` - Executa pipeline completo
+
+### Exemplo de Uso
+```python
+import requests
+
+# Analisar sentimento
+response = requests.post(
+    "http://localhost:8000/analyze/sentiment_analyzer",
+    json={"text": "Este produto é incrível!"}
+)
+print(response.json()["result"]["sentiment_label"])  # "positivo"
+```
+
+Documentação interativa disponível em: http://localhost:8000/docs
+
 ## 🔧 Desenvolvimento de Plugins
 
 ### Criar Novo Plugin
 ```bash
-python tools/create_plugin.py sentiment_analyzer analyzer
+python tools/create_plugin.py meu_analyzer analyzer
 ```
 
-### Estrutura Gerada
+### Estrutura Mínima
 ```python
-class SentimentAnalyzer(BaseAnalyzerPlugin):
+class MeuAnalyzer(BaseAnalyzerPlugin):
     def meta(self) -> PluginMetadata:
         return PluginMetadata(
-            id="sentiment_analyzer",
-            name="Sentiment Analyzer",
-            provides=["sentiment_score"],
+            id="meu_analyzer",
+            name="Meu Analyzer",
+            provides=["minha_metrica"],
             parameters={
-                "language": {
-                    "type": "choice",
-                    "options": ["pt", "en"],
-                    "default": "pt"
+                "param1": {
+                    "type": "integer",
+                    "default": 10
                 }
             }
         )
     
     def _analyze_impl(self, document, config, context):
-        # 🚨 TODO: Implementar análise aqui!
-        return {"sentiment_score": 0.8}
+        # Implementar análise
+        return {"minha_metrica": 42}
 ```
+
+Plugin aparece automaticamente em:
+- CLI: `qualia list`
+- API: `GET /plugins`
+- Menu: Interface interativa
 
 ## 🏗️ Arquitetura
 
 ```
 qualia/
-├── core/           # Engine bare metal (não tem conhecimento de domínio)
-├── cli/            # Interface modular
-│   ├── commands/   # Um arquivo por comando
+├── core/           # Engine bare metal (agnóstico)
+├── cli/            # Interface de linha de comando
+│   ├── commands/   # Comandos modularizados
 │   └── interactive # Menu interativo
-└── plugins/        # Toda inteligência aqui
+├── api/            # API REST com FastAPI
+└── plugins/        # Plugins com lógica específica
 ```
 
 ### Princípios
 1. **Bare Metal**: Core só orquestra, não implementa
-2. **Plugins**: Toda inteligência específica
-3. **Base Classes**: Opcionais, reduzem 30% código
-4. **Zero Coupling**: Plugins independentes
+2. **Auto-discovery**: Plugins se registram automaticamente
+3. **Base Classes**: Reduzem 30% do boilerplate
+4. **Zero Coupling**: Plugins totalmente independentes
 
 ## 📊 Status do Projeto
 
 - ✅ **100% Funcional** - Todos os testes passando
-- ✅ **13 Comandos CLI** - Incluindo watch, batch, export
-- ✅ **4 Plugins** - Prontos para uso
-- ✅ **Menu Interativo** - Interface visual completa
+- ✅ **13 Comandos CLI** - Interface completa
+- ✅ **11 Endpoints API** - REST com Swagger
+- ✅ **6 Plugins** - Prontos para uso
 - ✅ **Python 3.8-3.13** - Compatibilidade testada
 
 ## 🚀 Roadmap
 
-### Próximo: API REST (2-3h)
+### Próximo: Webhooks (1-2h)
 ```python
-POST /analyze/{plugin_id}
-GET /plugins
-POST /pipeline
+POST /webhook/github    # CI/CD insights
+POST /webhook/slack     # Análise de conversas
+POST /webhook/custom    # Qualquer serviço
 ```
 
-### Em Breve
-- [ ] sentiment_analyzer - Análise de sentimentos
-- [ ] dashboard_composer - Relatórios combinados
-- [ ] theme_extractor - Extração de temas (LDA)
-- [ ] Documentação completa (MkDocs)
+### Em Desenvolvimento
+- [ ] Dashboard Composer - Relatórios combinados
+- [ ] Frontend React - Interface web
+- [ ] theme_extractor - Análise de tópicos (LDA)
+- [ ] Docker + Deploy - Containerização
 
 ## 🤝 Contribuindo
 
 1. Fork o projeto
-2. Crie plugin: `python tools/create_plugin.py meu_plugin analyzer`
-3. Implemente e teste: `python plugins/meu_plugin/__init__.py`
-4. Pull Request!
+2. Crie seu plugin: `python tools/create_plugin.py nome tipo`
+3. Implemente seguindo os exemplos existentes
+4. Teste: `python test_suite.py`
+5. Pull Request!
 
 ## 📚 Documentação
 
-- [Development Log](DEVELOPMENT_LOG.md) - História do desenvolvimento
+- [Development Log](DEVELOPMENT_LOG.md) - História completa do desenvolvimento
 - [Project State](PROJECT_STATE.md) - Estado atual detalhado
-- [Plugin Guide](docs/plugin_guide.md) - Como criar plugins
-- [API Reference](docs/api_reference.md) - Documentação da API
+- [API Docs](API_README.md) - Referência completa da API
+- [Lessons Learned](LESSONS_LEARNED_SESSION_6.md) - Aprendizados recentes
+- [Plugin Examples](plugins/) - Código dos plugins
 
 ## 📄 Licença
 

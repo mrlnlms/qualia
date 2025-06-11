@@ -1,0 +1,140 @@
+{
+  "word_frequencies": {
+    "framework": 1,
+    "qualia": 1,
+    "revolucionou": 1,
+    "an\u00e1lise": 1,
+    "qualitativa": 1,
+    "facilidade": 1,
+    "uso": 1,
+    "impressionante": 1,
+    "plugins": 1,
+    "\u00fateis": 1,
+    "alguns": 1,
+    "aspectos": 1,
+    "poderiam": 1,
+    "melhorar": 1,
+    "satisfeitos": 1,
+    "documenta\u00e7\u00e3o": 1,
+    "clara": 1,
+    "exemplos": 1,
+    "ajudam": 1,
+    "bastante": 1
+  },
+  "vocabulary_size": 20,
+  "top_words": [
+    [
+      "framework",
+      1
+    ],
+    [
+      "qualia",
+      1
+    ],
+    [
+      "revolucionou",
+      1
+    ],
+    [
+      "an\u00e1lise",
+      1
+    ],
+    [
+      "qualitativa",
+      1
+    ],
+    [
+      "facilidade",
+      1
+    ],
+    [
+      "uso",
+      1
+    ],
+    [
+      "impressionante",
+      1
+    ],
+    [
+      "plugins",
+      1
+    ],
+    [
+      "\u00fateis",
+      1
+    ],
+    [
+      "alguns",
+      1
+    ],
+    [
+      "aspectos",
+      1
+    ],
+    [
+      "poderiam",
+      1
+    ],
+    [
+      "melhorar",
+      1
+    ],
+    [
+      "satisfeitos",
+      1
+    ],
+    [
+      "documenta\u00e7\u00e3o",
+      1
+    ],
+    [
+      "clara",
+      1
+    ],
+    [
+      "exemplos",
+      1
+    ],
+    [
+      "ajudam",
+      1
+    ],
+    [
+      "bastante",
+      1
+    ]
+  ],
+  "hapax_legomena": [
+    "framework",
+    "qualia",
+    "revolucionou",
+    "an\u00e1lise",
+    "qualitativa",
+    "facilidade",
+    "uso",
+    "impressionante",
+    "plugins",
+    "\u00fateis",
+    "alguns",
+    "aspectos",
+    "poderiam",
+    "melhorar",
+    "satisfeitos",
+    "documenta\u00e7\u00e3o",
+    "clara",
+    "exemplos",
+    "ajudam",
+    "bastante"
+  ],
+  "total_words": 20,
+  "parameters_used": {
+    "min_word_length": 3,
+    "max_words": 100,
+    "case_sensitive": false,
+    "remove_stopwords": true,
+    "language": "portuguese",
+    "tokenization": "simple",
+    "by_segment": false,
+    "by_speaker": false
+  }
+}
