@@ -217,33 +217,49 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
         # Chamar implementação real
         return self._render_impl(data, validated_config, output_path)
     
-    def validate_config(self, config: Dict[str, Any]) -> bool:
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
         """Implementação concreta do validate_config"""
-        return True, None
-    
-    def _ensure_path(self, path: Union[str, Path]) -> Path:
-        """Converte para Path se necessário"""
-        return Path(path) if not isinstance(path, Path) else path
+        try:
+            # Tentar validar usando _validate_config
+            self._validate_config(config)
+            return True, None
+        except Exception as e:
+            return False, str(e)
     
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Valida e aplica defaults aos parâmetros"""
         meta = self.meta()
         validated = {}
         
+        # IMPORTANTE: Aplicar defaults de TODOS os parâmetros definidos no metadata!
         for param_name, param_spec in meta.parameters.items():
             if param_name in config:
-                # Validação especial para 'choice'
-                if param_spec.get('type') == 'choice' and 'options' in param_spec:
-                    if config[param_name] not in param_spec['options']:
-                        raise ValueError(
-                            f"Parâmetro '{param_name}' deve ser um de {param_spec['options']}, "
-                            f"recebido: {config[param_name]}"
-                        )
-                validated[param_name] = config[param_name]
+                # Valor foi fornecido, usar ele
+                value = config[param_name]
+                
+                # Converter tipos se necessário
+                if param_spec.get('type') == 'integer':
+                    validated[param_name] = int(value)
+                elif param_spec.get('type') == 'float':
+                    validated[param_name] = float(value)
+                elif param_spec.get('type') == 'bool':
+                    if isinstance(value, str):
+                        validated[param_name] = value.lower() == 'true'
+                    else:
+                        validated[param_name] = bool(value)
+                else:
+                    validated[param_name] = value
             else:
-                validated[param_name] = param_spec.get('default')
+                # CRUCIAL: Aplicar valor default se não fornecido!
+                if 'default' in param_spec:
+                    validated[param_name] = param_spec['default']
         
         return validated
+    
+    def _ensure_path(self, path: Union[str, Path]) -> Path:
+        """Converte para Path se necessário"""
+        return Path(path) if not isinstance(path, Path) else path
+    
     
     def _validate_data(self, data: Dict[str, Any]):
         """Valida que os dados têm os campos necessários"""
@@ -545,6 +561,9 @@ class QualiaCore:
         # Estado
         self.documents: Dict[str, Document] = {}
         self.pipelines: Dict[str, PipelineConfig] = {}
+        
+        # ADICIONE ESTA LINHA! Descobrir plugins na inicialização
+        self.discover_plugins()
     
     def discover_plugins(self) -> Dict[str, PluginMetadata]:
         """

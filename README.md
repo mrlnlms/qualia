@@ -1,6 +1,6 @@
 # 🔬 Qualia Core
 
-Um framework bare metal para transformação de dados qualitativos em insights quantificados, que inicia vazio e cresce organicamente através de plugins.
+Um framework bare metal para transformação de dados qualitativos em insights quantificados, com interface interativa completa para análise qualitativa.
 
 > **Qualia** (do latim "qualis") - experiências subjetivas qualitativas que este framework transforma em métricas objetivas para pesquisa mixed methods.
 
@@ -15,6 +15,8 @@ Um framework bare metal para transformação de dados qualitativos em insights q
 
 **Com Qualia**:
 ```bash
+$ qualia menu  # Interface interativa completa!
+# ou
 $ qualia analyze documento.txt -p word_frequency
 ✅ Pronto! (usa configuração validada)
 ```
@@ -32,7 +34,7 @@ Seus scripts úteis viram plugins permanentes:
 ```bash
 # Antes: procurar script perdido
 # Agora:
-$ qualia process transcript.txt -p teams_cleaner --save-as clean.txt
+$ qualia process transcript.txt -p teams_cleaner -P remove_timestamps=true --save-as clean.txt
 ✅ Sempre disponível!
 ```
 
@@ -46,11 +48,16 @@ $ qualia process transcript.txt -p teams_cleaner --save-as clean.txt
 ```
 qualia/
 ├── core/              # Engine bare metal + Base Classes
-├── cli.py             # Interface CLI rica
-├── document_lab/      # [Futuro] Preparação de documentos
-├── para_meta/         # [Futuro] Parametrização + metadados
-├── quali_metrics/     # [Futuro] Configurações metodológicas
-└── visual_engine/     # [Futuro] Engine de visualização
+├── cli/               # Interface CLI modular
+│   ├── commands.py    # Comandos CLI
+│   ├── formatters.py  # Formatadores Rich compartilhados
+│   └── interactive/   # Menu interativo
+│       ├── menu.py
+│       ├── handlers.py
+│       ├── tutorials.py
+│       ├── utils.py
+│       └── wizards.py
+└── __main__.py
 
 plugins/               # Inteligência específica
 ├── word_frequency/    # Analyzer implementado
@@ -73,23 +80,31 @@ pip install -e .
 # 2. Inicializar projeto
 qualia init
 
-# 3. Ver plugins disponíveis
-qualia list
+# 3. Interface interativa (NOVO!)
+qualia menu
 
-# 4. Analisar documento
+# 4. Ou usar comandos diretos
 qualia analyze documento.txt -p word_frequency -o analysis.json
-
-# 5. Visualizar resultados
 qualia visualize analysis.json -p wordcloud_viz -o cloud.png
-qualia visualize analysis.json -p frequency_chart -o chart.html
-
-# 6. Abrir visualizações
-open cloud.png      # macOS
-xdg-open chart.html # Linux
-start chart.html    # Windows
 ```
 
-## 🎨 Exemplos de Uso
+## 🎨 Menu Interativo (NOVO!)
+
+O Qualia agora oferece uma interface interativa completa:
+
+```bash
+qualia menu
+```
+
+### Funcionalidades do Menu:
+- 📄 **Análise de documentos** - Wizard guiado com configuração de parâmetros
+- 🎨 **Visualização de resultados** - Escolha formato e personalização
+- 🔄 **Pipelines** - Execute ou crie novos com assistente
+- 🔍 **Explorar plugins** - Veja detalhes e documentação
+- ⚙️ **Configurações** - Gerencie cache e dependências
+- 📚 **Tutoriais integrados** - Aprenda com exemplos práticos
+
+## 📝 Exemplos de Uso
 
 ### Análise Básica
 ```bash
@@ -105,8 +120,8 @@ qualia analyze texto.txt -p word_frequency \
 
 ### Processamento de Transcrições
 ```bash
-# Limpar transcrição do Teams
-qualia process transcript.txt -p teams_cleaner --save-as cleaned.txt
+# Limpar transcrição do Teams (agora com -P!)
+qualia process transcript.txt -p teams_cleaner -P remove_timestamps=true --save-as cleaned.txt
 
 # Ver relatório de qualidade
 qualia process transcript.txt -p teams_cleaner | grep "quality_score"
@@ -121,8 +136,8 @@ qualia visualize data.json -p wordcloud_viz -o cloud.png \
 
 # Gráfico interativo
 qualia visualize data.json -p frequency_chart -o chart.html \
-  -P chart_type=horizontal_bar \
-  -P max_items=20
+  -P chart_type=bar \
+  -P top_n=20
 ```
 
 ### Pipeline Completo
@@ -145,13 +160,17 @@ steps:
 | Plugin | Descrição | Principais Features |
 |--------|-----------|-------------------|
 | **word_frequency** | Análise de frequência de palavras | Multi-idioma, stopwords, tokenização avançada |
+
+### Document Processors
+| Plugin | Descrição | Principais Features |
+|--------|-----------|-------------------|
 | **teams_cleaner** | Limpeza de transcrições Teams | Remove sistema, normaliza speakers, quality score |
 
 ### Visualizers
 | Plugin | Descrição | Formatos |
 |--------|-----------|----------|
 | **wordcloud_viz** | Nuvem de palavras | PNG, SVG, HTML interativo |
-| **frequency_chart** | Gráficos diversos | Bar, line, area (Plotly/Matplotlib) |
+| **frequency_chart** | Gráficos de frequência | Bar, horizontal_bar, line, area |
 
 ### Em Desenvolvimento
 - **sentiment_analyzer**: Análise de sentimentos (TextBlob/VADER)
@@ -159,23 +178,25 @@ steps:
 - **narrative_structure**: Análise de estrutura narrativa
 - **dashboard_composer**: Relatórios combinados
 
-## 🧪 Status: Beta Funcional
+## 🧪 Status: 89.5% Funcional
 
 ✅ **O que funciona**:
+- Menu interativo completo com wizards e tutoriais
 - Core engine com arquitetura bare metal
 - Sistema de plugins com auto-descoberta
 - 4 plugins totalmente funcionais
-- CLI completa incluindo `visualize`
+- CLI completa com todos os comandos
 - Pipelines configuráveis
 - Cache inteligente
-- Base classes reduzindo código
+- Base classes reduzindo 30% do código
+- Suporte completo a parâmetros (-P)
 
 🚧 **Em desenvolvimento**:
+- [ ] Tipos faltantes no frequency_chart (pie, treemap, sunburst)
 - [ ] Mais analyzers (sentiment, LDA)
 - [ ] Dashboard composer
 - [ ] API REST
-- [ ] Testes unitários
-- [ ] Plugin Obsidian
+- [ ] Testes unitários (34/38 passando)
 
 ## 🛠️ Desenvolvimento de Plugins
 
@@ -229,21 +250,37 @@ class NetworkVisualizer(BaseVisualizerPlugin):
         return output_path
 ```
 
+## 🧪 Testando
+
+```bash
+# Suite de testes automatizada
+python test_suite.py
+
+# Teste rápido
+echo '{"word_frequencies": {"test": 5}}' > test.json
+python -m qualia visualize test.json -p wordcloud_viz -o test.png
+
+# Limpar arquivos de teste
+python cleanup.py
+```
+
 ## 📚 Documentação
 
-- **[Development Log](docs/development_log.md)** - História do desenvolvimento
-- **[Technical Decisions](docs/technical_decisions.md)** - Decisões arquiteturais
+- **[DEVELOPMENT_LOG.md](docs/DEVELOPMENT_LOG.md)** - História completa do desenvolvimento
+- **[PROJECT_STATE.md](docs/PROJECT_STATE.md)** - Estado atual do projeto
+- **[Technical Notes](docs/technical_notes.md)** - Notas técnicas e lições aprendidas
 - **[Plugin Guide](docs/plugin_guide.md)** - Como criar plugins
-- **[API Reference](docs/api.md)** - Referência completa
 
 ## 🔧 Requisitos
 
 - Python 3.8+ (testado até 3.13)
 - Dependências principais:
-  - click & rich (CLI)
+  - click & rich (CLI e interface)
   - nltk (NLP)
   - matplotlib & plotly (visualizações)
+  - wordcloud (nuvem de palavras)
   - pyyaml (configurações)
+  - kaleido (export de gráficos)
 
 ## 🤝 Contribuindo
 
@@ -253,6 +290,12 @@ class NetworkVisualizer(BaseVisualizerPlugin):
 4. Push (`git push origin feature/novo-analyzer`)
 5. Abra um Pull Request
 
+### Guidelines
+- Use as base classes para reduzir código
+- Adicione testes para novos plugins
+- Documente parâmetros e outputs
+- Siga os padrões estabelecidos
+
 ## 📜 Licença
 
 MIT License - Livre para uso acadêmico e comercial.
@@ -261,10 +304,12 @@ MIT License - Livre para uso acadêmico e comercial.
 
 - **GitHub**: [github.com/mrlnlms/qualia](https://github.com/mrlnlms/qualia)
 - **Issues**: [GitHub Issues](https://github.com/mrlnlms/qualia/issues)
-- **Projeto Original**: [transcript-analyzer](https://github.com/mrlnlms/transcript-analyser)
+- **Documentação**: [Wiki](https://github.com/mrlnlms/qualia/wiki)
 
 ---
 
 **Visão**: Transformar análise qualitativa de "procurar scripts perdidos" para "framework permanente e extensível"
 
 *Desenvolvido com ❤️ para pesquisadores qualitativos*
+
+**v0.1.0** - Deze

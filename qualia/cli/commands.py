@@ -28,6 +28,8 @@ from qualia.core import (
     PipelineConfig,
     PipelineStep
 )
+from .formatters import console, format_success, format_error, format_warning
+from .interactive import start_menu
 
 # Console para output formatado
 console = Console()
@@ -111,6 +113,17 @@ def list(type: str, detailed: bool):
         console.print("\n[bold]Descrições:[/bold]")
         for plugin in plugins:
             console.print(f"\n[cyan]{plugin.id}:[/cyan] {plugin.description}")
+
+@cli.command()
+def menu():
+    """Abre menu interativo para facilitar o uso do Qualia"""
+    try:
+        start_menu()
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Menu interrompido pelo usuário[/yellow]")
+    except Exception as e:
+        console.print(format_error(e))
+        raise
 
 
 @cli.command()
@@ -212,7 +225,8 @@ def analyze(document_path: str, plugin: str, config: str, param: tuple,
 @click.option('--plugin', '-p', required=True, help='ID do plugin de processamento')
 @click.option('--config', '-c', type=click.Path(exists=True), help='Arquivo de configuração')
 @click.option('--save-as', '-s', type=click.Path(), help='Salvar documento processado')
-def process(document_path: str, plugin: str, config: str, save_as: str):
+@click.option('--param', '-P', multiple=True, help='Parâmetros no formato key=value')  # NOVA LINHA
+def process(document_path: str, plugin: str, config: str, save_as: str, param):  # ADICIONAR param
     """Processa documento com plugin de limpeza/preparação"""
     core = get_core()
     
@@ -240,11 +254,28 @@ def process(document_path: str, plugin: str, config: str, save_as: str):
         else:
             params = json.loads(config_path.read_text())
     
+    # NOVO: Processar parâmetros -P
+    for p in param:
+        if '=' in p:
+            key, value = p.split('=', 1)
+            # Converter valores booleanos
+            if value.lower() in ['true', 'false']:
+                params[key] = value.lower() == 'true'
+            # Tentar converter números
+            elif value.isdigit():
+                params[key] = int(value)
+            else:
+                params[key] = value
+    
     # Processar
     console.print(f"\n[bold]Processando com {plugin_meta.name}...[/bold]")
     
+    # NOVO: Adicionar context se o plugin precisar
+    context = {}
+    
     try:
-        result = core.execute_plugin(plugin, doc, params)
+        # MODIFICADO: Passar params e context
+        result = core.execute_plugin(plugin, doc, params, context)
         
         # Mostrar resumo
         if 'cleaned_document' in result:

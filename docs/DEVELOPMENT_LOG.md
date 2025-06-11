@@ -40,18 +40,34 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
   - ✅ Correção de compatibilidade Python 3.13
   - ✅ Sistema completo funcionando end-to-end
 
-- **Problemas Resolvidos**:
-  - TypeError com Path objects vs strings
-  - click.Exit não existe no Python 3.13 → SystemExit
-  - validate_config retornando bool vs Tuple[bool, Optional[str]]
-  - PluginLoader tentando instanciar base classes
-  - PluginMetadata não aceita campo 'author'
+#### Sessão 4 - Menu Interativo e Estrutura Modular (11 Dez 2024)
+- **Conquistas**:
+  - ✅ Menu interativo completo (`qualia menu`)
+  - ✅ Reestruturação modular da CLI
+  - ✅ Sistema de tutoriais integrado
+  - ✅ Pipeline wizard
+  - ✅ Comando `process` com suporte a `-P`
+  - ✅ Suite de testes automatizada
+  - ✅ Taxa de sucesso dos testes: 89.5% (34/38)
 
-- **Arquitetura de Base Classes**:
-  ```python
-  BaseAnalyzerPlugin → analyze() → _analyze_impl()
-  BaseVisualizerPlugin → render() → _render_impl()
-  BaseDocumentPlugin → process() → _process_impl()
+- **Problemas Resolvidos**:
+  - ✅ KeyError 'width' - função `_validate_config` duplicada
+  - ✅ Plugins não carregando - faltava `discover_plugins()` no init
+  - ✅ Abstract method 'validate_config' - corrigida assinatura
+  - ✅ IntPrompt não suporta min_value/max_value - implementado get_int_choice()
+
+- **Estrutura Modular Criada**:
+  ```
+  qualia/cli/
+  ├── __init__.py
+  ├── commands.py      # Comandos CLI
+  ├── formatters.py    # Formatadores Rich
+  └── interactive/
+      ├── menu.py      # Menu principal
+      ├── handlers.py  # Handlers de comandos
+      ├── tutorials.py # Sistema de tutoriais
+      ├── utils.py     # Utilidades
+      └── wizards.py   # Assistentes
   ```
 
 ## 🏗️ Estado Atual da Arquitetura
@@ -59,123 +75,117 @@ Este documento registra a evolução do projeto para facilitar continuidade entr
 ### Core (Funcional)
 ```python
 QualiaCore:
-  - discover_plugins()
+  - discover_plugins() # Auto-descobre na inicialização
   - execute_plugin()
   - execute_pipeline()
   - add_document()
 
-Base Classes (novo):
+Base Classes:
   - BaseAnalyzerPlugin
-  - BaseVisualizerPlugin
+  - BaseVisualizerPlugin  # Corrigido _validate_config
   - BaseDocumentPlugin
 ```
 
 ### Plugins Implementados (4)
-1. **word_frequency** - Análise de frequência com NLTK
-2. **teams_cleaner** - Limpeza de transcrições Teams
-3. **wordcloud_viz** - Nuvem de palavras (PNG/SVG/HTML)
-4. **frequency_chart** - Gráficos diversos (Plotly/Matplotlib)
+1. **word_frequency** - Análise de frequência com NLTK ✅
+2. **teams_cleaner** - Limpeza de transcrições Teams ✅
+3. **wordcloud_viz** - Nuvem de palavras (PNG/SVG/HTML) ✅
+4. **frequency_chart** - Gráficos bar/horizontal_bar ✅
 
 ### CLI Comandos Funcionais
-- `qualia list [-t type] [-d]`
-- `qualia inspect <plugin>`
-- `qualia analyze <doc> -p <plugin> [-P key=value]`
-- `qualia process <doc> -p <plugin> [--save-as]`
-- `qualia pipeline <doc> -c <config> [-o dir]`
-- `qualia visualize <data> -p <plugin> [-o output]` ← NOVO!
-- `qualia list-visualizers`
-- `qualia init`
+- `qualia list [-t type] [-d]` ✅
+- `qualia inspect <plugin>` ✅
+- `qualia analyze <doc> -p <plugin> [-P key=value]` ✅
+- `qualia process <doc> -p <plugin> [-P key=value] [--save-as]` ✅
+- `qualia pipeline <doc> -c <config> [-o dir]` ✅
+- `qualia visualize <data> -p <plugin> [-o output] [-P key=value]` ✅
+- `qualia menu` ✅ NOVO!
+- `qualia list-visualizers` ✅
+- `qualia init` ✅
 
-## 🎨 Comando Visualize
-
-### Uso
-```bash
-qualia visualize data.json -p wordcloud_viz -o cloud.png
-qualia visualize data.json -p frequency_chart -o chart.html -P chart_type=horizontal_bar
-```
+## 🎨 Menu Interativo
 
 ### Características
-- Auto-detecção de formato pela extensão
-- Suporte a parâmetros via CLI (-P)
-- Validação automática de dados
-- Criação de diretórios se necessário
+- Interface visual com Rich
+- Navegação intuitiva
+- Tutoriais integrados
+- Pipeline wizard
+- Configuração de parâmetros
+- Preview de resultados
+
+### Funcionalidades
+1. Análise de documentos com wizard
+2. Visualização com escolha de formato
+3. Execução e criação de pipelines
+4. Exploração de plugins
+5. Gestão de configurações
+6. Sistema de tutoriais completo
 
 ## 🔧 Padrões Estabelecidos
 
-### Plugin com Base Class
-```python
-from qualia.core import BaseAnalyzerPlugin
-
-class MyAnalyzer(BaseAnalyzerPlugin):
-    def meta(self) -> PluginMetadata:
-        return PluginMetadata(...)
-    
-    def _analyze_impl(self, document, config, context):
-        # Apenas lógica de negócio
-        # Validações já feitas pela base class
-```
-
-### Benefícios das Base Classes
-- 30% menos código nos plugins
-- Validações automáticas
-- Conversão de tipos (str → Path)
+### Base Classes
+- Redução de 30% no código dos plugins
+- Validação automática de parâmetros
 - Aplicação de defaults
-- Compatibilidade futura (API, GUI)
+- Conversão de tipos
 
-## 🐛 Issues Resolvidas
+### Estrutura Modular
+- CLI separada em módulos funcionais
+- Formatadores compartilhados
+- Handlers isolados por responsabilidade
+- Wizards reutilizáveis
 
-### Python 3.13 Compatibility
-- `click.Exit` → `SystemExit`
-- Type hints atualizados
+## 🐛 Issues Conhecidas
 
-### Validações
-- `validate_config` retorna `Tuple[bool, Optional[str]]`
-- Todos os plugins implementam corretamente
+### Resolvidas ✅
+- KeyError 'width' - _validate_config duplicado
+- Plugins não carregando - discover_plugins() no init
+- Abstract method validate_config
+- IntPrompt min_value/max_value
 
-### PluginLoader
-- Ignora classes Base* e abstratas
-- Carrega apenas plugins concretos
+### Pendentes (4 testes falhando)
+1. **frequency_chart treemap** - Tipo não implementado
+2. **Pipeline teste** - Possível problema de path
+3. **Arquivo inexistente** - Comportamento esperado
+4. **Diretório inexistente** - Criar diretório automaticamente?
 
 ## 📝 Notas Técnicas
 
-### Decisão: Base Classes vs Interfaces Puras
-- Optamos por base classes para reduzir repetição
-- Mantém filosofia bare metal (base classes são opcionais)
-- Facilita evolução sem breaking changes
+### Lições Aprendidas
+1. **Funções duplicadas** podem sobrescrever silenciosamente
+2. **discover_plugins()** deve ser chamado no __init__
+3. **Type hints** são essenciais para métodos abstratos
+4. **Defaults** devem ser aplicados sempre
 
-### Refatoração Mínima
-- Mudanças mínimas nos plugins existentes
-- Preservação de exemplos e documentação
-- Foco em compatibilidade
+### Stack Verificado
+- Python 3.13 ✅
+- Click 8.1.7 ✅
+- Rich 13.7.1 ✅
+- NLTK 3.8.1 ✅
+- Matplotlib 3.8.2 ✅
+- WordCloud 1.9.3 ✅
+- Plotly 5.18.0 ✅
+- Kaleido 0.2.1 ✅
 
 ## 🚀 Próximos Passos
 
-1. **Mais Analyzers**
+### Imediatos
+1. Corrigir tipos faltantes no frequency_chart (pie, treemap, sunburst)
+2. Investigar falha do pipeline
+3. Criar diretórios automaticamente quando necessário
+4. Limpar arquivos de teste
+
+### Próxima Sessão
+1. **Novos Analyzers**
    - sentiment_analyzer
    - lda_analyzer
    - narrative_structure
-
 2. **Dashboard Composer**
-   - Combinar múltiplas visualizações
-   - Templates de relatórios
-
-3. **API REST**
-   - FastAPI
-   - Endpoints para análise
-   - WebSocket para real-time
-
-4. **Testes Unitários**
-   - pytest
-   - Coverage > 80%
-
-## 🔗 Recursos
-
-- **GitHub**: https://github.com/mrlnlms/qualia
-- **Python**: 3.8+ (testado em 3.13)
-- **Dependências principais**: click, rich, nltk, matplotlib, wordcloud, plotly
+3. **API REST com FastAPI**
+4. **Testes unitários com pytest**
 
 ---
 
-**Última Atualização**: 11 Dezembro 2024, 06:00 UTC
+**Última Atualização**: 11 Dezembro 2024, 10:30 UTC
 **Versão**: 0.1.0
-**Status**: Funcional com comando visualize ✅
+**Status**: 89.5% funcional com menu interativo ✅
