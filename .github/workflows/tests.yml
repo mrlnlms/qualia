@@ -1,0 +1,96 @@
+# Nome do workflow (aparece no GitHub)
+name: Testes Automáticos
+
+# Quando executar
+on:
+  push:
+    branches: [ main, develop ]  # Quando fizer push nessas branches
+  pull_request:
+    branches: [ main ]  # Quando abrir PR para main
+  workflow_dispatch:  # Permite rodar manualmente pelo GitHub
+
+# O que executar
+jobs:
+  test:
+    name: Rodar Testes
+    runs-on: ubuntu-latest  # Máquina virtual Ubuntu
+    
+    steps:
+    # 1. Baixar o código
+    - name: Checkout código
+      uses: actions/checkout@v3
+    
+    # 2. Configurar Python
+    - name: Configurar Python 3.9
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    # 3. Cache de dependências (acelera builds)
+    - name: Cache pip
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    # 4. Instalar dependências
+    - name: Instalar dependências
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov
+    
+    # 5. Rodar testes rápidos
+    - name: Testes rápidos
+      run: |
+        python -c "from qualia.core import QualiaCore; c=QualiaCore(); print(f'✅ {len(c.discover_plugins())} plugins carregados')"
+    
+    # 6. Rodar testes pragmáticos
+    - name: Testes pragmáticos
+      run: |
+        pytest tests/test_pragmatic.py -v
+    
+    # 7. (Opcional) Gerar relatório de cobertura
+    - name: Cobertura de código
+      run: |
+        pytest tests/test_pragmatic.py --cov=qualia --cov-report=xml --cov-report=term
+      continue-on-error: true  # Não falha se cobertura for baixa
+    
+    # 8. Verificar se API inicia
+    - name: Teste de API
+      run: |
+        # Inicia API em background
+        python run_api.py &
+        sleep 5
+        # Testa health endpoint
+        curl -f http://localhost:8000/health || exit 1
+        # Para API
+        pkill -f run_api.py || true
+
+  # Job adicional: verificar qualidade
+  quality:
+    name: Verificar Qualidade
+    runs-on: ubuntu-latest
+    continue-on-error: true  # Não bloqueia se falhar
+    
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Instalar ferramentas
+      run: |
+        pip install flake8 black
+    
+    - name: Verificar formatação
+      run: |
+        # Verifica se código está formatado (não modifica)
+        black --check qualia/ || echo "⚠️ Código precisa ser formatado com 'black'"
+    
+    - name: Lint
+      run: |
+        # Verifica problemas de código
+        flake8 qualia/ --max-line-length=100 --exclude=__pycache__ || echo "⚠️ Alguns warnings de lint"
