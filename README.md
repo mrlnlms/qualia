@@ -4,8 +4,7 @@
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Status](https://img.shields.io/badge/status-100%25%20funcionando-success.svg)](https://github.com/yourusername/qualia)
-[![Infraestrutura](https://img.shields.io/badge/infraestrutura-robusta-brightgreen.svg)](https://github.com/yourusername/qualia)
-
+[![Infraestrutura](https://img.shields.io/badge/infraestrutura-robusta-brightgreen.svg)](https://github.com/yourusername/qualia) ![Testes](https://github.com/mrlnlms/qualia/actions/workflows/tests.yml/badge.svg)
 > 🎯 **Qualia** pega seus textos (atas, feedbacks, transcrições) e gera análises + gráficos automaticamente. **Funciona no seu computador ou online!**
 
 ---
