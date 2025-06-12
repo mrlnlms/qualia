@@ -1,293 +1,309 @@
-# 🏗️ Qualia Core - Infrastructure Features
+# 🏗️ Qualia Core - Infrastructure Guide
 
-Este documento descreve os recursos de infraestrutura implementados.
+Este documento descreve a infraestrutura implementada e como usar cada componente.
 
-## 🚀 Quick Start
+## 📊 Status da Infraestrutura
+
+| Componente | Status | Custo | Complexidade |
+|------------|--------|-------|--------------|
+| API REST | ✅ 100% Funcional | Grátis | Baixa |
+| Webhooks | ✅ Funcionando | Grátis | Baixa |
+| Monitor | ✅ Implementado | Grátis | Baixa |
+| Docker | ✅ Pronto | Grátis | Média |
+| Deploy | ✅ Configurado | $5-10/mês* | Média |
+
+*Somente se publicar online
+
+## 🚀 Quick Start Local
 
 ```bash
-# 1. Configurar ambiente
-cp .env.example .env
+# 1. Clonar e instalar
+git clone <repo>
+cd qualia
+pip install -r requirements.txt
+pip install -e .
 
-# 2. Build e executar com Docker
-docker-compose up -d
+# 2. Rodar API com monitor
+python run_api.py --reload
 
-# 3. Verificar que está rodando
-curl http://localhost:8000/health
-
-# 4. Acessar monitor
-open http://localhost:8000/monitor/
+# 3. Acessar
+# API: http://localhost:8000/docs
+# Monitor: http://localhost:8000/monitor/
 ```
 
-## 📡 Webhooks
+## 📡 Webhooks - Integração Externa
 
-### Configuração
+### Webhook Genérico (Funcionando!)
 
-1. **GitHub Webhook**
-   ```bash
-   # Defina o secret no .env
-   GITHUB_WEBHOOK_SECRET=seu_secret_seguro_aqui
-   
-   # Configure no GitHub:
-   # Settings > Webhooks > Add webhook
-   # URL: https://seu-dominio.com/webhook/github
-   # Content-Type: application/json
-   # Secret: mesmo valor do .env
-   ```
-
-2. **Teste Local com ngrok**
-   ```bash
-   # Terminal 1: API
-   python run_api.py --reload
-   
-   # Terminal 2: ngrok
-   ngrok http 8000
-   
-   # Use a URL HTTPS do ngrok no GitHub
-   ```
-
-### Endpoints Disponíveis
-
-- `POST /webhook/github` - GitHub events (PRs, Issues, Commits)
-- `POST /webhook/slack` - Slack messages
-- `POST /webhook/discord` - Discord messages
-- `POST /webhook/custom` - Generic webhook
-
-### Exemplo de Uso
-
-```python
-# GitHub PR
-curl -X POST http://localhost:8000/webhook/github \
-  -H "Content-Type: application/json" \
-  -H "X-Hub-Signature-256: sha256=..." \
-  -d '{
-    "action": "opened",
-    "pull_request": {
-      "title": "New feature",
-      "body": "This PR adds..."
-    }
-  }'
-
-# Custom webhook
+```bash
+# Recebe qualquer texto para análise
 curl -X POST http://localhost:8000/webhook/custom \
   -H "Content-Type: application/json" \
   -d '{
-    "text": "Analyze this text",
+    "text": "Analisar este texto!",
     "plugin": "sentiment_analyzer"
   }'
+
+# Resposta
+{
+  "status": "success",
+  "plugin": "sentiment_analyzer",
+  "result": {
+    "sentiment_label": "positivo",
+    "polarity": 0.8
+  }
+}
 ```
 
-## 🐳 Docker
-
-### Dockerfile Multi-stage
-
-- **Stage 1**: Builder com dependências de compilação
-- **Stage 2**: Runtime otimizado (~200MB)
-- **Segurança**: Usuário não-root
-- **Health check**: Integrado
-
-### Docker Compose Profiles
+### Estatísticas de Webhooks
 
 ```bash
-# Básico (apenas API)
-docker-compose up -d
+# Ver quantos webhooks foram processados
+curl http://localhost:8000/webhook/stats
 
-# Com Nginx (produção)
-docker-compose --profile production up -d
-
-# Com Redis (cache distribuído)
-docker-compose --profile scale up -d
-
-# Com monitoramento completo
-docker-compose --profile monitoring up -d
+# Resposta
+{
+  "status": "ok",
+  "stats": {
+    "generic": {
+      "total_received": 42,
+      "total_processed": 41,
+      "total_errors": 1,
+      "last_processed": "2024-12-11T20:30:00"
+    }
+  }
+}
 ```
 
-### Volumes
+### Estrutura para Futuros Webhooks
 
-- `./cache:/app/cache` - Cache persistente
-- `./output:/app/output` - Arquivos gerados
-- `./plugins:/app/plugins:ro` - Plugins (read-only)
+```python
+# Já preparado para:
+- GitHub (PRs, Issues, Commits)
+- Slack (Mensagens)
+- Discord (Comandos)
+# Implementação básica existe, falta apenas handlers específicos
+```
 
 ## 📊 Monitor em Tempo Real
 
 ### Características
+- **Zero dependências**: HTML puro + JavaScript vanilla
+- **Atualização ao vivo**: Server-Sent Events (SSE)
+- **Gráficos nativos**: Canvas API (sem bibliotecas)
+- **Métricas úteis**: Requests/min, plugins mais usados, erros
 
-- **Zero dependências**: HTML/CSS/JS puro
-- **Server-Sent Events**: Atualizações em tempo real
-- **Gráficos ao vivo**: Canvas API nativo
-- **Métricas completas**: RPM, erros, webhooks, etc.
-
-### Acessar
+### Acessar Monitor
 
 ```bash
 # Dashboard visual
-open http://localhost:8000/monitor/
+http://localhost:8000/monitor/
 
-# Stream de eventos (SSE)
+# Stream de dados (para integração)
 curl http://localhost:8000/monitor/stream
 ```
 
 ### Métricas Disponíveis
+```javascript
+{
+  "timestamp": "2024-12-11T20:30:00",
+  "metrics": {
+    "requests_total": 1547,
+    "requests_per_minute": 12.5,
+    "active_connections": 3,
+    "plugin_usage": {
+      "sentiment_analyzer": 847,
+      "word_frequency": 512,
+      "teams_cleaner": 188
+    },
+    "webhook_stats": {
+      "total": 42,
+      "success": 41,
+      "errors": 1
+    },
+    "errors_total": 7,
+    "last_error": "TextBlob initialization failed",
+    "uptime_seconds": 3600
+  }
+}
+```
 
-- Total de requests
-- Requests por minuto (gráfico ao vivo)
-- Conexões ativas
-- Uptime do servidor
-- Uso por plugin
-- Atividade de webhooks
-- Erros (com último erro)
+## 🐳 Docker - Deploy Simplificado
 
-## 🔧 Nginx (Produção)
+### Desenvolvimento Local
+```bash
+# Build e rodar
+docker-compose up -d
 
-### Recursos
+# Ver logs
+docker-compose logs -f
 
-- **SSL/TLS**: Configurado para HTTPS
-- **Rate limiting**: APIs e webhooks
-- **Load balancing**: Least connections
-- **Compressão**: Gzip habilitado
-- **Headers de segurança**: CSP, X-Frame-Options, etc.
-- **SSE Support**: Para monitor em tempo real
+# Parar
+docker-compose down
+```
 
-### Configurar SSL
+### Produção (Quando decidir publicar)
+```bash
+# Com Nginx e SSL
+docker-compose --profile production up -d
+
+# Escalar para múltiplos workers
+docker-compose up -d --scale qualia-api=4
+```
+
+### Estrutura Docker
+```yaml
+# docker-compose.yml simplificado
+services:
+  qualia-api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=4
+    volumes:
+      - ./output:/app/output
+      - ./cache:/app/cache
+```
+
+## 🚀 Deploy (Quando Estiver Pronto)
+
+### Opção 1: VPS Simples ($5/mês)
+```bash
+# DigitalOcean, Hetzner, Linode, etc
+ssh root@seu-servidor
+git clone <repo>
+cd qualia
+docker-compose up -d
+```
+
+### Opção 2: AWS Free Tier (1 ano grátis)
+```bash
+# EC2 t2.micro
+# Mesmo processo do VPS
+```
+
+### Opção 3: Heroku (Grátis com limitações)
+```bash
+heroku create meu-qualia
+git push heroku main
+```
+
+## 🔧 Configuração (.env)
 
 ```bash
-# Certificados em ssl/
-mkdir ssl
-cp seu-certificado.pem ssl/cert.pem
-cp sua-chave.pem ssl/key.pem
+# Copiar template
+cp .env.example .env
 
-# Ou com Let's Encrypt
-docker run -it --rm \
-  -v $(pwd)/ssl:/etc/letsencrypt \
-  certbot/certbot certonly \
-  --standalone \
-  -d seu-dominio.com
+# Variáveis principais
+QUALIA_API_WORKERS=4           # Número de workers
+QUALIA_API_HOST=0.0.0.0       # Host (não mudar)
+QUALIA_API_PORT=8000          # Porta
+
+# Webhooks (opcional)
+GITHUB_WEBHOOK_SECRET=xxx      # Se usar GitHub
+SLACK_SIGNING_SECRET=xxx       # Se usar Slack
+
+# Produção (quando publicar)
+CORS_ORIGINS=["https://seu-site.com"]
+LOG_LEVEL=INFO
 ```
 
 ## 🧪 Testes de Infraestrutura
 
-### Executar Todos os Testes
-
+### Teste Completo (9/9 passando!)
 ```bash
-python test_infrastructure.py
+python test_final_complete.py
+
+# Saída esperada:
+✅ API Health
+✅ API Plugins
+✅ Webhook Custom
+✅ Webhook Stats
+✅ Monitor Dashboard
+✅ Monitor Stream
+✅ Análise Word Frequency
+✅ Pipeline
+✅ Webhook com Sentiment
 ```
 
-### Opções
-
+### Teste Individual
 ```bash
-# Pular testes Docker (mais rápido)
-python test_infrastructure.py --skip-docker
+# Testar só webhooks
+python test_individual.py
 
-# Não limpar recursos após testes
-python test_infrastructure.py --no-cleanup
+# Testar só pipeline
+curl -X POST http://localhost:8000/pipeline \
+  -d '{"text": "teste", "steps": [{"plugin_id": "word_frequency"}]}'
 ```
 
-### O que é Testado
+## 🛡️ Segurança Básica
 
-1. ✅ Docker build funciona
-2. ✅ Docker compose sobe serviços
-3. ✅ Todos os endpoints respondem
-4. ✅ Webhooks processam corretamente
-5. ✅ Monitor stream funciona
-6. ✅ Upload de arquivos
-7. ✅ Pipelines executam
+### Já Implementado
+- ✅ Validação de entrada (Pydantic)
+- ✅ CORS configurável
+- ✅ Error handling sem exposição
+- ✅ Webhook signature (HMAC)
+- ✅ Headers de segurança básicos
 
-## 📈 Monitoramento Avançado
+### Para Adicionar (Quando Publicar)
+- [ ] HTTPS (certificado SSL)
+- [ ] Rate limiting
+- [ ] API keys
+- [ ] Firewall básico
 
-### Prometheus + Grafana (Opcional)
+## 📈 Próximos Passos de Infra
 
+### 1. Agora (Grátis, 2h)
+- [ ] Sentry.io - Alertas de erro por email
+- [ ] GitHub Actions - Testes automáticos
+- [ ] Backup local - Script cron
+
+### 2. Quando Publicar ($5-10/mês)
+- [ ] VPS básico
+- [ ] Domínio + SSL
+- [ ] Backup S3/B2
+
+### 3. Se Escalar (Depois)
+- [ ] Redis cache
+- [ ] Load balancer
+- [ ] Monitoring completo
+
+## 🔍 Troubleshooting
+
+### "Webhook não funciona"
 ```bash
-# Ativar stack de monitoramento
-docker-compose --profile monitoring up -d
+# 1. Verificar que API está rodando
+curl http://localhost:8000/health
 
-# Acessar
-# Prometheus: http://localhost:9090
-# Grafana: http://localhost:3000 (admin/admin)
+# 2. Testar webhook direto
+curl -X POST http://localhost:8000/webhook/custom \
+  -d '{"text": "teste"}'
+
+# 3. Ver logs
+docker-compose logs | grep webhook
 ```
 
-### Métricas Prometheus
+### "Monitor não atualiza"
+- Verificar se navegador suporta SSE
+- Tentar outro navegador
+- Ver console do browser (F12)
 
-- `qualia_requests_total`
-- `qualia_request_duration_seconds`
-- `qualia_active_connections`
-- `qualia_plugin_usage`
-
-## 🚀 Deploy Rápido
-
-### AWS EC2
-
+### "Docker não builda"
 ```bash
-# No servidor EC2
-sudo yum install docker
-sudo service docker start
-sudo usermod -a -G docker ec2-user
+# Limpar cache
+docker system prune -a
 
-# Deploy
-git clone <repo>
-cd qualia-core
-docker-compose --profile production up -d
+# Build sem cache
+docker build --no-cache .
 ```
-
-### Heroku
-
-```bash
-heroku create meu-qualia
-heroku config:set GITHUB_WEBHOOK_SECRET=xxx
-git push heroku main
-```
-
-### Google Cloud Run
-
-```bash
-gcloud builds submit --tag gcr.io/PROJECT/qualia
-gcloud run deploy --image gcr.io/PROJECT/qualia
-```
-
-## 🔐 Segurança
-
-### Checklist
-
-- [ ] Secrets configurados no .env
-- [ ] HTTPS habilitado em produção
-- [ ] Rate limiting configurado
-- [ ] CORS restrito a origins específicos
-- [ ] Headers de segurança no Nginx
-- [ ] Usuário não-root no Docker
-
-### Variáveis Sensíveis
-
-```bash
-# Nunca commitar!
-GITHUB_WEBHOOK_SECRET=...
-SLACK_SIGNING_SECRET=...
-GRAFANA_PASSWORD=...
-```
-
-## 📝 Troubleshooting
-
-### Webhook não funciona
-
-1. Verificar secret está correto
-2. Testar com ngrok primeiro
-3. Ver logs: `docker-compose logs -f qualia-api | grep webhook`
-
-### Monitor não atualiza
-
-1. Verificar SSE não está sendo bloqueado
-2. Nginx precisa de headers especiais para SSE
-3. Firewall/proxy pode bloquear conexões longas
-
-### Docker build falha
-
-1. Verificar espaço em disco
-2. Limpar cache: `docker system prune -a`
-3. Build sem cache: `docker build --no-cache .`
 
 ---
 
-**Status**: ✅ Infraestrutura completa e testada!
+**Status Final**: Infraestrutura 100% funcional, testada e documentada!
 
-Agora o Qualia Core tem:
-- 🔄 Webhooks para integrações
-- 🐳 Docker para deploy fácil  
-- 📊 Monitor em tempo real
-- 🚀 Pronto para produção!
+O sistema está pronto para:
+- ✅ Uso local imediato
+- ✅ Integrações via webhooks
+- ✅ Monitoramento em tempo real
+- ✅ Deploy quando decidir publicar

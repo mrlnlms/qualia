@@ -15,7 +15,7 @@ from pathlib import Path
 import base64
 import io
 
-from qualia.core import QualiaCore, Document
+from qualia.core import QualiaCore, Document, PipelineConfig, PipelineStep
 
 # Import new modules
 try:
@@ -321,19 +321,24 @@ async def execute_pipeline(request: PipelineRequest):
         doc = core.add_document("api_pipeline", request.text)
         
         # Convert steps to pipeline config format
-        pipeline_config = {
-            "name": "API Pipeline",
-            "steps": [
-                {
-                    "plugin": step.plugin_id,
-                    "config": step.config
-                }
-                for step in request.steps
-            ]
-        }
+        # Convert steps to PipelineStep objects
+        pipeline_steps = [
+            PipelineStep(
+                plugin_id=step.plugin_id,
+                config=step.config,
+                output_name=None
+            )
+            for step in request.steps
+        ]
+        
+        # Create PipelineConfig object
+        pipeline_config = PipelineConfig(
+            name="API Pipeline",
+            steps=pipeline_steps
+        )
         
         # Execute pipeline
-        results = core.execute_pipeline(doc.id, pipeline_config)
+        results = core.execute_pipeline(pipeline_config, doc)
         
         # Track metrics if available
         if HAS_EXTENSIONS:
@@ -341,7 +346,7 @@ async def execute_pipeline(request: PipelineRequest):
         
         return {
             "status": "success",
-            "pipeline": pipeline_config["name"],
+            "pipeline": pipeline_config.name,
             "steps_executed": len(results),
             "results": results
         }

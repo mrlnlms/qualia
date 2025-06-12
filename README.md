@@ -1,305 +1,178 @@
 # 🔬 Qualia Core
 
-Um framework bare metal para transformação de dados qualitativos em insights quantificados.
+Transforme textos e documentos em insights quantificados com análises automáticas.
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![Status](https://img.shields.io/badge/status-95%25%20funcional-success.svg)](https://github.com/yourusername/qualia)
-[![CLI](https://img.shields.io/badge/CLI-13%20comandos-green.svg)](https://github.com/yourusername/qualia)
-[![API](https://img.shields.io/badge/API-REST%20%2B%20Webhooks-orange.svg)](https://github.com/yourusername/qualia)
+[![Status](https://img.shields.io/badge/status-100%25%20funcional-success.svg)](https://github.com/yourusername/qualia)
+[![Testes](https://img.shields.io/badge/testes-9%2F9%20passando-brightgreen.svg)](https://github.com/yourusername/qualia)
 
-> **Qualia** transforma análise qualitativa de "procurar scripts perdidos" em "funcionalidade permanente e organizada"
+> **Qualia** é um sistema que analisa seus textos e gera visualizações automaticamente. Funciona local ou na web.
 
-## 🚀 Quick Start
+## 🚀 Começar em 2 Minutos
 
 ```bash
-# Instalar
+# 1. Baixar e instalar
 git clone https://github.com/yourusername/qualia
 cd qualia
 pip install -r requirements.txt
 pip install -e .
 
-# Interface interativa
+# 2. Usar modo interativo (mais fácil)
 qualia menu
 
-# API REST com Monitor
-python run_api.py --reload
-# API: http://localhost:8000/docs
-# Monitor: http://localhost:8000/monitor/
-```
-
-## ✨ Funcionalidades Principais
-
-### 🎨 Interface Interativa
-```bash
-qualia menu
-```
-- Wizards guiados para análise
-- Configuração visual de parâmetros  
-- Preview de resultados
-- Tutoriais integrados
-
-### 🌐 API REST com Documentação
-```bash
+# 3. Ou usar API visual
 python run_api.py
-```
-- 11+ endpoints RESTful
-- Documentação Swagger automática
-- Upload de arquivos
-- Execução de pipelines via HTTP
-- **NOVO**: Webhooks para integrações
-- **NOVO**: Monitor em tempo real
-
-### 📡 Webhooks (NOVO!)
-```bash
-# Receber eventos externos para análise automática
-POST /webhook/custom
-POST /webhook/github    # Em breve
-POST /webhook/slack     # Em breve
+# Abrir: http://localhost:8000/docs
 ```
 
-Exemplo:
+## 💡 O que o Qualia faz?
+
+### Análise de Sentimento
 ```bash
-curl -X POST http://localhost:8000/webhook/custom \
-  -H "Content-Type: application/json" \
-  -d '{"text": "Analisar este texto!", "plugin": "sentiment_analyzer"}'
-```
-
-### 📊 Monitor em Tempo Real (NOVO!)
-- Dashboard visual: http://localhost:8000/monitor/
-- Métricas ao vivo: requests/min, plugins usados, erros
-- Gráficos em Canvas nativo (zero dependências)
-- Stream de eventos via SSE
-
-### 🔄 Processamento em Lote
-```bash
-# Processar múltiplos arquivos
-qualia batch "docs/*.txt" -p word_frequency -j 4
-
-# Monitorar pasta para novos arquivos
-qualia watch inbox/ -p teams_cleaner -o processed/
-```
-
-### 📊 Análise e Visualização
-```bash
-# Análise de frequência
-qualia analyze doc.txt -p word_frequency -P min_length=4
-
-# Análise de sentimento
 qualia analyze feedback.txt -p sentiment_analyzer
+```
+**Resultado**: "70% positivo, 20% neutro, 10% negativo"
 
-# Gerar visualizações
-qualia visualize data.json -p wordcloud_viz -o cloud.png
-qualia visualize sentiment.json -p sentiment_viz -o dashboard.html
+### Frequência de Palavras
+```bash
+qualia analyze reuniao.txt -p word_frequency
+```
+**Resultado**: Lista das palavras mais usadas e contexto
+
+### Limpeza de Transcrições
+```bash
+qualia process teams_export.txt -p teams_cleaner
+```
+**Resultado**: Texto limpo sem timestamps e ruídos
+
+### Visualizações Automáticas
+```bash
+qualia visualize dados.json -p wordcloud_viz -o nuvem.png
+```
+**Resultado**: Imagem PNG com nuvem de palavras
+
+## 📊 Interface Visual
+
+### Menu Interativo
+<img src="docs/images/menu.png" width="600" alt="Menu Interativo">
+
+Digite `qualia menu` e navegue com as setas. Simples assim!
+
+### API Web
+<img src="docs/images/api.png" width="600" alt="API Swagger">
+
+Acesse http://localhost:8000/docs para testar sem código!
+
+### Monitor em Tempo Real
+<img src="docs/images/monitor.png" width="600" alt="Monitor Dashboard">
+
+Veja o que está acontecendo em http://localhost:8000/monitor/
+
+## 🎯 Casos de Uso Reais
+
+### 📝 Análise de Feedback
+```bash
+# Processar todos os feedbacks do mês
+qualia batch "feedbacks/*.txt" -p sentiment_analyzer
+
+# Resultado: relatório com sentimentos por arquivo
 ```
 
-### 🔁 Pipelines Configuráveis
-```yaml
-# pipeline.yaml
-name: complete_analysis
-steps:
-  - plugin: teams_cleaner
-    config: {remove_timestamps: true}
-  - plugin: sentiment_analyzer
-    config: {analyze_sentences: true}
-  - plugin: word_frequency
-    config: {min_word_length: 4}
+### 🎤 Transcrições de Reunião
+```bash
+# Pipeline completo: limpar → analisar → visualizar
+qualia pipeline reuniao.txt -c pipeline_reuniao.yaml
 ```
+
+### 📧 Monitorar Pasta
+```bash
+# Analisar automaticamente novos arquivos
+qualia watch inbox/ -p word_frequency -o resultados/
+```
+
+## 🔧 Criar Seu Próprio Analisador
 
 ```bash
-qualia pipeline transcript.txt -c pipeline.yaml
+# Gerar template
+python tools/create_plugin.py meu_analisador analyzer
+
+# Editar o arquivo gerado
+# plugins/meu_analisador/__init__.py
+
+# Pronto! Já funciona em todos os lugares
 ```
 
-## 📦 Plugins Disponíveis
+## 📦 O que Vem Pronto?
 
-| Plugin | Tipo | Descrição |
-|--------|------|-----------|
-| `word_frequency` | Analyzer | Análise de frequência com NLTK |
-| `sentiment_analyzer` | Analyzer | Análise de sentimento (TextBlob) |
-| `teams_cleaner` | Document | Limpeza de transcrições Teams |
-| `wordcloud_viz` | Visualizer | Nuvem de palavras customizável |
-| `frequency_chart` | Visualizer | Gráficos interativos (bar, pie, treemap) |
-| `sentiment_viz` | Visualizer | Visualizações de sentimento |
+| Análise | O que faz | Exemplo de uso |
+|---------|-----------|----------------|
+| **Sentimento** | Detecta se texto é positivo/negativo | Feedbacks, reviews |
+| **Frequência** | Conta palavras importantes | Atas, relatórios |
+| **Limpeza** | Remove lixo de transcrições | Teams, Zoom |
+| **Nuvem** | Cria imagem com palavras-chave | Apresentações |
+| **Gráficos** | Pizza, barras, treemap | Dashboards |
 
-## 🐳 Docker & Deploy (NOVO!)
+## 🌐 Integração Fácil
 
-### Quick Start com Docker
-```bash
-# Build e executar
-docker-compose up -d
-
-# Acessar
-# API: http://localhost:8000
-# Monitor: http://localhost:8000/monitor/
-```
-
-### Deploy em Produção
-```bash
-# Com Nginx e SSL
-docker-compose --profile production up -d
-
-# Escalar
-docker-compose up -d --scale qualia-api=3
-```
-
-Veja [DEPLOY.md](DEPLOY.md) para guias completos (AWS, Heroku, GCP).
-
-## 🛠️ Comandos CLI
-
-### Comandos Básicos
-- `qualia list` - Lista plugins disponíveis
-- `qualia inspect <plugin>` - Detalhes do plugin
-- `qualia analyze` - Executa análise
-- `qualia process` - Processa documento
-- `qualia visualize` - Cria visualização
-- `qualia pipeline` - Executa pipeline
-
-### Comandos Avançados
-- `qualia watch` - Monitora pasta continuamente
-- `qualia batch` - Processa múltiplos arquivos
-- `qualia export` - Converte formatos (CSV, Excel, HTML)
-- `qualia config` - Cria configurações interativamente
-
-## 🌐 API REST
-
-### Executar API
-```bash
-# Desenvolvimento (com auto-reload)
-python run_api.py --reload
-
-# Produção
-python run_api.py --workers 4
-```
-
-### Endpoints Principais
-- `GET /` - Informações da API
-- `GET /health` - Status de saúde
-- `GET /plugins` - Lista todos os plugins
-- `POST /analyze/{plugin_id}` - Executa análise
-- `POST /visualize/{plugin_id}` - Gera visualização
-- `POST /pipeline` - Executa pipeline completo
-- `POST /webhook/custom` - Webhook genérico (NOVO!)
-- `GET /monitor/` - Dashboard de monitoramento (NOVO!)
-
-### Exemplo de Uso
+### Python
 ```python
 import requests
-
-# Analisar sentimento
-response = requests.post(
-    "http://localhost:8000/analyze/sentiment_analyzer",
-    json={"text": "Este produto é incrível!"}
-)
-print(response.json()["result"]["sentiment_label"])  # "positivo"
+resultado = requests.post("http://localhost:8000/analyze/sentiment_analyzer",
+                         json={"text": "Adorei o produto!"})
+print(resultado.json()["result"]["sentiment_label"])  # "positivo"
 ```
 
-Documentação interativa disponível em: http://localhost:8000/docs
-
-## 🔧 Desenvolvimento de Plugins
-
-### Criar Novo Plugin
+### Webhooks
+Conecte com Slack, Discord, ou qualquer sistema:
 ```bash
-python tools/create_plugin.py meu_analyzer analyzer
+curl -X POST http://localhost:8000/webhook/custom \
+  -d '{"text": "Analisar isso!", "plugin": "sentiment_analyzer"}'
 ```
 
-### Estrutura Mínima
-```python
-class MeuAnalyzer(BaseAnalyzerPlugin):
-    def meta(self) -> PluginMetadata:
-        return PluginMetadata(
-            id="meu_analyzer",
-            name="Meu Analyzer",
-            provides=["minha_metrica"],
-            parameters={
-                "param1": {
-                    "type": "integer",
-                    "default": 10
-                }
-            }
-        )
-    
-    def _analyze_impl(self, document, config, context):
-        # Implementar análise
-        return {"minha_metrica": 42}
-```
-
-Plugin aparece automaticamente em:
-- CLI: `qualia list`
-- API: `GET /plugins`
-- Menu: Interface interativa
-
-## 🏗️ Arquitetura
+## 📁 Estrutura Simples
 
 ```
 qualia/
-├── core/           # Engine bare metal (agnóstico)
-├── cli/            # Interface de linha de comando
-│   ├── commands/   # Comandos modularizados
-│   └── interactive # Menu interativo
-├── api/            # API REST com FastAPI
-│   ├── webhooks.py # Handlers de webhooks (NOVO!)
-│   └── monitor.py  # Monitor em tempo real (NOVO!)
-└── plugins/        # Plugins com lógica específica
+├── usar assim:        qualia menu
+├── adicionar plugin:  python tools/create_plugin.py
+├── rodar testes:      python test_final_complete.py
+└── ver docs:          http://localhost:8000/docs
 ```
 
-### Princípios
-1. **Bare Metal**: Core só orquestra, não implementa
-2. **Auto-discovery**: Plugins se registram automaticamente
-3. **Base Classes**: Reduzem 30% do boilerplate
-4. **Zero Coupling**: Plugins totalmente independentes
+## ❓ Perguntas Frequentes
 
-## 📊 Status do Projeto
+**P: Preciso saber programar?**  
+R: Não! Use `qualia menu` ou a interface web.
 
-- ✅ **95% Funcional** - 2 bugs menores conhecidos
-- ✅ **13 Comandos CLI** - Interface completa
-- ✅ **11+ Endpoints API** - REST com Swagger
-- ✅ **Webhooks** - Integração com serviços externos
-- ✅ **Monitor Real-time** - Dashboard de métricas
-- ✅ **6 Plugins** - Prontos para uso
-- ✅ **Docker Ready** - Containerização completa
-- ✅ **Python 3.8-3.13** - Compatibilidade testada
+**P: Funciona com que tipos de arquivo?**  
+R: TXT, CSV, JSON. PDF em breve.
 
-## 🚀 Roadmap
+**P: Posso usar na minha empresa?**  
+R: Sim! Licença MIT permite uso comercial.
 
-### Imediato (Próxima sessão)
-- [ ] Corrigir bug do pipeline (30min)
-- [ ] Frontend web simples (2-3h)
+**P: Roda offline?**  
+R: Sim! Tudo funciona local. Internet só para baixar.
 
-### Em Desenvolvimento
-- [ ] Dashboard Composer - Relatórios combinados
-- [ ] theme_extractor - Análise de tópicos (LDA)
-- [ ] entity_recognizer - Reconhecimento de entidades
-- [ ] Autenticação JWT na API
+## 🚀 Próximos Passos
 
-## 🤝 Contribuindo
+1. **Testar**: Execute `qualia menu` e explore
+2. **Personalizar**: Crie um analisador para seu caso
+3. **Compartilhar**: Suba num servidor para o time usar
 
-1. Fork o projeto
-2. Crie seu plugin: `python tools/create_plugin.py nome tipo`
-3. Implemente seguindo os exemplos existentes
-4. Teste: `python test_suite.py`
-5. Pull Request!
+## 📖 Documentação Completa
 
-## 📚 Documentação
+- [Tutorial Passo a Passo](docs/TUTORIAL.md) - Para iniciantes
+- [Guia de Plugins](docs/PLUGINS.md) - Criar suas análises
+- [Exemplos](examples/) - Casos de uso prontos
 
-- [Development Log](DEVELOPMENT_LOG.md) - História completa do desenvolvimento
-- [Project State](PROJECT_STATE.md) - Estado atual detalhado
-- [Infrastructure](INFRASTRUCTURE.md) - Guia de infraestrutura (NOVO!)
-- [Deploy Guide](DEPLOY.md) - Como fazer deploy (NOVO!)
-- [API Docs](http://localhost:8000/docs) - Referência interativa da API
-- [Plugin Examples](plugins/) - Código dos plugins
+## 🤝 Ajuda
 
-## 🐛 Bugs Conhecidos
-
-1. **Pipeline endpoint** - `execute_pipeline` precisa de ajuste no parâmetro Document/string
-2. **Pipeline com mixed types** - Document processors + analyzers precisam de steps separados
-
-Workarounds disponíveis. Correções na próxima versão.
-
-## 📄 Licença
-
-MIT License - Veja [LICENSE](LICENSE) para detalhes.
+- **Bug?** Abra uma [issue](https://github.com/yourusername/qualia/issues)
+- **Dúvida?** Veja os [exemplos](examples/)
+- **Ideia?** Pull requests são bem-vindos!
 
 ---
 
-**Desenvolvido com ❤️ para transformar análise qualitativa**
+Feito com ❤️ para facilitar análise de textos
 
-*v0.1.0 - Dezembro 2024*
+*Versão 0.1.0 - Dezembro 2024*

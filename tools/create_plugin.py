@@ -38,6 +38,7 @@ from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 # 📚 IMPORTS ÚTEIS DO QUALIA:
 # from qualia.core import ExecutionContext  # Para contexto de execução
 # from qualia.core import CacheManager      # Para cache de resultados
+# from qualia.core.cache import compute_hash  # Para criar hash único do texto
 # from qualia.core import DependencyResolver # Para dependências
 
 # 📦 IMPORTS COMUNS PARA ANALYZERS:
@@ -165,6 +166,12 @@ class {class_name}(BaseAnalyzerPlugin):
         
         # 1️⃣ ACESSAR O TEXTO DO DOCUMENTO
         text = document.content
+        # 
+        # # 💾 VERIFICAR CACHE (opcional mas útil!)
+        # cache_key = compute_hash(text + str(config))
+        # if self.cache.has(cache_key):
+        #     print("📦 Resultado encontrado no cache!")
+        #     return self.cache.get(cache_key)
         print(f"📝 Analisando documento com {{len(text)}} caracteres...")
         
         # 2️⃣ ACESSAR PARÂMETROS DE CONFIGURAÇÃO
@@ -423,6 +430,13 @@ class {class_name}(BaseVisualizerPlugin):
         if interactive or output_path.suffix == '.html':
             # 🎨 USAR PLOTLY PARA GRÁFICOS INTERATIVOS
             self._render_plotly(required_data, config, output_path)
+        # Após "if interactive or output_path.suffix == '.html':"
+        elif output_path.suffix == '.json':
+            # 📊 SALVAR DADOS BRUTOS (útil para reprocessamento)
+            import json
+            with open(output_path, 'w') as f:
+                json.dump(data, f, indent=2)
+            return output_path
         else:
             # 🖼️ USAR MATPLOTLIB PARA IMAGENS ESTÁTICAS
             self._render_matplotlib(required_data, config, output_path)
@@ -689,7 +703,8 @@ class {class_name}(BaseDocumentPlugin):
         """
         
         # 🚨 ============ INÍCIO DO SEU CÓDIGO ============ 🚨
-        
+        import time
+        start_time = time.time()
         # 1️⃣ OBTER TEXTO ORIGINAL
         text = document.content
         original_length = len(text)
@@ -785,7 +800,7 @@ class {class_name}(BaseDocumentPlugin):
             "processing_stats": {{
                 "total_changes": len(changes_made),
                 "total_issues": len(issues_found),
-                "processing_time": "🚨 TODO: Medir tempo real",
+                "processing_time": f"{{time.time() - start_time:.2f}} segundos",
                 "config_used": config
             }}
         }}
@@ -1101,7 +1116,27 @@ qualia {plugin_type.replace('analyzer', 'analyze').replace('document', 'process'
 """
     
     (plugin_dir / "README.md").write_text(readme_content)
-    
+    # Criar .gitignore
+    gitignore_content = """# Ignorar arquivos temporários
+    __pycache__/
+    *.pyc
+    *.pyo
+    *.pyd
+    .pytest_cache/
+
+    # Arquivos de teste
+    test_*.html
+    test_*.png
+    test_*.json
+    *.log
+
+    # Dados locais
+    data/
+    output/
+    cache/
+    """
+    (plugin_dir / ".gitignore").write_text(gitignore_content)
+
     # Criar arquivo de exemplo
     example_content = f"""# Exemplo de dados para {plugin_title}
 
@@ -1174,3 +1209,9 @@ if __name__ == "__main__":
     plugin_type = sys.argv[2]
     
     create_plugin(plugin_id, plugin_type)
+
+    # Após criar o plugin, adicionar:
+    # Executar teste automático?
+    response = input(f"\n{Colors.CYAN}🧪 Executar teste do plugin agora? (s/N): {Colors.END}")
+    if response.lower() == 's':
+        os.system(f"python plugins/{plugin_id}/__init__.py")
