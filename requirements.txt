@@ -35,3 +35,14 @@ mypy
 # textblob>=0.17.1    # Para sentiment_analyzer
 # spacy>=3.5.0        # Para NLP avançado
 # gensim>=4.3.0       # Para topic modeling
+
+# =================== INFRAESTRUTURA NOVA ===================
+# Monitoramento de erros
+sentry-sdk[fastapi]>=1.40.0
+
+# Testes automáticos
+pytest-asyncio>=0.21.0
+httpx>=0.24.0
+
+# Monitoramento de sistema
+psutil>=5.9.0

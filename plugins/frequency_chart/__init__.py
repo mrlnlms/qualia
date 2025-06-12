@@ -26,7 +26,7 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
             parameters={
                 "chart_type": {
                     "type": "choice",
-                    "options": ["bar", "horizontal_bar", "line", "area", "pie", "treemap", "sunburst"],
+                    "options": ["bar", "horizontal_bar", "line", "area"],
                     "default": "bar",
                     "description": "Tipo de gráfico"
                 },
@@ -34,11 +34,6 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
                     "type": "integer",
                     "default": 20,
                     "description": "Número máximo de itens a mostrar"
-                },
-                "top_n": {
-                    "type": "integer", 
-                    "default": 20,
-                    "description": "Número de top palavras (alias para max_items)"
                 },
                 "width": {
                     "type": "integer",
@@ -83,11 +78,6 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
         Todas as validações já foram feitas pela BaseVisualizerPlugin
         """
         
-        # Verificar se precisa chamar método específico para tipos especiais
-        if config['chart_type'] in ['pie', 'treemap', 'sunburst']:
-            method_name = f"_render_{config['chart_type']}"
-            return getattr(self, method_name)(data, config, output_path)
-        
         # Extrair e preparar dados
         frequencies = data['word_frequencies']
         
@@ -104,118 +94,6 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
         else:
             self._render_matplotlib(sorted_items, config, output_path)
         
-        return output_path
-    
-    def _render_treemap(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Path:
-        """Renderiza treemap usando plotly"""
-        import plotly.graph_objects as go
-        
-        # Pegar frequências
-        frequencies = data.get('word_frequencies', {})
-        # Aceitar tanto 'top_n' quanto 'max_items'
-        top_n = config.get('top_n', config.get('max_items', 20))
-        
-        # Preparar dados
-        words = []
-        counts = []
-        for word, count in sorted(frequencies.items(), key=lambda x: x[1], reverse=True)[:top_n]:
-            words.append(word)
-            counts.append(count)
-        
-        # Criar treemap
-        fig = go.Figure(go.Treemap(
-            labels=words,
-            values=counts,
-            parents=[""] * len(words),
-            textinfo="label+value",
-            marker=dict(colorscale='Blues', line=dict(width=1))
-        ))
-        
-        fig.update_layout(
-            title=f"Top {top_n} Palavras - Treemap",
-            margin=dict(l=0, r=0, t=30, b=0),
-            width=config.get('width', 800),
-            height=config.get('height', 600)
-        )
-        
-        # Salvar
-        if output_path.suffix == '.html':
-            fig.write_html(str(output_path))
-        else:
-            fig.write_image(str(output_path))
-            
-        return output_path
-    
-    def _render_pie(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Path:
-        """Renderiza pie chart"""
-        import plotly.graph_objects as go
-        
-        frequencies = data.get('word_frequencies', {})
-        # Aceitar tanto 'top_n' quanto 'max_items'
-        top_n = config.get('top_n', config.get('max_items', 10))
-        
-        # Preparar dados
-        sorted_freq = sorted(frequencies.items(), key=lambda x: x[1], reverse=True)[:top_n]
-        words = [item[0] for item in sorted_freq]
-        counts = [item[1] for item in sorted_freq]
-        
-        # Criar pie
-        fig = go.Figure(data=[go.Pie(
-            labels=words,
-            values=counts,
-            textinfo='label+percent',
-            insidetextorientation='radial'
-        )])
-        
-        fig.update_layout(
-            title=config.get('title', f"Top {top_n} Palavras - Distribuição"),
-            showlegend=True,
-            width=config.get('width', 800),
-            height=config.get('height', 600)
-        )
-        
-        # Salvar
-        if output_path.suffix == '.html':
-            fig.write_html(str(output_path))
-        else:
-            fig.write_image(str(output_path))
-            
-        return output_path
-    
-    def _render_sunburst(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Path:
-        """Renderiza sunburst (simplificado - sem hierarquia)"""
-        import plotly.graph_objects as go
-        
-        frequencies = data.get('word_frequencies', {})
-        # Aceitar tanto 'top_n' quanto 'max_items'
-        top_n = config.get('top_n', config.get('max_items', 15))
-        
-        # Preparar dados
-        sorted_freq = sorted(frequencies.items(), key=lambda x: x[1], reverse=True)[:top_n]
-        words = [item[0] for item in sorted_freq]
-        counts = [item[1] for item in sorted_freq]
-        
-        # Criar sunburst simples
-        fig = go.Figure(go.Sunburst(
-            labels=["Total"] + words,
-            parents=[""] + ["Total"] * len(words),
-            values=[sum(counts)] + counts,
-            branchvalues="total"
-        ))
-        
-        fig.update_layout(
-            title=config.get('title', f"Top {top_n} Palavras - Sunburst"),
-            margin=dict(l=0, r=0, t=30, b=0),
-            width=config.get('width', 800),
-            height=config.get('height', 600)
-        )
-        
-        # Salvar
-        if output_path.suffix == '.html':
-            fig.write_html(str(output_path))
-        else:
-            fig.write_image(str(output_path))
-            
         return output_path
     
     def _render_plotly(self, items: list, config: Dict[str, Any], 
@@ -242,20 +120,6 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
                 mode='lines', 
                 fill='tozeroy'
             )])
-        elif config['chart_type'] == 'pie':
-            fig = go.Figure(data=[go.Pie(labels=words, values=counts)])
-        elif config['chart_type'] == 'treemap':
-            fig = go.Figure(go.Treemap(
-                labels=words,
-                values=counts,
-                parents=[""] * len(words)
-            ))
-        elif config['chart_type'] == 'sunburst':
-            fig = go.Figure(go.Sunburst(
-                labels=["Total"] + list(words),
-                parents=[""] + ["Total"] * len(words),
-                values=[sum(counts)] + list(counts)
-            ))
         
         # Configurar layout
         fig.update_layout(
@@ -263,7 +127,7 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
             width=config['width'],
             height=config['height'],
             template="plotly_white",
-            xaxis_tickangle=-45 if config['chart_type'] not in ['horizontal_bar', 'pie', 'treemap', 'sunburst'] else 0
+            xaxis_tickangle=-45 if config['chart_type'] != 'horizontal_bar' else 0
         )
         
         # Aplicar esquema de cores

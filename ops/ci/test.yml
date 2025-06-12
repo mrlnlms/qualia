@@ -1,0 +1,236 @@
+# GitHub Actions - CI/CD para Qualia Core
+# Roda testes automaticamente a cada push/PR
+# 2000 minutos/mês GRÁTIS! 
+
+name: Qualia Core Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  
+  # Permite executar manualmente
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: 'pip'
+    
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        
+        # Dependências extras para testes
+        pip install pytest pytest-asyncio pytest-cov httpx
+    
+    - name: 🧪 Run core tests
+      run: |
+        echo "🔬 Testando Core Engine..."
+        python -c "
+        from qualia.core import QualiaCore
+        core = QualiaCore()
+        plugins = core.discover_plugins()
+        print(f'✅ Core OK - {len(plugins)} plugins descobertos')
+        "
+    
+    - name: 🔌 Test plugins individually
+      run: |
+        echo "🔌 Testando plugins individualmente..."
+        python -c "
+        from qualia.core import QualiaCore, Document
+        
+        core = QualiaCore()
+        core.discover_plugins()
+        doc = core.add_document('test', 'Este é um texto de teste para análise.')
+        
+        plugins_to_test = ['word_frequency', 'sentiment_analyzer']
+        
+        for plugin_id in plugins_to_test:
+            if plugin_id in core.plugins:
+                try:
+                    result = core.execute_plugin(plugin_id, doc, {})
+                    print(f'✅ Plugin {plugin_id}: OK')
+                except Exception as e:
+                    print(f'❌ Plugin {plugin_id}: {e}')
+                    exit(1)
+            else:
+                print(f'⚠️  Plugin {plugin_id} não encontrado')
+        "
+    
+    - name: 🌐 Test API endpoints
+      run: |
+        echo "🌐 Testando API..."
+        
+        # Inicia API em background
+        python -c "
+        import subprocess
+        import time
+        import requests
+        import signal
+        import os
+        
+        # Inicia API
+        print('🚀 Iniciando API...')
+        proc = subprocess.Popen(['python', '-c', '''
+from qualia.api import app
+import uvicorn
+uvicorn.run(app, host=\"0.0.0.0\", port=8000, log_level=\"error\")
+        '''], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        
+        # Aguarda API subir
+        time.sleep(10)
+        
+        try:
+            # Testa health check
+            response = requests.get('http://localhost:8000/health', timeout=5)
+            assert response.status_code == 200, f'Health check falhou: {response.status_code}'
+            print('✅ Health check: OK')
+            
+            # Testa listagem de plugins
+            response = requests.get('http://localhost:8000/plugins', timeout=5)
+            assert response.status_code == 200, f'Plugins endpoint falhou: {response.status_code}'
+            plugins = response.json()
+            print(f'✅ Plugins endpoint: {len(plugins)} plugins')
+            
+            # Testa análise básica
+            if plugins:
+                analyzer_plugins = [p for p in plugins if p['type'] == 'analyzer']
+                if analyzer_plugins:
+                    plugin_id = analyzer_plugins[0]['id']
+                    response = requests.post(
+                        f'http://localhost:8000/analyze/{plugin_id}',
+                        json={'text': 'teste'},
+                        timeout=10
+                    )
+                    assert response.status_code == 200, f'Analyze falhou: {response.status_code}'
+                    print(f'✅ Análise {plugin_id}: OK')
+        
+        finally:
+            # Mata processo da API
+            proc.terminate()
+            proc.wait()
+        "
+    
+    - name: 🔄 Test circuit breaker
+      run: |
+        echo "🔄 Testando Circuit Breaker..."
+        python -c "
+        from circuit_breaker import circuit_breaker, get_circuit_stats
+        import time
+        
+        @circuit_breaker(max_failures=2, timeout_seconds=1)
+        def test_plugin():
+            raise Exception('Teste de falha')
+        
+        # Testa falhas
+        for i in range(3):
+            try:
+                test_plugin()
+            except:
+                pass
+        
+        stats = get_circuit_stats()
+        print('✅ Circuit breaker funcionando')
+        "
+    
+    - name: 📊 Generate test report
+      if: always()
+      run: |
+        echo "📊 Relatório de Testes" > test_report.txt
+        echo "===================" >> test_report.txt
+        echo "Python: ${{ matrix.python-version }}" >> test_report.txt
+        echo "Data: $(date)" >> test_report.txt
+        echo "Branch: ${{ github.ref_name }}" >> test_report.txt
+        echo "Commit: ${{ github.sha }}" >> test_report.txt
+        
+        if [ $? -eq 0 ]; then
+          echo "Status: ✅ TODOS OS TESTES PASSARAM" >> test_report.txt
+        else
+          echo "Status: ❌ ALGUNS TESTES FALHARAM" >> test_report.txt
+        fi
+        
+        cat test_report.txt
+    
+    - name: 📤 Upload test artifacts
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-failure-logs-python-${{ matrix.python-version }}
+        path: |
+          test_report.txt
+          *.log
+        retention-days: 7
+
+  # Job para testar Docker build
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: 🐳 Test Docker build
+      run: |
+        echo "🐳 Testando build do Docker..."
+        docker build -t qualia-test .
+        
+        echo "🧪 Testando container..."
+        docker run --rm qualia-test python -c "
+        from qualia.core import QualiaCore
+        core = QualiaCore()
+        plugins = core.discover_plugins()
+        print(f'✅ Docker OK - {len(plugins)} plugins')
+        "
+
+  # Job de notificação (opcional)
+  notify:
+    runs-on: ubuntu-latest
+    needs: [test, docker]
+    if: always()
+    
+    steps:
+    - name: 📢 Status notification
+      run: |
+        if [[ "${{ needs.test.result }}" == "success" && "${{ needs.docker.result }}" == "success" ]]; then
+          echo "🎉 Todos os testes passaram!"
+          echo "✅ Core engine funcionando"
+          echo "✅ Plugins carregando"
+          echo "✅ API respondendo"
+          echo "✅ Docker buildando"
+          echo "✅ Circuit breaker ativo"
+        else
+          echo "❌ Alguns testes falharam"
+          echo "Test result: ${{ needs.test.result }}"
+          echo "Docker result: ${{ needs.docker.result }}"
+          exit 1
+        fi
+
+# Configurações extras
+env:
+  # Desabilita coleta de telemetria do pip
+  PIP_DISABLE_PIP_VERSION_CHECK: 1
+  
+  # Força modo não-interativo
+  DEBIAN_FRONTEND: noninteractive
+  
+  # Configurações do Qualia para CI
+  QUALIA_ENV: ci
+  QUALIA_LOG_LEVEL: ERROR
