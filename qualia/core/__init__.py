@@ -22,6 +22,7 @@ import inspect
 from datetime import datetime
 from enum import Enum
 from typing import Dict, Any, List, Optional, Union, Set, Tuple
+from qualia.core.config import ConfigurationRegistry
 
 # ============================================================================
 # CONTRATOS (O Core só conhece estas interfaces)
@@ -324,6 +325,7 @@ __all__ = [
     'BaseAnalyzerPlugin',      # novo
     'BaseVisualizerPlugin',    # novo
     'BaseDocumentPlugin',      # novo
+    'ConfigurationRegistry',
     'Document',
     'DependencyResolver',
     'CacheManager',
@@ -561,7 +563,8 @@ class QualiaCore:
         # Estado
         self.documents: Dict[str, Document] = {}
         self.pipelines: Dict[str, PipelineConfig] = {}
-        
+        self.config_registry: Optional[ConfigurationRegistry] = None
+
         # ADICIONE ESTA LINHA! Descobrir plugins na inicialização
         self.discover_plugins()
     
@@ -572,11 +575,15 @@ class QualiaCore:
         """
         self.registry = self.loader.discover()
         self.plugins = self.loader.loaded_plugins
-        
+
         # Atualiza resolver
         for plugin_id, metadata in self.registry.items():
             self.resolver.add_plugin(plugin_id, metadata)
-        
+
+        # Criar ConfigurationRegistry com os plugins descobertos
+        if self.plugins:
+            self.config_registry = ConfigurationRegistry(self.plugins)
+
         return self.registry
     
     def execute_plugin(self, 
@@ -701,6 +708,10 @@ class QualiaCore:
     def get_plugin_info(self, plugin_id: str) -> Optional[PluginMetadata]:
         """Retorna informações sobre um plugin específico"""
         return self.registry.get(plugin_id)
+
+    def get_config_registry(self) -> Optional[ConfigurationRegistry]:
+        """Retorna a instância do ConfigurationRegistry"""
+        return self.config_registry
 
 
 # ============================================================================

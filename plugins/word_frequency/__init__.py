@@ -57,12 +57,20 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):  # MUDANÇA: Herdar de Base
                 "min_word_length": {
                     "type": "integer",
                     "default": 3,
-                    "description": "Comprimento mínimo das palavras a considerar"
+                    "description": "Comprimento mínimo das palavras a considerar",
+                    "text_size_adjustments": {
+                        "short_text": 2,
+                        "long_text": 4,
+                    }
                 },
                 "max_words": {
                     "type": "integer",
                     "default": 100,
-                    "description": "Número máximo de palavras no resultado"
+                    "description": "Número máximo de palavras no resultado",
+                    "text_size_adjustments": {
+                        "short_text": 50,
+                        "long_text": 200,
+                    }
                 },
                 "case_sensitive": {
                     "type": "boolean",

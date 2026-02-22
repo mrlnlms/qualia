@@ -72,6 +72,11 @@ class VisualizeRequest(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict, description="Visualization configuration")
     output_format: str = Field("png", description="Output format: png, svg, html")
 
+class ConfigResolveRequest(BaseModel):
+    plugin_id: str = Field(..., description="Plugin ID to resolve config for")
+    text_size: str = Field("medium", description="Text size category: short_text, medium, long_text")
+    profile: Optional[str] = Field(None, description="Domain profile name")
+
 class PipelineStep(BaseModel):
     plugin_id: str
     config: Dict[str, Any] = Field(default_factory=dict)
@@ -159,9 +164,19 @@ def get_plugin(plugin_id: str):
 async def analyze(plugin_id: str, request: AnalyzeRequest):
     """Execute an analyzer plugin on text"""
     try:
+        # Validate config via registry if available
+        registry = core.get_config_registry()
+        if registry and request.config:
+            valid, errors = registry.validate_config(plugin_id, request.config)
+            if not valid:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"message": "Configuração inválida", "errors": errors}
+                )
+
         # Create document
         doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-        
+
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, request.config, request.context)
         
@@ -356,6 +371,65 @@ async def execute_pipeline(request: PipelineRequest):
         if HAS_EXTENSIONS:
             await track_request("/pipeline", error=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+# ============================================================================
+# ConfigurationRegistry endpoints
+# ============================================================================
+
+@app.get("/plugins/{plugin_id}/schema")
+def get_plugin_schema(plugin_id: str):
+    """Get normalized schema for a plugin"""
+    registry = core.get_config_registry()
+    if not registry:
+        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
+
+    schema = registry.get_plugin_schema(plugin_id)
+    if not schema:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
+
+    return schema
+
+@app.get("/config/consolidated")
+def get_consolidated_config():
+    """Get consolidated view of all schemas, profiles, and text_size rules"""
+    registry = core.get_config_registry()
+    if not registry:
+        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
+
+    return registry.get_consolidated_view()
+
+@app.get("/config/profiles")
+def get_config_profiles():
+    """List available domain profiles"""
+    registry = core.get_config_registry()
+    if not registry:
+        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
+
+    return registry.get_profiles()
+
+@app.post("/config/resolve")
+def resolve_config(request: ConfigResolveRequest):
+    """Resolve final config for a plugin with text_size and profile cascade"""
+    registry = core.get_config_registry()
+    if not registry:
+        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
+
+    if not registry.get_plugin_schema(request.plugin_id):
+        raise HTTPException(status_code=404, detail=f"Plugin '{request.plugin_id}' not found")
+
+    config = registry.get_config_for_plugin(
+        request.plugin_id,
+        text_size=request.text_size,
+        profile=request.profile,
+    )
+
+    return {
+        "plugin_id": request.plugin_id,
+        "text_size": request.text_size,
+        "profile": request.profile,
+        "resolved_config": config,
+    }
+
 
 @app.get("/health")
 def health_check():
