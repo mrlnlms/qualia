@@ -13,6 +13,7 @@ import tempfile
 import json
 from pathlib import Path
 import base64
+import hashlib
 import io
 
 from qualia.core import QualiaCore, Document, PipelineConfig, PipelineStep
@@ -159,7 +160,7 @@ async def analyze(plugin_id: str, request: AnalyzeRequest):
     """Execute an analyzer plugin on text"""
     try:
         # Create document
-        doc = core.add_document(f"api_doc_{plugin_id}", request.text)
+        doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, request.config, request.context)
@@ -197,7 +198,7 @@ async def analyze_file(
         text = content.decode('utf-8')
         
         # Create document
-        doc = core.add_document(f"api_upload_{file.filename}", text)
+        doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
         
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, config_dict, context_dict)
@@ -223,7 +224,7 @@ async def process(plugin_id: str, request: ProcessRequest):
     """Execute a document processor plugin"""
     try:
         # Create document
-        doc = core.add_document(f"api_process_{plugin_id}", request.text)
+        doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         
         # Execute plugin
         result = core.execute_plugin(plugin_id, doc, request.config)
@@ -318,7 +319,7 @@ async def execute_pipeline(request: PipelineRequest):
     """Execute a pipeline of plugins"""
     try:
         # Create document
-        doc = core.add_document("api_pipeline", request.text)
+        doc = core.add_document(f"api_pipeline_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         
         # Convert steps to pipeline config format
         # Convert steps to PipelineStep objects
