@@ -5,7 +5,6 @@ Responsabilidades:
 - Normalizar schemas de parâmetros (formatos legado e novo)
 - Validar configurações contra schemas
 - Calibrar parâmetros por tamanho de texto
-- Gerenciar perfis de domínio
 - Fornecer visão consolidada para consumers (ex: CodeMarker)
 """
 
@@ -41,8 +40,7 @@ class ConfigurationRegistry:
     Recebe plugins já descobertos pelo PluginLoader e oferece:
     - Schema normalizado de cada plugin
     - Validação de tipo, range e options
-    - Resolução de config com cascata: default → text_size → profile
-    - Perfis de domínio extensíveis
+    - Resolução de config com cascata: default → text_size adjustments
     - Visão consolidada para consumers
     """
 
@@ -53,7 +51,6 @@ class ConfigurationRegistry:
         """
         self._plugins = plugins
         self._schemas: Dict[str, Dict[str, Any]] = {}
-        self._profiles: Dict[str, Dict[str, Any]] = {}
 
         # Construir schemas normalizados na inicialização
         for plugin_id, plugin in self._plugins.items():
@@ -230,17 +227,15 @@ class ConfigurationRegistry:
         self,
         plugin_id: str,
         text_size: str = "medium",
-        profile: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Resolve configuração final para um plugin.
 
-        Cascata: default → text_size adjustments → profile overrides
+        Cascata: default → text_size adjustments
 
         Args:
             plugin_id: ID do plugin
             text_size: 'short_text', 'medium', ou 'long_text'
-            profile: nome do perfil de domínio (opcional)
 
         Returns:
             Dict com valores finais de cada parâmetro
@@ -263,40 +258,7 @@ class ConfigurationRegistry:
             if text_size in adjustments:
                 config[param_name] = adjustments[text_size]
 
-        # 3. Profile overrides
-        if profile and profile in self._profiles:
-            profile_data = self._profiles[profile]
-            plugin_overrides = profile_data.get("adjustments", {}).get(plugin_id, {})
-            config.update(plugin_overrides)
-
         return config
-
-    # ------------------------------------------------------------------
-    # Perfis de domínio
-    # ------------------------------------------------------------------
-
-    def register_profile(
-        self,
-        name: str,
-        description: str,
-        adjustments: Dict[str, Dict[str, Any]],
-    ) -> None:
-        """
-        Registra um perfil de domínio.
-
-        Args:
-            name: Nome do perfil (ex: 'academic', 'social_media')
-            description: Descrição do perfil
-            adjustments: Dict[plugin_id, Dict[param_name, value]]
-        """
-        self._profiles[name] = {
-            "description": description,
-            "adjustments": adjustments,
-        }
-
-    def get_profiles(self) -> Dict[str, Dict[str, Any]]:
-        """Retorna todos os perfis registrados."""
-        return dict(self._profiles)
 
     # ------------------------------------------------------------------
     # Visão consolidada
@@ -306,11 +268,10 @@ class ConfigurationRegistry:
         """
         Snapshot completo para consumers.
 
-        Retorna schemas, profiles, text_size rules e summary.
+        Retorna schemas, text_size rules e summary.
         """
         return {
             "schemas": self._schemas,
-            "profiles": self._profiles,
             "text_size_rules": {
                 "thresholds": TEXT_SIZE_THRESHOLDS,
                 "categories": ["short_text", "medium", "long_text"],
@@ -324,7 +285,6 @@ class ConfigurationRegistry:
                         for p in schema["parameters"].values()
                     )
                 ),
-                "total_profiles": len(self._profiles),
                 "plugin_ids": list(self._schemas.keys()),
             },
         }

@@ -321,51 +321,9 @@ class TestConfigResolution:
         config = reg.get_config_for_plugin("p", text_size="medium")
         assert config["n"] == 50
 
-    def test_profile_overrides_text_size(self):
-        reg = _registry_with_plugins({
-            "p": {"n": {
-                "type": "integer",
-                "default": 50,
-                "text_size_adjustments": {"short_text": 20},
-            }}
-        })
-        reg.register_profile("academic", "Perfil acadêmico", {
-            "p": {"n": 999}
-        })
-        config = reg.get_config_for_plugin("p", text_size="short_text", profile="academic")
-        assert config["n"] == 999  # profile vence text_size
-
     def test_unknown_plugin_returns_empty(self):
         reg = _registry_with_plugins({"p": {}})
         assert reg.get_config_for_plugin("missing") == {}
-
-    def test_unknown_profile_ignored(self):
-        reg = _registry_with_plugins({
-            "p": {"n": {"type": "integer", "default": 10}}
-        })
-        config = reg.get_config_for_plugin("p", profile="nonexistent")
-        assert config == {"n": 10}
-
-
-# ============================================================================
-# Perfis
-# ============================================================================
-
-class TestProfiles:
-    def test_register_and_get_profiles(self):
-        reg = _registry_with_plugins({"p": {}})
-        assert reg.get_profiles() == {}
-
-        reg.register_profile("test", "Test profile", {"p": {"n": 42}})
-        profiles = reg.get_profiles()
-        assert "test" in profiles
-        assert profiles["test"]["description"] == "Test profile"
-
-    def test_multiple_profiles(self):
-        reg = _registry_with_plugins({"p": {}})
-        reg.register_profile("a", "Profile A", {})
-        reg.register_profile("b", "Profile B", {})
-        assert len(reg.get_profiles()) == 2
 
 
 # ============================================================================
@@ -381,7 +339,6 @@ class TestConsolidatedView:
         view = reg.get_consolidated_view()
 
         assert "schemas" in view
-        assert "profiles" in view
         assert "text_size_rules" in view
         assert "summary" in view
         assert view["summary"]["total_plugins"] == 2
@@ -405,9 +362,3 @@ class TestConsolidatedView:
         view = reg.get_consolidated_view()
         assert view["summary"]["plugins_with_text_size"] == 1
 
-    def test_profiles_in_view(self):
-        reg = _registry_with_plugins({"p": {}})
-        reg.register_profile("test", "desc", {})
-        view = reg.get_consolidated_view()
-        assert view["summary"]["total_profiles"] == 1
-        assert "test" in view["profiles"]

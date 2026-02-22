@@ -75,7 +75,6 @@ class VisualizeRequest(BaseModel):
 class ConfigResolveRequest(BaseModel):
     plugin_id: str = Field(..., description="Plugin ID to resolve config for")
     text_size: str = Field("medium", description="Text size category: short_text, medium, long_text")
-    profile: Optional[str] = Field(None, description="Domain profile name")
 
 class PipelineStep(BaseModel):
     plugin_id: str
@@ -391,25 +390,16 @@ def get_plugin_schema(plugin_id: str):
 
 @app.get("/config/consolidated")
 def get_consolidated_config():
-    """Get consolidated view of all schemas, profiles, and text_size rules"""
+    """Get consolidated view of all schemas and text_size rules"""
     registry = core.get_config_registry()
     if not registry:
         raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
 
     return registry.get_consolidated_view()
 
-@app.get("/config/profiles")
-def get_config_profiles():
-    """List available domain profiles"""
-    registry = core.get_config_registry()
-    if not registry:
-        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
-
-    return registry.get_profiles()
-
 @app.post("/config/resolve")
 def resolve_config(request: ConfigResolveRequest):
-    """Resolve final config for a plugin with text_size and profile cascade"""
+    """Resolve final config for a plugin with text_size cascade"""
     registry = core.get_config_registry()
     if not registry:
         raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
@@ -420,13 +410,11 @@ def resolve_config(request: ConfigResolveRequest):
     config = registry.get_config_for_plugin(
         request.plugin_id,
         text_size=request.text_size,
-        profile=request.profile,
     )
 
     return {
         "plugin_id": request.plugin_id,
         "text_size": request.text_size,
-        "profile": request.profile,
         "resolved_config": config,
     }
 
