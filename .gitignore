@@ -17,6 +17,9 @@ build/
 *.swo
 .DS_Store
 
+# Secrets
+.env
+
 # Qualia específico
 cache/
 output/

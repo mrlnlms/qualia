@@ -50,3 +50,9 @@ psutil>=5.9.0
 
 textblob>=0.17.1
 langdetect>=1.0.9
+
+# Environment
+python-dotenv>=1.0.0
+
+# Transcription (Groq Whisper API)
+groq>=0.4.0
