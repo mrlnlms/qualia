@@ -11,6 +11,15 @@ import uvicorn
 from pathlib import Path
 import sys
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["app://obsidian.md", "http://localhost", "*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Add project root to path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))

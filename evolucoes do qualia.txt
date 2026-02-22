@@ -1,0 +1,1141 @@
+
+╭─── Claude Code v2.1.37 ──────────────────────────────────────────────────────╮
+│                           │ Tips for getting started                         │
+│    Welcome back Marlon!   │ Run /init to create a CLAUDE.md file with instr… │
+│                           │ ──────────────────────────────────────────────── │
+│         ▗ ▗   ▖ ▖         │ Recent activity                                  │
+│                           │ No recent activity                               │
+│           ▘▘ ▝▝           │                                                  │
+│                           │                                                  │
+│   Opus 4.6 · Claude Max   │                                                  │
+│         ~/Desktop         │                                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+
+❯ olá. Eu tenho um projeto na pasta qualia ,que foi uma ideia derivada de   
+  outros prototipos etc. Depois de um tempo com ele parado, eu entrei em um 
+   projeto que é o observatório-voc e o DeepVoc, e Whatsapps Project. O     
+  qualia era uma ideia de um framework modularizavel etc, mas eu tava meio  
+  perdido na época, eu cheguei a criar um esqueleto, mas não fui adiante,   
+  mas uma parte que foi muito avançado foi a parte técnica, apis etc.       
+  Enfim, o ponto é o seguinte, eu queria retomar o contexto e funcionamento 
+   do qualia, entender o que o projeto do DeepVoc teria como analise para   
+  ser usado no qualia, queria essa visão cruzada entre os projetos. Mas     
+  primeiro, começa com o qualia, pq nao lembro mesmo como ele ta, o pé que  
+  ta. o DeepVoc é de agora, então não preciso desse contexto                
+
+⏺ Vamos lá! Vou começar explorando o projeto Qualia para recuperar o contexto
+  completo do que foi construído.
+
+⏺ 3 Explore agents finished (ctrl+o to expand)
+   ├─ Explore qualia project structure · 32 tool uses · 81.2k tokens
+   │  ⎿  Done
+   ├─ Explore qualia APIs and technical · 38 tool uses · 80.8k tokens
+   │  ⎿  Done
+   └─ Explore qualia modules and docs · 35 tool uses · 72.9k tokens
+      ⎿  Done
+
+⏺ Boa! Os agentes exploraram o Qualia a fundo. Aqui vai o resumo do estado do
+  projeto:
+
+  ---
+  Qualia Core — Resumo do Estado Atual
+
+  O que é
+
+  Um framework bare-metal para análise qualitativa de dados — transforma
+  documentos de texto (transcrições, feedbacks, pesquisas) em insights
+  quantificáveis e visualizações. A filosofia central: o core não sabe nada
+  sobre domínio; tudo vem via plugins auto-descobertos.
+
+  Stack
+
+  Python 3.9+ | FastAPI | Click (CLI) | Rich (TUI) | NLTK/TextBlob |
+  Matplotlib/Plotly | Docker
+
+  Arquitetura (v0.2.0 — Dez/2024)
+
+  qualia/
+  ├── core/          → Motor agnóstico: discovery, dependências, cache,
+  pipelines
+  ├── api/           → FastAPI REST (11+ endpoints) + webhooks + monitor SSE
+  ├── cli/           → 13 comandos + menu interativo (Rich TUI)
+  plugins/           → 6 plugins funcionais (auto-descobertos)
+  ops/               → Circuit breaker, Sentry, backups, health checks
+  configs/           → Pipelines em YAML
+  docs/              → ~30 arquivos MD (lessons learned, roadmap, guides)
+
+  O que está 100% funcional
+  Camada: Core Engine
+  Status: Completo
+  Detalhes: Plugin discovery, dependency resolution (topological sort), cache
+    SHA256, pipeline execution
+  ────────────────────────────────────────
+  Camada: 6 Plugins
+  Status: Completos
+  Detalhes: word_frequency, sentiment_analyzer, teams_cleaner, wordcloud_viz,
+    frequency_chart, sentiment_viz
+  ────────────────────────────────────────
+  Camada: CLI
+  Status: 13 comandos
+  Detalhes: list, analyze, process, pipeline, visualize, menu, watch, export,
+    inspect, validate, batch, benchmark, info
+  ────────────────────────────────────────
+  Camada: REST API
+  Status: 11+ endpoints
+  Detalhes: analyze, process, visualize, pipeline, plugins, health, webhooks,
+    monitor
+  ────────────────────────────────────────
+  Camada: Infra
+  Status: Pronto
+  Detalhes: Docker multi-stage, nginx, circuit breaker, Sentry, backups
+    automáticos, health dashboard
+  ────────────────────────────────────────
+  Camada: Testes
+  Status: 9/9 passando
+  Detalhes: API, core, pragmáticos
+  O que ficou como esqueleto/pendente
+
+  - Autenticação/Autorização — estrutura existe, não está ativa
+  - Rate limiting — config existe, não enforçado
+  - Webhooks específicos (GitHub, Slack, Discord) — só o genérico funciona
+  - Plugins avançados planejados — theme extractor (LDA), entity recognizer,
+  emotion analyzer, dashboard composer
+  - Frontend web completo — tem o dashboard de saúde e Swagger, mas não uma app
+  - Redis/Prometheus — no docker-compose mas não integrados
+
+  Padrões arquiteturais notáveis
+
+  1. Discovery over Configuration — cria pasta em /plugins/, auto-descobre
+  2. Base Classes + Template Method — reduz ~30% de boilerplate
+  3. Graceful Degradation — tudo opcional funciona com fallback
+  4. Pipeline as Config — YAML define cadeias de plugins
+  5. Metadata as Contract — plugins se auto-descrevem
+
+  A parte técnica que você mencionou estar avançada
+
+  Confirma — a API REST, o sistema de webhooks, o monitor real-time (SSE),
+  circuit breaker, Sentry integration, Docker deployment — tudo isso está
+  implementado e funcional. É a camada mais madura do projeto.
+
+  ---
+  Agora que o contexto do Qualia foi recuperado, preciso entender melhor o que
+  você quer fazer:
+
+⏺ User answered Claude's questions:
+  ⎿  · Agora que revisamos o Qualia, qual é o próximo passo que você quer? →
+      Então, agora olha o projeto DeepVoc. Faça o mesmo que fez para o 
+     qualia. E depois, para o observatório-voc. 
+
+⏺ Vou explorar os dois projetos em paralelo — DeepVoc e observatório-voc.
+
+⏺ 2 Explore agents finished (ctrl+o to expand)
+   ├─ Explore DeepVoc project structure · 24 tool uses · 99.7k tokens
+   │  ⎿  Done
+   └─ Explore observatorio-voc project · 29 tool uses · 90.6k tokens
+      ⎿  Done
+
+⏺ Pronto! Aqui vão os resumos dos dois projetos:
+
+  ---
+  DeepVoC — Resumo do Estado Atual
+
+  O que é
+
+  Framework end-to-end para análise de feedbacks abertos de pesquisas de
+  satisfação (Smiles). Combina BERTopic (descoberta automática de temas) com
+  análise qualitativa via LLM (Claude) para transformar milhares de respostas
+  abertas em insights estratégicos.
+
+  Stack
+
+  Python 3.14 | BERTopic + HDBSCAN + UMAP | Sentence-Transformers (MiniLM-384d)
+  | Quarto | Plotly | Claude Code CLI
+
+  Pipeline em 3 Fases
+
+  Fase 1 — Quantitativa (~10min, automatizada)
+  Parquet bruto → Filtro qualidade → Embeddings 384d → BERTopic
+  (UMAP→HDBSCAN→c-TF-IDF)
+  → Hierarquia 3 níveis (Original ~85% / Linked ~10% / Nicho ~5%)
+  → Perfil temporal (Emergente/Crônico/Declinante) → Co-ocorrência → Export TXT
+  por meta-tema
+
+  Fase 2 — Qualitativa (~20min, LLM)
+  P1: 4 workers Sonnet analisam cada meta-tema → MD + JSON
+  P2: 1 Opus cruza tudo → 5 macro-temas, jornadas, conexões
+  P3: 4 workers Sonnet → narrativas por macro-tema
+  P4: 1 chamada → síntese executiva estratégica
+
+  Fase 3 — Visualização (~5min)
+  Cards visuais → Relatório HTML consolidado → Segmentação ACM → Parquet
+  enriquecido (286 colunas!)
+
+  Projetos ativos
+  ┌──────────┬───────────┬────────────────┐
+  │ Projeto  │ Feedbacks │  Status Quali  │
+  ├──────────┼───────────┼────────────────┤
+  │ club     │ 23.479    │ P1-P4 completo │
+  ├──────────┼───────────┼────────────────┤
+  │ cob      │ 9.115     │ Pendente       │
+  ├──────────┼───────────┼────────────────┤
+  │ churn    │ 2.293     │ Pendente       │
+  ├──────────┼───────────┼────────────────┤
+  │ shop     │ 1.298     │ Pendente       │
+  ├──────────┼───────────┼────────────────┤
+  │ voebiz   │ 897       │ Completo       │
+  ├──────────┼───────────┼────────────────┤
+  │ inativos │ 132       │ Completo       │
+  └──────────┴───────────┴────────────────┘
+  Destaques técnicos
+
+  - Parâmetros adaptativos — BERTopic auto-ajusta por tamanho do corpus
+  - Fallback inteligente — se <8 temas elegíveis, pula clustering hierárquico
+  - Templates centralizados — notebooks são wrappers finos que incluem templates
+   de src/templates/modern/
+  - Multi-projeto — setup.yaml como single source of truth
+  - Sem Git — projeto não está versionado ainda
+
+  ---
+  Observatório VoC — Resumo do Estado Atual
+
+  O que é
+
+  Framework de diagnóstico e analytics para programas de pesquisa VoC rodando no
+   Qualtrics. Integra dados de distribuição (envio, entrega, abertura, clique de
+   emails) com respostas de pesquisa para diagnósticos de causa-raiz.
+
+  Stack
+
+  Python 3.14 | Polars | Quarto | Plotly | Kaleido | Parquet
+
+  Arquitetura em 3 Camadas Diagnósticas
+
+  CAMADA 1 — Coleta de Dados
+    ├── Distribuição: Entrega → Abertura → Clique (unidade: envio)
+    └── Preenchimento: Início → Conclusão (unidade: sessão)
+
+  CAMADA 2 — Validação Estatística
+    └── Inferência: Speeders, straightliners, power analysis (unidade: resposta)
+
+  CAMADA 3 — Inteligência de Negócio
+    └── Cobertura: Alcance único, saturação, fadiga, ROI (unidade: cliente)
+
+  + 5 perspectivas transversais: Waves, Convites/Lembretes, Cohorts, Pipeline,
+  Domínios de email
+
+  Pipeline ETL
+
+  Distribution CSV + Responses CSV
+      → LEFT JOIN (Response_Id)
+      → Detecção de Waves (monthly ou gap)
+      → Link Lembretes → Convites originais
+      → Cohorts (primeira aparição)
+      → Flags (bounces, speeders, straightliners)
+      → Parquet consolidado + meta.yaml
+
+  Projetos ativos
+  ┌──────────────┬───────────┬─────────────────┐
+  │   Projeto    │ Registros │ Clientes únicos │
+  ├──────────────┼───────────┼─────────────────┤
+  │ Club         │ 2.4M      │ 1.03M           │
+  ├──────────────┼───────────┼─────────────────┤
+  │ COB          │ 587K      │ —               │
+  ├──────────────┼───────────┼─────────────────┤
+  │ VoeBiz       │ 152K      │ —               │
+  ├──────────────┼───────────┼─────────────────┤
+  │ Churn_Club   │ 107K      │ —               │
+  ├──────────────┼───────────┼─────────────────┤
+  │ SHOP         │ 80K       │ —               │
+  ├──────────────┼───────────┼─────────────────┤
+  │ COB_Inativos │ 36K       │ —               │
+  └──────────────┴───────────┴─────────────────┘
+  Destaques técnicos
+
+  - Escala real — 2.4M registros processados com Polars (LazyFrame)
+  - Non-destructive tagging — flags ao invés de deleção (Is_Speeder,
+  Is_Hard_Bounce, Zombie Bounces)
+  - 53 arquivos QMD de documentação metodológica
+  - Template master v12 — 823KB com análise de waves modular
+  - Análises avançadas no Club — Sobrevivência (Kaplan-Meier + Cox PH), NPS +
+  clustering, power analysis, driver analysis, bridge analyses
+  - CLAUDE.md — guia explícito de colaboração com IA (359 linhas)
+  - Exportação multi-formato — HTML standalone, PDF, Markdown + PNG (para LLMs)
+
+  ---
+  Visão Geral dos 3 Projetos
+  Aspecto: Foco
+  Qualia: Framework genérico de análise qualitativa
+  DeepVoC: Análise temática de feedbacks abertos
+  Observatório VoC: Diagnóstico de programas de pesquisa VoC
+  ────────────────────────────────────────
+  Aspecto: Domínio
+  Qualia: Agnóstico
+  DeepVoC: Smiles (pesquisas NPS)
+  Observatório VoC: Smiles (Qualtrics)
+  ────────────────────────────────────────
+  Aspecto: Input
+  Qualia: Qualquer texto
+  DeepVoC: Respostas abertas (parquet)
+  Observatório VoC: Distribution + Responses (CSV/Parquet)
+  ────────────────────────────────────────
+  Aspecto: Output
+  Qualia: Análises + visualizações via plugins
+  DeepVoC: Relatório HTML + parquet enriquecido
+  Observatório VoC: Diagnósticos + templates de wave analysis
+  ────────────────────────────────────────
+  Aspecto: Arquitetura
+  Qualia: Plugin auto-discovery
+  DeepVoC: Pipeline notebooks (Quarto)
+  Observatório VoC: Pipeline ETL + Quarto docs
+  ────────────────────────────────────────
+  Aspecto: NLP
+  Qualia: TextBlob, NLTK
+  DeepVoC: BERTopic, MiniLM, LLM (Claude)
+  Observatório VoC: — (foco em métricas)
+  ────────────────────────────────────────
+  Aspecto: API
+  Qualia: FastAPI REST (11+ endpoints)
+  DeepVoC: CLI + notebooks
+  Observatório VoC: CLI + notebooks
+  ────────────────────────────────────────
+  Aspecto: Maturidade
+  Qualia: Esqueleto avançado, técnica sólida
+  DeepVoC: Produção (3 projetos completos)
+  Observatório VoC: Produção (6 projetos, 2.4M registros)
+  ---
+  Agora que temos o mapa completo dos 3 projetos:
+
+⏺ User answered Claude's questions:
+  ⎿  · Qual análise cruzada você quer fazer entre os projetos? → Ambos → 
+     Qualia
+     · Qual é a intenção com o Qualia agora? Isso ajuda a direcionar a 
+     análise. → A minha memória me lembra que eu tinha criado algo meio plug
+      in play, então, é dai que partiria. Tipo, o que poderia ou não virar 
+     plugin, como funcionaria.. de ambos projetos. 
+
+⏺ Perfeito — a ideia é mapear o que de cada projeto poderia (ou não) virar
+  plugin no Qualia. Vou lançar um agente de planejamento para fazer essa análise
+   cruzada de forma estruturada.
+
+⏺ Plan(Plan DeepVoc+Obs plugins for Qualia)
+  ⎿  Done (28 tool uses · 164.7k tokens · 3m 23s)
+
+⏺ Análise completa. Vou consolidar tudo no arquivo de plano e te apresentar a
+  visão cruzada.
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Aqui vai o resumo da visão cruzada:
+
+  ---
+  DeepVoC + Observatório → Qualia: O Mapa
+
+  O que VIRA plugin: 21 candidatos
+
+  5 drop-in (zero mudança no core):
+  - text_quality_filter — filtro de texto inútil (do DeepVoC)
+  - nps_analyzer — cálculo NPS padronizado
+  - power_analyzer — poder estatístico
+  - speeder_detector / straightliner_detector — flags de qualidade de survey
+
+  7 com suporte a dados estruturados:
+  - cooccurrence_analyzer, funnel_analyzer, driver_analyzer, survival_analyzer,
+  wave_detector, cohort_assigner, sankey_viz
+
+  9 com corpus mode (multi-documento):
+  - A cadeia BERTopic inteira decomposta: embedding_generator → umap_reducer →
+  hdbscan_clusterer → ctfidf_keywords → hierarchical_merger
+  - Mais: transformer_sentiment, acm_segmenter, temporal_classifier
+
+  O que NÃO vira plugin: 8 funcionalidades
+
+  - Pipeline LLM (P1-P4) — orquestração externa, não plugin (spawna processos,
+  retry, multi-modelo)
+  - ETL do Observatório — é pré-Qualia, alimenta o framework
+  - Bounce flagging, reminder linking, column mapping — domínio-específico
+  demais
+  - Relatório HTML, export multi-formato — concern de apresentação, não análise
+
+  O que o Core precisa evoluir: 3 mudanças
+
+  1. Document.structured_data — suportar dados tabulares além de texto
+  2. Corpus Mode — scope: "corpus" para plugins que precisam de todos os docs
+  simultaneamente
+  3. Resource Manager — cache de modelos pesados (sentence-transformers,
+  RoBERTa)
+
+  Conclusão-chave
+
+  O Qualia tem a arquitetura certa. Com 2 evoluções no core (structured data + 
+  corpus mode), ~80% das funcionalidades dos dois projetos cabem como plugins. A
+   pipeline LLM e o ETL ficam fora como orquestradores que consomem/alimentam o 
+  Qualia.
+
+  ---
+
+⏺ User answered Claude's questions:
+  ⎿  · Como quer prosseguir com essa análise? → Entendi, o qualia tava 
+     preparado apenas pra dados de corpus longo, é isso, e ai tinha previsto
+      algumas libs especificas para isso, enquanto o deepvoc é com dados 
+     mais estruturados, é issso? E pensando aqui, então o deepvoc e o 
+     observatorio de certa forma se tornariam apenas pipelines e geradores 
+     das visualizações, consumindo o framework via alguma forma, api sei la,
+      é isso?
+
+
+⏺ Boa pergunta — vou clarificar porque a nuance é importante.
+
+  Sobre o Qualia
+
+  Não é exatamente "corpus longo". O Qualia foi feito para texto como string —
+  um Document com content: str. Cada plugin recebe um documento de texto e faz
+  algo com ele (contar palavras, analisar sentimento, limpar transcrição Teams).
+   Pode ser um parágrafo ou um livro inteiro — o ponto é que a unidade é um 
+  texto.
+
+  A limitação é que ele só entende texto puro — não sabe lidar com DataFrame,
+  arrays numpy, dados tabulares, nem com múltiplos documentos ao mesmo tempo.
+
+  Sobre o DeepVoC
+
+  O DeepVoC trabalha com ambos — texto E dados estruturados:
+  - Começa com textos abertos de pesquisa (strings)
+  - Transforma em embeddings (numpy arrays 384d)
+  - Clusteriza (DataFrames com labels, probabilidades)
+  - Classifica temporalmente (regressão linear sobre séries)
+  - Analisa qualitativamente via LLM (texto de volta)
+
+  Sobre o Observatório
+
+  O Observatório é quase 100% dados estruturados — CSVs com milhões de linhas,
+  métricas de funil, análise de sobrevivência, power analysis. Pouco texto
+  envolvido.
+
+  Então como ficaria?
+
+  A sua intuição está na direção certa, mas com uma camada a mais:
+
+  ┌─────────────────────────────────────────────────┐
+  │                 QUALIA CORE                       │
+  │  (engine de plugins — hoje texto, amanhã mais)   │
+  │                                                   │
+  │  Plugins de texto:  sentiment, word_freq, etc.   │
+  │  Plugins estatísticos: NPS, power, survival      │
+  │  Plugins ML: embeddings, UMAP, HDBSCAN           │
+  │  Plugins de qualidade: speeder, straightliner    │
+  └──────────────┬──────────────────┬────────────────┘
+                 │                  │
+                 │ consome via      │ consome via
+                 │ API / import     │ API / import
+                 │                  │
+      ┌──────────▼──────┐  ┌───────▼──────────────┐
+      │    DeepVoC       │  │  Observatório VoC     │
+      │                  │  │                       │
+      │  Orquestração:   │  │  Orquestração:        │
+      │  - Pipeline      │  │  - ETL Qualtrics      │
+      │    BERTopic      │  │  - Wave detection     │
+      │  - Pipeline LLM  │  │  - Reminder linking   │
+      │    (P1-P4)       │  │  - Bounce flagging    │
+      │  - Quarto render │  │  - Quarto render      │
+      │                  │  │                       │
+      │  Visualização:   │  │  Visualização:        │
+      │  - Relatório     │  │  - Templates v12      │
+      │    HTML          │  │  - Dashboards         │
+      │  - Cards         │  │  - Reports            │
+      └─────────────────┘  └───────────────────────┘
+
+  O que entra no Qualia: as capacidades analíticas genéricas — coisas que
+  qualquer projeto poderia usar (sentiment, embeddings, clustering, NPS,
+  survival, power analysis). Viram plugins reutilizáveis.
+
+  O que fica no DeepVoC/Observatório: a orquestração específica — como encadear
+  esses plugins, como alimentar com dados Qualtrics, como gerar relatórios
+  Quarto, como rodar a pipeline LLM. Cada projeto é um "cliente" do Qualia que
+  monta seu pipeline próprio.
+
+  Ou seja: não é que eles viram "apenas" pipelines — eles continuam sendo
+  produtos completos com suas especificidades. Mas o motor analítico que hoje
+  está embutido e duplicado entre eles seria extraído para o Qualia como plugins
+   compartilhados.
+
+⏺ User answered Claude's questions:
+  ⎿  · Faz sentido essa separação? Quer seguir por esse caminho ou tem outra
+      visão? → Eu só estou mapeando para revisar o projeto mesmo. como faz 
+     tempo (veja na data de criação), eu queria essa revisão pra saber o 
+     quanto esse desenvolvimento foi util e interessante, e mais, 
+     reutilizavel como pode ser agora. Me tira uma duvida, tem a parte de 
+     consumo de api, isso ficou automatico tbm né. 
+
+
+⏺ Sim, essa é uma das partes mais bem feitas do Qualia. A API é completamente 
+  automática — qualquer plugin que você colocar na pasta /plugins/ fica
+  disponível via REST instantaneamente, sem configurar nada.
+
+  Como funciona
+
+  O endpoint é dinâmico por plugin_id:
+
+  POST /analyze/{plugin_id}      → Qualquer analyzer plugin
+  POST /process/{plugin_id}      → Qualquer document plugin
+  POST /visualize/{plugin_id}    → Qualquer visualizer plugin
+  POST /pipeline                 → Cadeia de plugins via JSON
+  GET  /plugins                  → Lista todos os descobertos
+  GET  /plugins/{plugin_id}      → Metadata completo do plugin
+
+  Então se você cria um plugin nps_analyzer e coloca em /plugins/nps_analyzer/,
+  ele automaticamente:
+  1. É descoberto pelo core (auto-discovery via importlib)
+  2. Aparece no GET /plugins
+  3. Fica chamável via POST /analyze/nps_analyzer
+  4. Tem documentação no Swagger (/docs) com parâmetros, tipos, etc.
+
+  Isso veio do princípio "Discovery over Configuration" — o core escaneia a
+  pasta de plugins, inspeciona as classes, lê o PluginMetadata, e registra tudo.
+   A API simplesmente expõe o que o core descobriu.
+
+  O que isso significa para o cruzamento
+
+  Se os plugins do DeepVoC/Observatório forem migrados para o Qualia, eles
+  ficariam disponíveis via API automaticamente. O DeepVoC poderia chamar POST 
+  /analyze/hdbscan_clusterer em vez de ter o código embarcado. O Observatório
+  poderia chamar POST /analyze/survival_analyzer. Sem código de integração
+  adicional.
+
+  Essa é a parte que você mencionou que "foi muito avançada na parte técnica" —
+  e de fato é. A infra de API + auto-discovery + pipeline YAML + cache + circuit
+   breaker está num nível de produção sólido. O que faltou na época foram
+  plugins mais sofisticados — que é exatamente o que os dois projetos mais novos
+   trazem agora.
+
+⏺ User answered Claude's questions:
+  ⎿  · Quer que eu finalize o documento de mapeamento como está, ou quer 
+     explorar mais algum ponto? → Uma dúvida, a parte de embeddings foi 
+     utilizada outras no projeto do deepvoc, porém, ao testar para os dados 
+     que tinhamos ali, funcionou melhor o minilm ao inves dos outros. 
+     Imagino que eles também poderiam ser opções de embedding, sei la. E a 
+     outra dúvida que fica é, como as vezes esses processos são longos e 
+     demorados, e pesados também, como ficaria isso, por ser api etc, mesmo 
+     rodando na minha maquina? 
+
+
+
+⏺ Duas perguntas excelentes.
+
+  1. Modelos de embedding como opções
+
+  Sim, exatamente. O plugin embedding_generator seria configurável via
+  parâmetros:
+
+  {
+    "text": "...",
+    "config": {
+      "model": "minilm",          // default: rápido, 384d, bom pra textos 
+  curtos
+      "device": "mps"             // auto-detect: mps (Apple), cuda, cpu
+    }
+  }
+
+  Outros modelos que poderiam ser opções:
+  Modelo: all-MiniLM-L6-v2
+  Dimensões: 384d
+  Velocidade: Rápido
+  Caso de uso: Textos curtos (surveys) — o que vocês usam
+  ────────────────────────────────────────
+  Modelo: all-mpnet-base-v2
+  Dimensões: 768d
+  Velocidade: Médio
+  Caso de uso: Maior precisão semântica
+  ────────────────────────────────────────
+  Modelo: multilingual-e5-large
+  Dimensões: 1024d
+  Velocidade: Lento
+  Caso de uso: Multilíngue forte (PT/EN/ES)
+  ────────────────────────────────────────
+  Modelo: paraphrase-multilingual-MiniLM-L12-v2
+  Dimensões: 384d
+  Velocidade: Rápido
+  Caso de uso: Multilíngue leve
+  No DeepVoC vocês testaram e o MiniLM ganhou por ser 3x mais rápido e
+  suficiente para respostas curtas de pesquisa. Mas como plugin parametrizável,
+  o usuário escolhe. O ResourceManager (mudança 3 no core) cuidaria de carregar
+  o modelo uma vez e reutilizar.
+
+  2. Operações pesadas via API
+
+  Esse é um ponto real. Embeddings de 23k textos, clustering HDBSCAN, modelos
+  transformer — são operações de minutos, não milissegundos. Via API REST
+  síncrona, isso dá timeout.
+
+  As opções práticas, do mais simples ao mais robusto:
+
+  Opção A — CLI para pesado, API para leve (pragmática)
+  # Operações pesadas: CLI direto (como DeepVoC já faz)
+  qualia analyze embedding_generator --input corpus.json --output embeddings.npy
+
+  # Operações leves: API (sentiment de um texto, NPS de uma lista)
+  curl -X POST /analyze/nps_analyzer -d '{"scores": [9,10,7,3,8]}'
+
+  Opção B — Background tasks com polling (API async)
+  POST /analyze/embedding_generator  →  {"task_id": "abc123", "status":
+  "processing"}
+  GET  /tasks/abc123                 →  {"status": "running", "progress": "45%"}
+  GET  /tasks/abc123                 →  {"status": "complete", "result_url":
+  "/results/abc123"}
+  O Qualia já tem o monitor SSE (/monitor/stream) — estender para progresso de
+  tasks seria natural.
+
+  Opção C — Worker queue (produção)
+  Redis + Celery (já configurados no docker-compose do Qualia, só não ativados).
+   A API enfileira, o worker processa, o cliente consulta.
+
+  Na prática, para sua máquina local: a Opção A é a mais sensata. Os plugins
+  pesados (embeddings, BERTopic) rodam via CLI ou import Python direto —
+  exatamente como o DeepVoC já faz hoje. A API fica para operações rápidas e
+  para servir resultados já computados. O cache SHA256 do Qualia ajuda: roda uma
+   vez, cacheia, depois a API serve instantaneamente.
+
+⏺ User answered Claude's questions:
+  ⎿  · Mais alguma dúvida ou posso finalizar o mapeamento? → Opção B — 
+     Background tasks com polling (API async) - neste caso funcionaria via 
+     API? Tipo, hoje eu rodo na minha maquina, mas se isso se tornar 
+     produto, essa opção seria a mais correta, ou não necessáriamente?
+
+⏺ Boa pergunta — e a resposta é: depende do cenário de produto.
+
+  Se o produto é uma API servindo clientes (SaaS, multi-tenant)
+
+  Aí Opção B (async) + Opção C (worker queue) são praticamente obrigatórias:
+
+  Cliente → API (aceita request, retorna task_id) → Fila (Redis/RabbitMQ) →
+  Worker processa → Cliente consulta resultado
+
+  Por quê:
+  - Timeout HTTP — requests síncronas normalmente morrem em 30-60s. Embedding de
+   10k textos leva minutos.
+  - Escalabilidade — a API não fica bloqueada. Pode aceitar 100 requests
+  enquanto 4 workers processam em paralelo.
+  - Resiliência — se o worker morre, o job fica na fila e outro worker pega.
+  Nada se perde.
+  - Feedback — o cliente acompanha progresso (GET /tasks/{id} → 45% concluído).
+
+  O Qualia já tem a infra pronta no docker-compose para isso (Redis + worker
+  slots). Só falta ativar e criar o endpoint de tasks.
+
+  Se o produto é uma ferramenta local/desktop (seu caso atual)
+
+  Aí a Opção A (CLI pesado + API leve) é mais pragmática. Mas mesmo assim, a
+  Opção B não faz mal — você roda tudo local, a API aceita o job, processa em
+  background, e você consulta quando quiser. É melhor UX do que esperar um curl
+  pendurado por 5 minutos.
+
+  Se o produto é uma plataforma de análise (tipo um "Qualia Cloud")
+
+  Aí precisa das 3 opções juntas:
+  - API síncrona para operações leves (<5s)
+  - Background tasks para operações médias (5s-5min)
+  - Worker queue para operações pesadas (>5min), com notificação quando pronto
+  (webhook de volta, email, websocket)
+
+  Recomendação real
+
+  A Opção B é o sweet spot para a evolução natural. Ela funciona tanto local
+  quanto em produção:
+
+  POST /analyze/embedding_generator
+    Body: {"texts": [...], "config": {"model": "minilm"}}
+
+  Response: 202 Accepted
+    {"task_id": "abc123", "status": "accepted", "estimated_seconds": 120}
+
+  GET /tasks/abc123
+    {"status": "running", "progress": 0.45, "eta_seconds": 66}
+
+  GET /tasks/abc123
+    {"status": "complete", "result": {...}, "cached": true}
+
+  A Opção C (Celery/Redis) é uma evolução natural da B — mesma interface pro
+  cliente, muda só o backend (de thread local para fila distribuída). Então se
+  você começa com B, escalar para C depois é trivial.
+
+  Resumindo: sim, a Opção B funcionaria via API e é a escolha correta para 
+  produto. Ela escala de "rodando na minha máquina" para "servindo N clientes"
+  sem mudar a interface.
+
+⏺ User answered Claude's questions:
+  ⎿  · Mais alguma dúvida ou posso finalizar o documento? → Na real, o 
+     objetivo na proxima implementação seria seguir na linha de plataforma 
+     de análise (tipo um "Qualia Cloud"). Acho que na documentação vale 
+     notar isso, levando em conta que uma vez isso feito, o foco seria nos 
+     plugins de fato. Isso habilita o pipeline completo, independente do 
+     peso do processamento, é isso? adorei.
+
+⏺ Exatamente! Com a infra async + workers pronta, o peso do processamento deixa
+  de ser limitante — qualquer plugin roda, de um cálculo de NPS em 50ms a um
+  embedding de 50k textos em 10 minutos. A API aceita, enfileira, processa e
+  entrega. O foco vira 100% nos plugins.
+
+  Vou atualizar o documento com essa visão estratégica.
+
+⏺ Read 1 file (ctrl+o to expand)
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Now let me update the core changes section to reflect the async task
+  infrastructure as the foundation:
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Now update the summary section:
+
+⏺ Updated plan
+  ⎿  /plan to preview
+
+⏺ Documento atualizado com a visão Qualia Cloud, o Task Manager como fundação
+  (Mudança 0), e a ordem de implementação mostrando como tudo se encadeia. A
+  seção de embedding models também está lá.
+
+  O ponto central ficou claro: Task Manager async primeiro → depois é só plugin.
+   O peso do processamento deixa de importar.
+
+⏺ User approved Claude's plan
+  ⎿  Plan saved to: ~/.claude/plans/joyful-sparking-fox.md · /plan to edit
+     Visão Cruzada: DeepVoC + Observatório VoC → Qualia Cloud
+
+     Contexto
+
+     O Qualia Core é um framework bare-metal para análise qualitativa,
+     construído em torno de um sistema de plugins auto-descobertos. O
+     projeto tem core, API, CLI e infra prontos (v0.2.0), mas apenas 6
+     plugins básicos. O objetivo é mapear o que dos projetos DeepVoC e
+     Observatório VoC poderia (ou não) virar plugin no Qualia, e evoluí-lo
+     como plataforma de análise (Qualia Cloud).
+
+     Direção Estratégica: Qualia Cloud
+
+     Visão: Qualia evolui de framework local para plataforma de análise
+     completa, onde qualquer operação — leve ou pesada — é acessível via
+     API.
+
+     Arquitetura-alvo:
+
+     ┌─────────────────────────────────────────────────────────────┐
+     │                      QUALIA CLOUD                            │
+     │                                                              │
+     │  API Layer (FastAPI)                                         │
+     │  ├── Sync endpoints   → operações <5s (NPS, sentiment)      │
+     │  ├── Async tasks      → operações 5s-5min (embeddings)      │
+     │  └── Worker queue     → operações >5min (BERTopic corpus)   │
+     │                                                              │
+     │  Task Manager                                                │
+     │  ├── POST /tasks      → aceita job, retorna task_id         │
+     │  ├── GET  /tasks/{id} → status + progresso + ETA            │
+     │  └── SSE  /tasks/{id}/stream → progresso real-time          │
+     │                                                              │
+     │  Plugin Engine (core atual + evoluções)                      │
+     │  ├── Plugins de texto     (sentiment, word_freq, quality)   │
+     │  ├── Plugins estatísticos (NPS, power, survival, drivers)   │
+     │  ├── Plugins ML           (embeddings, UMAP, HDBSCAN)       │
+     │  ├── Plugins de qualidade (speeder, straightliner)           │
+     │  └── Plugins visuais      (wordcloud, sankey, charts)       │
+     │                                                              │
+     │  Resource Manager (modelos ML carregados uma vez)            │
+     │  Cache Layer (SHA256 → resultados reutilizáveis)            │
+     │  Worker Pool (Celery/Redis para jobs pesados)                │
+     └──────────────┬──────────────────┬────────────────────────────┘
+                    │                  │
+         ┌──────────▼──────┐  ┌───────▼──────────────┐
+         │    DeepVoC       │  │  Observatório VoC     │
+         │  (consome API)   │  │  (consome API)        │
+         │  Orquestração +  │  │  ETL + Templates +    │
+         │  Pipeline LLM    │  │  Relatórios Quarto    │
+         └─────────────────┘  └───────────────────────┘
+
+     Princípio: Uma vez que a infra async + workers está pronta, o peso do
+     processamento deixa de ser limitante. O foco passa a ser 100% nos
+     plugins. Qualquer plugin roda — de 50ms a 10 minutos — a API aceita,
+     enfileira, processa e entrega.
+
+     Evolução natural:
+     1. Background tasks (threads locais) → funciona na máquina local
+     2. Worker queue (Celery + Redis) → escala para múltiplos clientes
+     3. Mesma interface para o consumidor em ambos os cenários
+
+     ---
+     O que VIRA plugin (16 candidatos claros)
+
+     Fase 1 — Drop-in (zero mudança no core)
+     Plugin: text_quality_filter
+     Origem: DeepVoC nlp_filters.py
+     Tipo: Filter
+     O que faz: Marca textos inúteis (<3 palavras, "ok", "n/a", vazio)
+     ────────────────────────────────────────
+     Plugin: nps_analyzer
+     Origem: Observatório
+     Tipo: Analyzer
+     O que faz: Cálculo NPS (promoters/detractors/passives)
+     ────────────────────────────────────────
+     Plugin: power_analyzer
+     Origem: Ambos
+     Tipo: Analyzer
+     O que faz: Poder estatístico (sample size, effect size)
+     ────────────────────────────────────────
+     Plugin: speeder_detector
+     Origem: Observatório flags.py
+     Tipo: Filter
+     O que faz: Detecta respostas rápidas demais (threshold de duração)
+     ────────────────────────────────────────
+     Plugin: straightliner_detector
+     Origem: Observatório flags.py
+     Tipo: Filter
+     O que faz: Detecta variância zero em matrizes de resposta
+     Fase 2 — Requer suporte a dados estruturados no Document
+     Plugin: cooccurrence_analyzer
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Matriz de co-ocorrência + Lift entre categorias
+     ────────────────────────────────────────
+     Plugin: funnel_analyzer
+     Origem: Observatório
+     Tipo: Analyzer
+     O que faz: Taxas de funil (delivery, open, click, start, completion)
+     ────────────────────────────────────────
+     Plugin: driver_analyzer
+     Origem: Observatório
+     Tipo: Analyzer
+     O que faz: Key drivers via importância relativa / Shapley
+     ────────────────────────────────────────
+     Plugin: sankey_viz
+     Origem: DeepVoC
+     Tipo: Visualizer
+     O que faz: Diagrama Sankey de fluxos temáticos
+     ────────────────────────────────────────
+     Plugin: survival_analyzer
+     Origem: Observatório
+     Tipo: Analyzer
+     O que faz: Kaplan-Meier + Cox Proportional Hazards
+     ────────────────────────────────────────
+     Plugin: wave_detector
+     Origem: Observatório enrich.py
+     Tipo: Analyzer
+     O que faz: Segmentação temporal (monthly / gap-based)
+     ────────────────────────────────────────
+     Plugin: cohort_assigner
+     Origem: Observatório enrich.py
+     Tipo: Analyzer
+     O que faz: Atribuição de cohort por primeira aparição
+     Fase 3 — Requer Corpus Mode (multi-documento)
+     Plugin: embedding_generator
+     Origem: DeepVoC embeddings.py
+     Tipo: Analyzer
+     O que faz: Gera embeddings MiniLM-384d
+     ────────────────────────────────────────
+     Plugin: umap_reducer
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Reduz dimensionalidade (384d → 5d)
+     ────────────────────────────────────────
+     Plugin: hdbscan_clusterer
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Clustering por densidade
+     ────────────────────────────────────────
+     Plugin: ctfidf_keywords
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Extrai keywords representativas por cluster
+     ────────────────────────────────────────
+     Plugin: hierarchical_merger
+     Origem: DeepVoC
+     Tipo: Composer
+     O que faz: Agrupa tópicos em meta-temas
+     ────────────────────────────────────────
+     Plugin: transformer_sentiment
+     Origem: DeepVoC sentiment.py
+     Tipo: Analyzer
+     O que faz: Sentimento via RoBERTa/DistilBERT/DeBERTa
+     ────────────────────────────────────────
+     Plugin: acm_segmenter
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Segmentação ACM (MCA + K-Means)
+     ────────────────────────────────────────
+     Plugin: temporal_classifier
+     Origem: DeepVoC
+     Tipo: Analyzer
+     O que faz: Classifica temas: emergente/crônico/declinante
+     ---
+     O que NÃO vira plugin (e por quê)
+
+     Orquestração demais (pertence ao nível de pipeline)
+     Funcionalidade: Pipeline qualitativa LLM (P1-P4)
+     Origem: DeepVoC
+     Por que não: Spawna subprocessos Claude, parallelismo
+     ThreadPoolExecutor,
+       validação entre fases, retry logic. Plugin deve ser stateless e
+       determinístico.
+     ────────────────────────────────────────
+     Funcionalidade: Pipeline BERTopic completo
+     Origem: DeepVoC
+     Por que não: Como monolito não cabe. Decomposto em 5+ plugins sim (Fase
+      3
+       acima). A orquestração fica no pipeline YAML do Qualia.
+     ────────────────────────────────────────
+     Funcionalidade: ETL Pipeline (run.py)
+     Origem: Observatório
+     Por que não: 9 fases com aprovação interativa, multi-source,
+     multi-format. É
+       pré-Qualia, não dentro dele.
+     Domínio-específico demais
+     Funcionalidade: Reminder Linking
+     Origem: Observatório
+     Por que não: Transaction_Id + regex de Link — puro Qualtrics
+     ────────────────────────────────────────
+     Funcionalidade: Bounce Flagging
+     Origem: Observatório
+     Por que não: Padrões SMTP, categorias Hard/Soft — infraestrutura de
+     email
+     ────────────────────────────────────────
+     Funcionalidade: Column Mapping
+     Origem: DeepVoC
+     Por que não: Normalização schema-specific por projeto
+     ────────────────────────────────────────
+     Funcionalidade: Qualtrics CSV Reader
+     Origem: Observatório
+     Por que não: Header de 3 linhas, nomes de coluna Qualtrics-specific
+     ────────────────────────────────────────
+     Funcionalidade: Wave Month Correction
+     Origem: Observatório
+     Por que não: Correção operacional específica do workflow
+     Requer infraestrutura que plugin não deve ter
+     Funcionalidade: Relatório HTML consolidado
+     Origem: DeepVoC
+     Por que não: Requer Quarto rendering engine
+     ────────────────────────────────────────
+     Funcionalidade: Detecção interativa de waves
+     Origem: Observatório
+     Por que não: Requer stdin/stdout durante execução
+     ────────────────────────────────────────
+     Funcionalidade: Export multi-formato
+     Origem: Observatório
+     Por que não: Concern de CLI/exportação, não de análise
+     ---
+     O que o Qualia Core precisa mudar
+
+     Mudança 0 (Fundação): Task Manager + Async API
+
+     Problema: A API atual é síncrona. Operações pesadas (embeddings,
+     clustering) causam timeout HTTP. Para funcionar como plataforma (Qualia
+      Cloud), qualquer plugin precisa rodar sem bloquear a API.
+
+     Solução:
+     - TaskManager no core — aceita jobs, executa em background
+     (ThreadPoolExecutor), reporta progresso
+     - Novos endpoints: POST /tasks, GET /tasks/{id}, GET /tasks/{id}/stream
+      (SSE)
+     - O monitor SSE que já existe (/monitor/stream) serve de base
+     - Redis + Celery já estão no docker-compose — ativar quando escalar
+
+     Arquivos:
+     - qualia/api/__init__.py — novos endpoints de tasks
+     - qualia/core/task_manager.py — novo componente
+     - docker-compose.yml — ativar Redis worker
+
+     Por que é a Mudança 0: Sem isso, os plugins pesados das Fases 2 e 3 não
+      funcionam via API. Com isso, qualquer plugin funciona independente do
+     peso.
+
+     Mudança 1: Suporte a dados estruturados
+
+     Problema: Document.content é str. Muitos plugins dos dois projetos
+     trabalham com dados tabulares.
+
+     Solução: Adicionar Document.structured_data: Optional[Dict[str, Any]]
+     para dados não-textuais. Plugins declaram se esperam content (texto) ou
+      structured_data (tabular/numérico).
+
+     Arquivo: qualia/core/__init__.py — classe Document (linhas 124-152)
+
+     Mudança 2: Corpus Mode (multi-documento)
+
+     Problema: execute_plugin() recebe um Document. BERTopic, embeddings e
+     clustering precisam de todos os documentos simultaneamente.
+
+     Solução: Introduzir Corpus como conceito (lista de Documents). Plugins
+     declaram scope: "document" | "corpus" no metadata. Core roteia execução
+      conforme scope.
+
+     Arquivo: qualia/core/__init__.py — QualiaCore.execute_plugin() (linhas
+     540-650)
+
+     Mudança 3: Resource Manager (cache de modelos)
+
+     Problema: Plugins como embedding_generator e transformer_sentiment
+     carregam modelos pesados (centenas de MB). Carregar a cada invocação é
+     inviável.
+
+     Solução: ResourceManager no core — carrega modelo uma vez, compartilha
+     entre invocações. Plugins declaram resources_needed no metadata.
+
+     Arquivo: Novo componente qualia/core/resource_manager.py
+
+     ---
+     Grafo de dependências entre plugins
+
+                         ┌─────────────────┐
+                         │ text_quality_    │
+                         │ filter (Filter)  │
+                         └────────┬────────┘
+                                  │
+                   ┌──────────────┼──────────────┐
+                   │              │              │
+                   v              v              v
+          ┌────────────┐  ┌────────────┐  ┌────────────────┐
+          │ embedding_  │  │ word_      │  │ sentiment_     │
+          │ generator   │  │ frequency  │  │ analyzer       │
+          └──────┬─────┘  └──────┬─────┘  └───────┬────────┘
+                 │               │                 │
+                 v               │                 v
+          ┌────────────┐         │        ┌────────────────┐
+          │ umap_      │         │        │ transformer_   │
+          │ reducer    │         │        │ sentiment      │
+          └──────┬─────┘         │        └───────┬────────┘
+                 │               │                 │
+                 v               v                 v
+          ┌────────────┐  ┌────────────┐  ┌────────────────┐
+          │ hdbscan_   │  │ wordcloud_ │  │ sentiment_viz  │
+          │ clusterer  │  │ viz        │  │                │
+          └──────┬─────┘  └────────────┘  └────────────────┘
+                 │
+                 v
+          ┌────────────┐
+          │ ctfidf_    │
+          │ keywords   │
+          └──────┬─────┘
+                 │
+                 v
+          ┌────────────────┐     ┌──────────────────┐
+          │ hierarchical_  │────>│ temporal_        │
+          │ merger         │     │ classifier       │
+          └───────┬────────┘     └──────────────────┘
+                  │
+                  v
+          ┌────────────────┐     ┌──────────────────┐
+          │ cooccurrence_  │────>│ sankey_viz       │
+          │ analyzer       │     └──────────────────┘
+          └────────────────┘
+
+       --- Cadeia Survey Diagnostics (Observatório) ---
+
+          ┌────────────────┐
+          │ survey_data    │
+          │ (Document)     │
+          └───────┬────────┘
+                  │
+          ┌───────┼────────┬──────────┬──────────┐
+          v       v        v          v          v
+       speeder  straight  nps_     funnel_   power_
+       detector liner_det analyzer analyzer  analyzer
+          │       │        │          │
+          v       v        v          v
+                ┌──────────────┐  ┌──────────┐
+                │ driver_      │  │ funnel_  │
+                │ analyzer     │  │ viz      │
+                └──────────────┘  └──────────┘
+
+     ---
+     Resumo executivo
+
+
+
+
+
+     Métrica: Plugins claros
+     Valor: 16 (+ BERTopic decomposto em 5)
+     ────────────────────────────────────────
+     Métrica: Parcialmente plugin
+     Valor: 4
+     ────────────────────────────────────────
+     Métrica: Não vira plugin
+     Valor: 8
+     ────────────────────────────────────────
+     Métrica: Drop-in (zero mudança no core)
+     Valor: 5 plugins
+     ────────────────────────────────────────
+     Métrica: Requer structured_data
+     Valor: 7 plugins
+     ────────────────────────────────────────
+     Métrica: Requer corpus mode
+     Valor: 9 plugins
+     ────────────────────────────────────────
+     Métrica: Mudanças no core
+     Valor: 4 (task manager, structured_data, corpus, resource cache)
+     Ordem de implementação recomendada
+
+     Mudança 0: Task Manager + Async API          ← habilita tudo,
+     independente do peso
+         │
+         ├── Fase 1: 5 plugins drop-in             ← valor imediato, validam
+      a plataforma
+         │
+         ├── Mudança 1: structured_data            ← desbloqueia plugins
+     tabulares
+         │   └── Fase 2: 7 plugins estatísticos    ← survey diagnostics,
+     funnel, drivers
+         │
+         ├── Mudança 2: Corpus Mode                ← desbloqueia ML
+     multi-documento
+         │   ├── Mudança 3: Resource Manager       ← cache de modelos
+     pesados
+         │   └── Fase 3: 9 plugins ML              ← embeddings, BERTopic,
+     segmentação
+         │
+         └── DeepVoC + Observatório consomem via API
+
+     Conclusão: O Qualia tem a arquitetura certa. A fundação (Task Manager
+     async) habilita a plataforma independente do peso do processamento. A
+     partir daí, 3 evoluções incrementais no core (structured_data, corpus,
+     resource cache) desbloqueiam ~80% das funcionalidades dos dois projetos
+      como plugins reutilizáveis.
+
+     A pipeline qualitativa LLM (P1-P4 do DeepVoC) e o ETL do Observatório
+     ficam fora do Qualia — são orquestradores que consomem/alimentam a
+     plataforma via API.
+
+     Notas sobre embedding models
+
+     O plugin embedding_generator será parametrizável por modelo:
+
+     Modelo: all-MiniLM-L6-v2
+     Dimensões: 384d
+     Velocidade: Rápido
+     Caso de uso: Textos curtos (surveys) — validado no DeepVoC
+     ────────────────────────────────────────
+     Modelo: all-mpnet-base-v2
+     Dimensões: 768d
+     Velocidade: Médio
+     Caso de uso: Maior precisão semântica
+     ────────────────────────────────────────
+     Modelo: multilingual-e5-large
+     Dimensões: 1024d
+     Velocidade: Lento
+     Caso de uso: Multilíngue forte (PT/EN/ES)
+     ────────────────────────────────────────
+     Modelo: paraphrase-multilingual-MiniLM-L12-v2
+     Dimensões: 384d
+     Velocidade: Rápido
+     Caso de uso: Multilíngue leve
+     O ResourceManager (Mudança 3) garante que o modelo é carregado uma vez
+     e reutilizado entre invocações.
+
+
+⏺ Plano aprovado! O documento de mapeamento completo está salvo em
+  /Users/mosx/.claude/plans/joyful-sparking-fox.md.
+
+  Quer que eu comece a implementar algo agora (ex: a Mudança 0 — Task Manager),
+  ou essa sessão era só de mapeamento/revisão e você prefere retomar a
+  implementação em outro momento?
+
+✻ Crunched for 16m 8s
