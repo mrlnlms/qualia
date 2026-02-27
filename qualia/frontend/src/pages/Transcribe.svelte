@@ -171,7 +171,7 @@
             {copied ? 'Copied!' : 'Copy'}
           </button>
         </div>
-        <textarea class="transcription-text" readonly>{result.result.transcription}</textarea>
+        <textarea class="transcription-text" readonly value={result.result.transcription}></textarea>
       </div>
     </div>
   {/if}

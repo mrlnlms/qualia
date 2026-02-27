@@ -172,25 +172,25 @@ class TestPipelineFlexibility:
     
     def test_pipeline_passes_data_between_plugins(self, client):
         """Pipeline passa dados entre plugins sem forçar estrutura"""
-        response = client.post("/pipeline", json={
+        import json as _json
+        response = client.post("/pipeline", data={
             "text": "Texto para análise",
-            "steps": [
+            "steps": _json.dumps([
                 {"plugin_id": "word_frequency"},
                 {"plugin_id": "sentiment_analyzer"}
-            ]
+            ])
         })
-        
+
         assert response.status_code == 200
         data = response.json()
-        
-        # Pipeline executou
+
         assert data["status"] == "success"
         assert "results" in data
-        
-        # Se tem resultados, cada plugin retornou sua estrutura
-        if data["results"]:
-            for plugin_id, result in data["results"].items():
-                assert isinstance(result, dict)
+        assert data["steps_executed"] == 2
+
+        for step_result in data["results"]:
+            assert "plugin_id" in step_result
+            assert "result" in step_result
 
 
 class TestRealWorldUsage:

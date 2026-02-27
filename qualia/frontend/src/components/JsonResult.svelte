@@ -17,7 +17,12 @@
   );
 
   const stringMetrics = $derived(
-    data ? Object.entries(data).filter(([k, v]) => typeof v === 'string') : []
+    data ? Object.entries(data).filter(([k, v]) => typeof v === 'string' && v.length <= 100) : []
+  );
+
+  // Long text fields (like transcription) — render as full-width blocks
+  const longTextFields = $derived(
+    data ? Object.entries(data).filter(([k, v]) => typeof v === 'string' && v.length > 100) : []
   );
 
   // Show bar chart for results with 4+ numeric metrics (like readability)
@@ -65,6 +70,18 @@
         </div>
       {/each}
     </div>
+  {/if}
+
+  {#if longTextFields.length > 0}
+    {#each longTextFields as [key, val], i}
+      <div class="long-text-section" style="animation-delay: {i * 50}ms">
+        <div class="long-text-header">
+          <span class="summary-label">{formatKey(key)}</span>
+          <span class="chart-meta">{val.length.toLocaleString()} chars</span>
+        </div>
+        <div class="long-text-content">{val}</div>
+      </div>
+    {/each}
   {/if}
 
   {#if showMetricBars}
@@ -156,6 +173,31 @@
     font-weight: 600;
     color: var(--text-primary);
     font-family: var(--font-mono);
+  }
+
+  .long-text-section {
+    animation: fadeUp 0.3s ease backwards;
+  }
+
+  .long-text-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .long-text-content {
+    padding: 18px;
+    background: var(--bg-input);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    font-size: 0.88em;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    max-height: 320px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    word-wrap: break-word;
   }
 
   .chart-header {

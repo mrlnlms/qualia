@@ -60,6 +60,14 @@ export async function transcribe(pluginId, file, config = {}) {
   return request(`/transcribe/${pluginId}`, { method: 'POST', body: form });
 }
 
+export async function executePipeline(steps, { text, file } = {}) {
+  const form = new FormData();
+  form.append('steps', JSON.stringify(steps));
+  if (file) form.append('file', file);
+  if (text) form.append('text', text);
+  return request('/pipeline', { method: 'POST', body: form });
+}
+
 export function visualize(pluginId, data, config = {}, outputFormat = 'png') {
   return request(`/visualize/${pluginId}`, {
     method: 'POST',

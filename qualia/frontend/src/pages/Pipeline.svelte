@@ -1,19 +1,44 @@
 <script>
   import { plugins } from '../lib/stores.js';
-  import { fetchPluginSchema } from '../lib/api.js';
+  import { fetchPluginSchema, executePipeline } from '../lib/api.js';
   import ParamForm from '../components/ParamForm.svelte';
   import TextInput from '../components/TextInput.svelte';
+  import FileUpload from '../components/FileUpload.svelte';
   import ResultView from '../components/ResultView.svelte';
+
+  const AUDIO_ACCEPT = '.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm,.ogg,.opus,.flac';
 
   let steps = $state([]);
   let text = $state('');
+  let file = $state(null);
   let loading = $state(false);
+  let loadingElapsed = $state(0);
+  let loadingTimer = null;
   let results = $state(null);
   let error = $state('');
 
   const availablePlugins = $derived(
-    $plugins.filter(p => p.type === 'analyzer' || p.type === 'document')
+    $plugins.filter(p => p.type === 'analyzer' || p.type === 'document' || p.type === 'visualizer')
   );
+
+  // Determine if the first step is a document plugin (file input needed)
+  const firstStepType = $derived.by(() => {
+    if (steps.length === 0 || !steps[0].pluginId) return null;
+    const p = $plugins.find(pl => pl.id === steps[0].pluginId);
+    return p ? p.type : null;
+  });
+
+  const needsFile = $derived(firstStepType === 'document');
+
+  function startTimer() {
+    loadingElapsed = 0;
+    loadingTimer = setInterval(() => loadingElapsed++, 1000);
+  }
+  function stopTimer() {
+    clearInterval(loadingTimer);
+    loadingTimer = null;
+    loadingElapsed = 0;
+  }
 
   async function addStep() {
     steps = [...steps, { id: crypto.randomUUID(), pluginId: '', schema: null, config: {} }];
@@ -43,30 +68,38 @@
   }
 
   async function runPipeline() {
-    if (!text.trim() || steps.length === 0) return;
+    const hasInput = needsFile ? !!file : !!text.trim();
+    if (!hasInput || validSteps === 0) return;
+
     loading = true;
     error = '';
     results = null;
+    startTimer();
+
     try {
       const pipelineSteps = steps
         .filter(s => s.pluginId)
         .map(s => ({ plugin_id: s.pluginId, config: s.config }));
 
-      const res = await fetch('/pipeline', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, steps: pipelineSteps }),
+      results = await executePipeline(pipelineSteps, {
+        text: needsFile ? undefined : text,
+        file: needsFile ? file : undefined,
       });
-      if (!res.ok) throw await res.json();
-      results = await res.json();
     } catch (e) {
       error = typeof e.message === 'string' ? e.message : JSON.stringify(e);
     } finally {
+      stopTimer();
       loading = false;
     }
   }
 
   const validSteps = $derived(steps.filter(s => s.pluginId).length);
+
+  function fmtTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+  }
 </script>
 
 <div class="pipeline-page">
@@ -77,11 +110,7 @@
     </div>
   </header>
 
-  <div class="section">
-    <label class="label" for="pipeline-text">Input Text</label>
-    <TextInput bind:value={text} id="pipeline-text" placeholder="Text to process through the pipeline..." />
-  </div>
-
+  <!-- Steps come first so user picks plugins before input -->
   <div class="steps-section">
     <div class="steps-header">
       <h3 class="steps-title">Steps</h3>
@@ -106,9 +135,21 @@
                 onchange={() => onPluginChange(step)}
               >
                 <option value="">Select plugin...</option>
-                {#each availablePlugins as p}
-                  <option value={p.id}>{p.name}</option>
-                {/each}
+                <optgroup label="Analyzers">
+                  {#each availablePlugins.filter(p => p.type === 'analyzer') as p}
+                    <option value={p.id}>{p.name}</option>
+                  {/each}
+                </optgroup>
+                <optgroup label="Visualizers">
+                  {#each availablePlugins.filter(p => p.type === 'visualizer') as p}
+                    <option value={p.id}>{p.name}</option>
+                  {/each}
+                </optgroup>
+                <optgroup label="Document">
+                  {#each availablePlugins.filter(p => p.type === 'document') as p}
+                    <option value={p.id}>{p.name}</option>
+                  {/each}
+                </optgroup>
               </select>
               <span class="select-chevron">&#9662;</span>
             </div>
@@ -140,12 +181,32 @@
     </button>
   </div>
 
+  <!-- Dynamic input: shown after steps are configured -->
+  {#if validSteps > 0}
+    <div class="section input-section" style="animation: fadeUp 0.25s ease">
+      <div class="input-label-row">
+        {#if needsFile}
+          <label class="label">Input File</label>
+          <span class="input-hint">Step 1 is a document plugin — upload a file</span>
+        {:else}
+          <label class="label" for="pipeline-text">Input Text</label>
+          <span class="input-hint">Text will flow through all steps</span>
+        {/if}
+      </div>
+      {#if needsFile}
+        <FileUpload bind:file accept={AUDIO_ACCEPT} />
+      {:else}
+        <TextInput bind:value={text} id="pipeline-text" placeholder="Text to process through the pipeline..." />
+      {/if}
+    </div>
+  {/if}
+
   {#if steps.length > 0}
     <div class="action-bar">
       <button
         class="run-btn"
         onclick={runPipeline}
-        disabled={loading || !text.trim() || validSteps === 0}
+        disabled={loading || (needsFile ? !file : !text.trim()) || validSteps === 0}
       >
         {#if loading}
           <span class="spinner"></span> Running pipeline...
@@ -154,6 +215,15 @@
           <span class="step-badge">{validSteps} steps</span>
         {/if}
       </button>
+    </div>
+  {/if}
+
+  {#if loading}
+    <div class="progress-section" style="animation: fadeUp 0.2s ease">
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill"></div>
+      </div>
+      <span class="progress-time">{fmtTime(loadingElapsed)}</span>
     </div>
   {/if}
 
@@ -173,7 +243,7 @@
             <span class="result-step-num">{i + 1}</span>
             <span class="result-step-plugin">{stepResult.plugin_id || `Step ${i + 1}`}</span>
           </div>
-          <ResultView result={{ result: stepResult.result || stepResult }} />
+          <ResultView result={stepResult.result || stepResult} />
         </div>
       {/each}
     </div>
@@ -204,6 +274,30 @@
 
   .section {
     margin-bottom: 28px;
+  }
+
+  .input-section {
+    padding: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .input-label-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .input-label-row .label {
+    margin-bottom: 0;
+  }
+
+  .input-hint {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    font-style: italic;
   }
 
   .label {
@@ -453,6 +547,43 @@
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
+  }
+
+  .progress-section {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .progress-bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    width: 30%;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: indeterminate 1.5s ease-in-out infinite;
+  }
+
+  @keyframes indeterminate {
+    0%   { width: 0%; margin-left: 0; }
+    50%  { width: 40%; margin-left: 30%; }
+    100% { width: 0%; margin-left: 100%; }
+  }
+
+  .progress-time {
+    font-size: 0.74em;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    min-width: 40px;
+    text-align: right;
   }
 
   .error-msg {

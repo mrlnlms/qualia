@@ -168,60 +168,56 @@ class TestPipelineEndpoints:
     
     def test_simple_pipeline(self, client, sample_text):
         """Testa pipeline simples"""
+        import json as _json
         response = client.post(
             "/pipeline",
-            json={
+            data={
                 "text": sample_text,
-                "steps": [
+                "steps": _json.dumps([
                     {"plugin_id": "word_frequency"},
                     {"plugin_id": "sentiment_analyzer"}
-                ]
+                ])
             }
         )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "success"
         assert "results" in data
-        
-        # Pipeline pode ter bug, verificar se retornou algo
-        if data["results"]:
-            assert "word_frequency" in data["results"] or data["steps_executed"] > 0
+        assert data["steps_executed"] == 2
     
     def test_pipeline_with_config(self, client):
         """Testa pipeline com configurações"""
+        import json as _json
         response = client.post(
             "/pipeline",
-            json={
+            data={
                 "text": "Texto para análise complexa",
-                "steps": [
+                "steps": _json.dumps([
                     {
                         "plugin_id": "word_frequency",
                         "config": {"min_word_length": 4}
                     },
                     {
                         "plugin_id": "sentiment_analyzer",
-                        "config": {"language": "pt"}  # Usar 'pt' ao invés de 'portuguese'
+                        "config": {"language": "pt"}
                     }
-                ]
+                ])
             }
         )
         assert response.status_code == 200
-        
+
         data = response.json()
         assert data["status"] == "success"
     
     def test_empty_pipeline(self, client, sample_text):
         """Testa pipeline vazio"""
+        import json as _json
         response = client.post(
             "/pipeline",
-            json={"text": sample_text, "steps": []}
+            data={"text": sample_text, "steps": _json.dumps([])}
         )
-        assert response.status_code == 200
-        
-        data = response.json()
-        assert data["results"] == {}
-        assert data["steps_executed"] == 0
+        assert response.status_code == 422
 
 
 class TestUploadEndpoints:
@@ -292,17 +288,16 @@ class TestErrorHandling:
     
     def test_server_error_handling(self, client):
         """Testa tratamento de erro do servidor"""
+        import json as _json
         response = client.post(
             "/pipeline",
-            json={
+            data={
                 "text": "teste",
-                "steps": [{"plugin_id": "plugin_que_nao_existe"}]
+                "steps": _json.dumps([{"plugin_id": "plugin_que_nao_existe"}])
             }
         )
-        # API retorna 200 mesmo com erro (resultado parcial)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"  # Pipeline não falha completamente
+        # Pipeline with non-existent plugin returns 400
+        assert response.status_code == 400
 
 
 # Remover teste async por enquanto ou instalar pytest-asyncio
