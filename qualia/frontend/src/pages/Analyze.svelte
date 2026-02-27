@@ -1,11 +1,22 @@
 <script>
-  import { pluginsByType } from '../lib/stores.js';
+  import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import { pluginsByType, pendingPluginId } from '../lib/stores.js';
   import { fetchPluginSchema, analyze, visualize, resolveConfig } from '../lib/api.js';
   import ParamForm from '../components/ParamForm.svelte';
   import TextInput from '../components/TextInput.svelte';
   import ResultView from '../components/ResultView.svelte';
 
   let selectedPluginId = $state('');
+
+  onMount(() => {
+    const pending = get(pendingPluginId);
+    if (pending) {
+      selectedPluginId = pending;
+      pendingPluginId.set(null);
+      onSelectPlugin();
+    }
+  });
   let schema = $state(null);
   let configValues = $state({});
   let text = $state('');

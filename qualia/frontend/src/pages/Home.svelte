@@ -1,9 +1,10 @@
 <script>
-  import { health, pluginsByType, navigate } from '../lib/stores.js';
+  import { health, pluginsByType, pendingPluginId, navigate } from '../lib/stores.js';
   import PluginCard from '../components/PluginCard.svelte';
   import StatusDot from '../components/StatusDot.svelte';
 
   function usePlugin(plugin) {
+    pendingPluginId.set(plugin.id);
     if (plugin.type === 'analyzer') navigate('analyze');
     else if (plugin.type === 'document') navigate('transcribe');
   }

@@ -4,6 +4,7 @@ export const plugins = writable([]);
 export const health = writable(null);
 export const currentPage = writable(getInitialPage());
 export const globalError = writable(null);
+export const pendingPluginId = writable(null);
 
 export const pluginsByType = derived(plugins, ($plugins) => ({
   analyzers: $plugins.filter(p => p.type === 'analyzer'),

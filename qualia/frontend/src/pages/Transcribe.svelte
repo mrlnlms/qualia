@@ -1,5 +1,7 @@
 <script>
-  import { pluginsByType } from '../lib/stores.js';
+  import { onMount } from 'svelte';
+  import { get } from 'svelte/store';
+  import { pluginsByType, pendingPluginId } from '../lib/stores.js';
   import { fetchPluginSchema, transcribe } from '../lib/api.js';
   import ParamForm from '../components/ParamForm.svelte';
   import FileUpload from '../components/FileUpload.svelte';
@@ -7,6 +9,15 @@
   const AUDIO_ACCEPT = '.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm,.ogg,.opus,.flac';
 
   let selectedPluginId = $state('');
+
+  onMount(() => {
+    const pending = get(pendingPluginId);
+    if (pending) {
+      selectedPluginId = pending;
+      pendingPluginId.set(null);
+      onSelectPlugin();
+    }
+  });
   let schema = $state(null);
   let configValues = $state({});
   let file = $state(null);

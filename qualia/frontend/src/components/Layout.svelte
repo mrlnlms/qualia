@@ -3,8 +3,8 @@
 
   const navItems = [
     { id: 'home', label: 'Home', icon: 'H' },
-    { id: 'analyze', label: 'Analyze', icon: 'A' },
     { id: 'transcribe', label: 'Transcribe', icon: 'T' },
+    { id: 'analyze', label: 'Analyze', icon: 'A' },
     { id: 'pipeline', label: 'Pipeline', icon: 'P' },
     { id: 'monitor', label: 'Monitor', icon: 'M' },
   ];
