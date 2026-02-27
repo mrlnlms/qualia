@@ -74,32 +74,20 @@ class SentimentVisualizer(BaseVisualizerPlugin):
         """Renderiza dashboard completo em HTML"""
         import plotly.graph_objects as go
         from plotly.subplots import make_subplots
-        
-        # Criar subplots
-        fig = make_subplots(
-            rows=2, cols=2,
-            subplot_titles=(
-                'Polaridade (Sentimento)', 
-                'Subjetividade',
-                'Distribuição de Sentimentos',
-                'Timeline de Sentimentos'
-            ),
-            specs=[
-                [{'type': 'indicator'}, {'type': 'indicator'}],
-                [{'type': 'pie'}, {'type': 'scatter'}]
-            ],
-            vertical_spacing=0.15,
-            horizontal_spacing=0.1
-        )
-        
-        # 1. Gauge de Polaridade
+
         polarity = data.get('polarity', 0)
+        subjectivity = data.get('subjectivity', 0)
+
+        # Indicators não funcionam em subplots — construir figura manualmente
+        fig = go.Figure()
+
+        # 1. Gauge de Polaridade (quadrante superior esquerdo)
         fig.add_trace(
             go.Indicator(
                 mode="gauge+number+delta",
                 value=polarity,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': ""},
+                domain={'x': [0, 0.45], 'y': [0.55, 1]},
+                title={'text': "Polaridade (Sentimento)"},
                 delta={'reference': 0},
                 gauge={
                     'axis': {'range': [-1, 1]},
@@ -117,18 +105,16 @@ class SentimentVisualizer(BaseVisualizerPlugin):
                         'value': 0
                     }
                 }
-            ),
-            row=1, col=1
+            )
         )
-        
-        # 2. Gauge de Subjetividade
-        subjectivity = data.get('subjectivity', 0)
+
+        # 2. Gauge de Subjetividade (quadrante superior direito)
         fig.add_trace(
             go.Indicator(
                 mode="gauge+number",
                 value=subjectivity,
-                domain={'x': [0, 1], 'y': [0, 1]},
-                title={'text': ""},
+                domain={'x': [0.55, 1], 'y': [0.55, 1]},
+                title={'text': "Subjetividade"},
                 gauge={
                     'axis': {'range': [0, 1]},
                     'bar': {'color': self._get_subjectivity_color(subjectivity)},
@@ -138,11 +124,10 @@ class SentimentVisualizer(BaseVisualizerPlugin):
                         {'range': [0.7, 1], 'color': '#3399ff'}
                     ]
                 }
-            ),
-            row=1, col=2
+            )
         )
-        
-        # 3. Distribuição de Sentimentos (se disponível)
+
+        # 3. Distribuição de Sentimentos (quadrante inferior esquerdo)
         if 'sentiment_stats' in data:
             stats = data['sentiment_stats']
             labels = ['Positivo', 'Neutro', 'Negativo']
@@ -152,46 +137,48 @@ class SentimentVisualizer(BaseVisualizerPlugin):
                 stats.get('negative_sentences', 0)
             ]
             colors = ['#44ff44', '#cccccc', '#ff4444']
-            
+
             fig.add_trace(
                 go.Pie(
                     labels=labels,
                     values=values,
                     marker=dict(colors=colors),
                     textinfo='label+percent',
-                    hoverinfo='label+value'
-                ),
-                row=2, col=1
+                    hoverinfo='label+value',
+                    domain={'x': [0, 0.45], 'y': [0, 0.4]}
+                )
             )
-        
-        # 4. Timeline de Sentimentos (se disponível)
+
+        # 4. Timeline de Sentimentos (quadrante inferior direito)
         if 'sentence_sentiments' in data:
             sentences = data['sentence_sentiments']
-            x = list(range(len(sentences)))
-            y = [s['polarity'] for s in sentences]
-            colors = [self._get_sentiment_color(p) for p in y]
-            
+            x_vals = list(range(len(sentences)))
+            y_vals = [s['polarity'] for s in sentences]
+            marker_colors = [self._get_sentiment_color(p) for p in y_vals]
+
             fig.add_trace(
                 go.Scatter(
-                    x=x,
-                    y=y,
+                    x=x_vals,
+                    y=y_vals,
                     mode='lines+markers',
                     name='Polaridade',
                     line=dict(color='gray', width=1),
                     marker=dict(
                         size=10,
-                        color=colors,
+                        color=marker_colors,
                         line=dict(width=2, color='white')
                     ),
-                    hovertemplate='Sentença %{x}<br>Polaridade: %{y:.3f}<extra></extra>'
-                ),
-                row=2, col=2
+                    hovertemplate='Sentença %{x}<br>Polaridade: %{y:.3f}<extra></extra>',
+                    xaxis='x',
+                    yaxis='y'
+                )
             )
-            
-            # Linha de referência neutra
-            fig.add_hline(y=0, line_dash="dash", line_color="black", 
-                         opacity=0.5, row=2, col=2)
-        
+
+            fig.update_layout(
+                xaxis=dict(domain=[0.55, 1], anchor='y'),
+                yaxis=dict(domain=[0, 0.4], anchor='x')
+            )
+
         # Configurar layout
         fig.update_layout(
             title={
@@ -205,17 +192,17 @@ class SentimentVisualizer(BaseVisualizerPlugin):
             paper_bgcolor='rgba(0,0,0,0)',
             plot_bgcolor='rgba(0,0,0,0)'
         )
-        
+
         # Adicionar anotações com interpretação
         if 'interpretation' in data:
             interp = data['interpretation']
             annotation_text = f"<b>Interpretação:</b><br>"
             annotation_text += f"{interp.get('sentiment', '')}<br>"
             annotation_text += f"{interp.get('subjectivity', '')}"
-            
+
             fig.add_annotation(
                 xref="paper", yref="paper",
-                x=0.5, y=-0.15,
+                x=0.5, y=-0.08,
                 text=annotation_text,
                 showarrow=False,
                 font=dict(size=12),
@@ -225,13 +212,13 @@ class SentimentVisualizer(BaseVisualizerPlugin):
                 borderpad=10,
                 bgcolor="rgba(255,255,255,0.8)"
             )
-        
+
         # Salvar
         if output_path.suffix == '.html':
             fig.write_html(str(output_path), include_plotlyjs='cdn')
         else:
             fig.write_image(str(output_path))
-        
+
         return output_path
     
     def _render_gauge(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Path:

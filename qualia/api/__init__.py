@@ -4,6 +4,9 @@ Qualia Core REST API
 Expõe as funcionalidades do Qualia Core via HTTP REST API.
 """
 
+import matplotlib
+matplotlib.use('Agg')  # Headless backend — must be set before any pyplot import
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -18,6 +21,7 @@ from pathlib import Path
 import base64
 import hashlib
 import io
+import asyncio
 
 from qualia.core import QualiaCore, Document, PipelineConfig, PipelineStep
 
@@ -117,9 +121,25 @@ def plugin_to_info(plugin_id: str) -> PluginInfo:
     )
 
 # API Endpoints
+
+# Check if frontend dist exists (for root route decision)
+_frontend_dist_check = Path(__file__).parent.parent / "frontend" / "dist"
+_has_frontend = _frontend_dist_check.exists() and (_frontend_dist_check / "index.html").exists()
+
 @app.get("/")
 def root():
-    """Root endpoint with API information"""
+    """Serve frontend if available, otherwise API info"""
+    if _has_frontend:
+        return FileResponse(_frontend_dist_check / "index.html")
+
+    return _api_info()
+
+@app.get("/api")
+def api_info():
+    """API information and available endpoints"""
+    return _api_info()
+
+def _api_info():
     endpoints = {
         "plugins": "/plugins",
         "analyze": "/analyze/{plugin_id}",
@@ -129,8 +149,6 @@ def root():
         "transcribe": "/transcribe/{plugin_id}",
         "health": "/health"
     }
-    
-    # Add extension endpoints if available
     if HAS_EXTENSIONS:
         endpoints.update({
             "webhooks": "/webhook/{provider}",
@@ -138,7 +156,6 @@ def root():
             "monitor": "/monitor/",
             "monitor_stream": "/monitor/stream"
         })
-    
     return {
         "name": "Qualia Core API",
         "version": "0.1.0",
@@ -180,8 +197,8 @@ async def analyze(plugin_id: str, request: AnalyzeRequest):
         # Create document
         doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
 
-        # Execute plugin
-        result = core.execute_plugin(plugin_id, doc, request.config, request.context)
+        # Execute plugin in thread to avoid blocking event loop
+        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config, request.context)
         
         # Track metrics if available
         if HAS_EXTENSIONS:
@@ -280,8 +297,15 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
         if not plugin:
             raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
         
-        # Visualizers expect: render(data, config, output_path)
-        plugin.render(request.data, request.config, output_path)
+        # Run render in a thread to avoid blocking the event loop (matplotlib is not async-safe)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(plugin.render, request.data, request.config, output_path),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            output_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=504, detail=f"Visualization timed out after 60s")
         
         # Track metrics if available
         if HAS_EXTENSIONS:
@@ -529,6 +553,22 @@ async def general_exception_handler(request, exc):
             "message": f"Internal server error: {str(exc)}"
         }
     )
+
+# Serve frontend static files (must be after all API routes)
+from fastapi.staticfiles import StaticFiles
+
+_frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
+if _frontend_dist.exists():
+    _assets_dir = _frontend_dist / "assets"
+    if _assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend-assets")
+
+    @app.get("/{path:path}")
+    async def serve_spa(path: str):
+        index = _frontend_dist / "index.html"
+        if index.exists():
+            return FileResponse(index)
+        raise HTTPException(status_code=404)
 
 # Run with: uvicorn qualia.api:app --reload
 if __name__ == "__main__":

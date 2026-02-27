@@ -29,10 +29,11 @@ class TestCoreBasics:
     def test_core_loads(self, core):
         """Core carrega e descobre plugins"""
         plugins = core.discover_plugins()
-        assert len(plugins) == 6
+        assert len(plugins) == 8
         assert all(p in plugins for p in [
             'word_frequency', 'sentiment_analyzer', 'teams_cleaner',
-            'wordcloud_viz', 'frequency_chart', 'sentiment_viz'
+            'wordcloud_viz', 'frequency_chart', 'sentiment_viz',
+            'readability_analyzer', 'transcription'
         ])
     
     def test_plugin_execution_returns_dict(self, core):
@@ -94,7 +95,7 @@ class TestAPIBasics:
         assert response.status_code == 200
         plugins = response.json()
         assert isinstance(plugins, list)
-        assert len(plugins) == 6
+        assert len(plugins) == 8
     
     def test_analyze_returns_plugin_specific_structure(self, client):
         """Análise retorna estrutura específica do plugin"""

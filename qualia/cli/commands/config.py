@@ -244,15 +244,15 @@ def validate_pipeline_config(data: Dict[str, Any]):
             console.print(f"  [green]✓ Step {i+1}: {plugin_meta.name}[/green]")
 
 
-@config.command()
-def list():
+@config.command("list")
+def list_configs():
     """Lista configurações disponíveis"""
     configs_dir = Path("configs")
-    
+
     if not configs_dir.exists():
         console.print("[yellow]Diretório 'configs' não encontrado.[/yellow]")
         return
-    
+
     # Buscar arquivos de config
     yaml_files = list(configs_dir.rglob("*.yaml")) + list(configs_dir.rglob("*.yml"))
     json_files = list(configs_dir.rglob("*.json"))

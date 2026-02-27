@@ -18,15 +18,28 @@ from .config import config
 from ..interactive import start_menu
 
 
-@click.group()
+@click.group(invoke_without_command=True)
 @click.version_option(version="0.1.0", prog_name="Qualia Core")
-def cli():
+@click.option('-l', '--list-commands', is_flag=True, help='Lista todos os comandos disponíveis')
+@click.pass_context
+def cli(ctx, list_commands):
     """
     🔬 Qualia Core - Framework bare metal para análise qualitativa
-    
+
     Transforma dados qualitativos em insights quantificados através de plugins.
     """
-    pass
+    if list_commands:
+        click.echo(ctx.get_help())
+        return
+    if ctx.invoked_subcommand is None:
+        try:
+            start_menu()
+        except KeyboardInterrupt:
+            from ..formatters import console
+            console.print("\n[yellow]Menu interrompido pelo usuário[/yellow]")
+        except Exception as e:
+            from ..formatters import console, format_error
+            console.print(format_error(e))
 
 
 # Registrar comandos básicos

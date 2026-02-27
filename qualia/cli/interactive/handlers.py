@@ -394,6 +394,146 @@ class MenuHandlers:
         elif sys.platform == "win32":
             subprocess.run(["start", filepath], shell=True)
     
+    def process_document(self):
+        """Handler para processamento de documentos (limpeza/preparação)"""
+        self.menu.show_banner()
+        console.print("\n[bold]PROCESSAR DOCUMENTO[/bold]\n")
+
+        file_path = choose_file(self.menu.recent_files)
+        if not file_path:
+            return
+
+        self.menu.add_recent_file(file_path)
+
+        plugin = choose_plugin("document")
+        if not plugin:
+            return
+
+        params = configure_parameters(plugin, "processing")
+
+        args = ["process", file_path, "-p", plugin]
+        for key, value in params.items():
+            args.extend(["-P", f"{key}={value}"])
+
+        with console.status("[bold cyan]Processando...[/bold cyan]"):
+            success, stdout, stderr = run_qualia_command(args)
+
+        if success:
+            console.print(format_success("Documento processado!"))
+            console.print(stdout)
+        else:
+            console.print(format_error(Exception("Erro no processamento")))
+            console.print(stderr)
+
+        Prompt.ask("\nPressione Enter para voltar ao menu")
+
+    def batch_process(self):
+        """Handler para processamento em batch"""
+        self.menu.show_banner()
+        console.print("\n[bold]BATCH — PROCESSAR MÚLTIPLOS ARQUIVOS[/bold]\n")
+
+        pattern = Prompt.ask("Padrão de arquivos (ex: *.txt, data/*.md)")
+        plugin = choose_plugin("analyzer")
+        if not plugin:
+            return
+
+        output_dir = Prompt.ask("Diretório de saída", default="results/batch")
+        Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+        params = configure_parameters(plugin, "batch")
+
+        args = ["batch", pattern, "-p", plugin, "-o", output_dir]
+        for key, value in params.items():
+            args.extend(["-P", f"{key}={value}"])
+
+        if Confirm.ask("Continuar mesmo se houver erros?", default=True):
+            args.append("--continue-on-error")
+
+        with console.status("[bold cyan]Processando arquivos...[/bold cyan]"):
+            success, stdout, stderr = run_qualia_command(args)
+
+        if success:
+            console.print(format_success("Batch concluído!"))
+            console.print(stdout)
+        else:
+            console.print(format_error(Exception("Erro no batch")))
+            console.print(stderr)
+
+        Prompt.ask("\nPressione Enter para voltar ao menu")
+
+    def watch_folder(self):
+        """Handler para monitoramento de pasta"""
+        self.menu.show_banner()
+        console.print("\n[bold]WATCH — MONITORAR PASTA[/bold]\n")
+
+        folder = Prompt.ask("Pasta para monitorar")
+        if not Path(folder).exists():
+            console.print(format_warning(f"Pasta '{folder}' não encontrada"))
+            Prompt.ask("\nPressione Enter para voltar ao menu")
+            return
+
+        plugin = choose_plugin("analyzer")
+        if not plugin:
+            return
+
+        file_pattern = Prompt.ask("Padrão de arquivos", default="*.txt")
+        output_dir = Prompt.ask("Diretório de saída", default="results/watch")
+
+        args = ["watch", folder, "-p", plugin, "--pattern", file_pattern, "-o", output_dir]
+
+        console.print(format_success(f"Monitorando {folder} com {plugin}..."))
+        console.print("[dim]Pressione Ctrl+C para parar[/dim]\n")
+
+        success, stdout, stderr = run_qualia_command(args)
+
+        if success:
+            console.print(stdout)
+        else:
+            console.print(stderr)
+
+        Prompt.ask("\nPressione Enter para voltar ao menu")
+
+    def export_results(self):
+        """Handler para exportação de resultados"""
+        self.menu.show_banner()
+        console.print("\n[bold]EXPORTAR RESULTADOS[/bold]\n")
+
+        input_file = self._choose_data_file()
+        if not input_file:
+            return
+
+        formats = {
+            "1": ("csv", "CSV"),
+            "2": ("excel", "Excel"),
+            "3": ("markdown", "Markdown"),
+            "4": ("html", "HTML"),
+            "5": ("yaml", "YAML")
+        }
+
+        console.print("[bold]Formato de saída:[/bold]")
+        for key, (_, desc) in formats.items():
+            console.print(f"{key}. {desc}")
+
+        choice = Prompt.ask("Escolha", choices=list(formats.keys()))
+        fmt, _ = formats[choice]
+
+        default_output = f"{Path(input_file).stem}.{fmt}"
+        output = Prompt.ask("Arquivo de saída", default=default_output)
+
+        args = ["export", input_file, "-f", fmt, "-o", output]
+
+        with console.status("[bold cyan]Exportando...[/bold cyan]"):
+            success, stdout, stderr = run_qualia_command(args)
+
+        if success:
+            console.print(format_success(f"Exportado para {output}"))
+            console.print(stdout)
+        else:
+            console.print(format_error(Exception("Erro na exportação")))
+            console.print(stderr)
+
+        Prompt.ask("\nPressione Enter para voltar ao menu")
+
     def _show_generated_files(self, output_dir: Path):
         """Mostra arquivos gerados"""
         if output_dir.exists():

@@ -615,36 +615,51 @@ class QualiaCore:
                     if cached is not None:
                         return cached
                     
-                    # Cria contexto de execução (RENOMEAR para exec_context para não conflitar)
+                    # Cria contexto de execução
                     exec_context = ExecutionContext(document=document)
-                    
-                    # Resolve e executa dependências
-                    dependencies = self.resolver.resolve([plugin_id])
-                    dependencies.remove(plugin_id)  # Remove o próprio plugin
-                    
-                    for dep_id in dependencies:
-                        if dep_id in self.plugins:
-                            dep_result = self.execute_plugin(dep_id, document, {})
-                            exec_context.add_result(dep_id, dep_result)
-                    
+
+                    # Resolve dependências: requires pode ser plugin IDs ou field names
+                    # Mapeia campos requeridos para plugins que os fornecem
+                    if metadata.requires:
+                        for req in metadata.requires:
+                            if req in self.plugins:
+                                # É um plugin ID direto
+                                dep_result = self.execute_plugin(req, document, {})
+                                exec_context.add_result(req, dep_result)
+                            else:
+                                # É um field name — encontrar o plugin que o fornece
+                                for pid, pmeta in self.registry.items():
+                                    if req in getattr(pmeta, 'provides', []) and pid in self.plugins:
+                                        dep_result = self.execute_plugin(pid, document, {})
+                                        exec_context.add_result(pid, dep_result)
+                                        break
+
                     # Executa o plugin baseado em seu tipo
                     result = None
-                    dep_results = exec_context.get_dependency_results(metadata.requires)
-                    
+                    dep_results = exec_context.get_dependency_results(
+                        [k for k in exec_context.results]
+                    )
+
                     if metadata.type == PluginType.ANALYZER:
                         result = plugin.analyze(document, config, dep_results)
                     elif metadata.type == PluginType.FILTER:
-                        # Precisa de dados para filtrar
                         data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
                         result = plugin.filter(data, config)
                     elif metadata.type == PluginType.DOCUMENT:
-                        # CORRIGIR: passar document (não document.content) e context simples
                         result = plugin.process(document, config, context or {})
                     elif metadata.type == PluginType.VISUALIZER:
-                        # Precisa de dados para visualizar
-                        data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
+                        # Monta dados combinados de todas as dependências
+                        data = {}
+                        for dep_result in dep_results.values():
+                            if isinstance(dep_result, dict):
+                                data.update(dep_result)
                         output_path = Path(f"./output/{document.id}_{plugin_id}.png")
-                        result = plugin.render(data, config, output_path)
+                        render_result = plugin.render(data, config, output_path)
+                        # render retorna Path — envolver em dict para consistência
+                        if isinstance(render_result, Path):
+                            result = {"output_path": str(render_result), "plugin_id": plugin_id}
+                        else:
+                            result = render_result
                     elif metadata.type == PluginType.COMPOSER:
                         result = plugin.compose(dep_results, config)
                     

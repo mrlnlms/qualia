@@ -94,6 +94,17 @@ clean: ## Remove arquivos temporários
 	@find . -type f -name ".coverage" -delete 2>/dev/null || true
 	@echo "✅ Limpo!"
 
+# ==== FRONTEND ====
+
+frontend-install: ## Instala dependencias do frontend
+	cd qualia/frontend && npm install
+
+frontend-dev: ## Inicia frontend em modo dev (porta 5173)
+	cd qualia/frontend && npm run dev
+
+frontend-build: ## Build do frontend (output em qualia/frontend/dist/)
+	cd qualia/frontend && npm run build
+
 # ==== DOCKER ====
 
 docker-build: ## Constrói imagem Docker

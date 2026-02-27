@@ -38,12 +38,16 @@ class QualiaInteractiveMenu:
             
             options = {
                 "1": ("📄", "Analisar documento", self.handlers.analyze_document),
-                "2": ("🎨", "Visualizar resultados", self.handlers.visualize_results),
-                "3": ("🔄", "Executar pipeline", self.handlers.run_pipeline),
-                "4": ("🔍", "Explorar plugins", self.handlers.explore_plugins),
-                "5": ("⚙️", "Configurações", self.handlers.settings_menu),
-                "6": ("📚", "Exemplos e tutoriais", self.tutorials.show_menu),
-                "7": ("❌", "Sair", None)
+                "2": ("🧹", "Processar documento", self.handlers.process_document),
+                "3": ("🎨", "Visualizar resultados", self.handlers.visualize_results),
+                "4": ("🔄", "Executar pipeline", self.handlers.run_pipeline),
+                "5": ("📦", "Batch (múltiplos arquivos)", self.handlers.batch_process),
+                "6": ("👁️", "Watch (monitorar pasta)", self.handlers.watch_folder),
+                "7": ("📤", "Exportar resultados", self.handlers.export_results),
+                "8": ("🔍", "Explorar plugins", self.handlers.explore_plugins),
+                "9": ("⚙️", "Configurações", self.handlers.settings_menu),
+                "10": ("📚", "Exemplos e tutoriais", self.tutorials.show_menu),
+                "0": ("❌", "Sair", None)
             }
             
             for key, (icon, text, _) in options.items():
@@ -54,7 +58,7 @@ class QualiaInteractiveMenu:
                 choices=list(options.keys())
             )
             
-            if choice == "7":
+            if choice == "0":
                 console.print("\n[bold green]Até logo! 👋[/bold green]")
                 break
             

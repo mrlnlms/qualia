@@ -1,11 +1,13 @@
+description: "Pipeline de exemplo para an\xE1lise de transcri\xE7\xF5es"
 name: example_pipeline
-description: Pipeline de exemplo para análise de transcrições
 steps:
-  - plugin: teams_cleaner
-    config:
-      remove_timestamps: false
-      remove_system_messages: true
-  - plugin: word_frequency
-    config:
-      min_word_length: 4
-      remove_stopwords: true
+- config:
+    remove_system_messages: true
+    remove_timestamps: false
+  output_name: cleaned
+  plugin: teams_cleaner
+- config:
+    min_word_length: 4
+    remove_stopwords: true
+  output_name: frequencies
+  plugin: word_frequency

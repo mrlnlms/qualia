@@ -3,6 +3,7 @@
 Qualia Core - Bateria Completa de Testes
 Roda todos os testes do sistema de forma organizada
 """
+from __future__ import annotations
 
 import sys
 import time
@@ -26,7 +27,7 @@ class Colors:
     RESET = '\033[0m'
     BOLD = '\033[1m'
 
-class TestResult:
+class _TestResult:
     """Armazena resultado de um teste"""
     def __init__(self, name: str, category: str):
         self.name = name
@@ -40,7 +41,7 @@ class QualiaTestSuite:
     """Suite completa de testes para Qualia Core"""
     
     def __init__(self):
-        self.results: List[TestResult] = []
+        self.results: List[_TestResult] = []
         self.api_process = None
         self.dashboard_process = None
         self.start_time = time.time()
@@ -57,7 +58,7 @@ class QualiaTestSuite:
     
     def run_test(self, name: str, category: str, test_func):
         """Executa um teste individual"""
-        result = TestResult(name, category)
+        result = _TestResult(name, category)
         start = time.time()
         
         try:
@@ -78,18 +79,18 @@ class QualiaTestSuite:
     
     # ========== TESTES DO CORE ==========
     
-    def test_core_import(self, result: TestResult):
+    def test_core_import(self, result: _TestResult):
         """Testa se o core pode ser importado"""
         from qualia.core import QualiaCore
         result.details['module'] = 'qualia.core'
     
-    def test_core_initialization(self, result: TestResult):
+    def test_core_initialization(self, result: _TestResult):
         """Testa inicialização do core"""
         from qualia.core import QualiaCore
         core = QualiaCore()
         result.details['core_type'] = type(core).__name__
     
-    def test_plugin_discovery(self, result: TestResult):
+    def test_plugin_discovery(self, result: _TestResult):
         """Testa descoberta de plugins"""
         from qualia.core import QualiaCore
         core = QualiaCore()
@@ -101,7 +102,7 @@ class QualiaTestSuite:
         result.details['plugins_found'] = len(plugins)
         result.details['plugin_ids'] = list(plugins.keys())
     
-    def test_plugin_loading(self, result: TestResult):
+    def test_plugin_loading(self, result: _TestResult):
         """Testa carregamento individual de plugins"""
         from qualia.core import QualiaCore
         core = QualiaCore()
@@ -118,7 +119,7 @@ class QualiaTestSuite:
         
         result.details['all_plugins_loaded'] = True
     
-    def test_document_creation(self, result: TestResult):
+    def test_document_creation(self, result: _TestResult):
         """Testa criação de documentos"""
         from qualia.core import QualiaCore
         core = QualiaCore()
@@ -133,7 +134,7 @@ class QualiaTestSuite:
         
         result.details['document_id'] = doc.id
     
-    def test_simple_analysis(self, result: TestResult):
+    def test_simple_analysis(self, result: _TestResult):
         """Testa análise simples com word_frequency"""
         from qualia.core import QualiaCore
         core = QualiaCore()
@@ -168,7 +169,7 @@ class QualiaTestSuite:
             self.api_process.wait(timeout=5)
             self.api_process = None
     
-    def test_api_health(self, result: TestResult):
+    def test_api_health(self, result: _TestResult):
         """Testa endpoint de health da API"""
         response = requests.get("http://localhost:8000/health", timeout=5)
         response.raise_for_status()
@@ -182,7 +183,7 @@ class QualiaTestSuite:
         
         result.details['api_response'] = data
     
-    def test_api_plugins_list(self, result: TestResult):
+    def test_api_plugins_list(self, result: _TestResult):
         """Testa listagem de plugins via API"""
         response = requests.get("http://localhost:8000/plugins", timeout=5)
         response.raise_for_status()
@@ -193,7 +194,7 @@ class QualiaTestSuite:
         
         result.details['plugin_count'] = len(plugins)
     
-    def test_api_analyze(self, result: TestResult):
+    def test_api_analyze(self, result: _TestResult):
         """Testa análise via API"""
         payload = {
             "text": "Este é um teste da API. Teste teste.",
@@ -213,7 +214,7 @@ class QualiaTestSuite:
         
         result.details['words_analyzed'] = len(data['word_freq'])
     
-    def test_api_pipeline(self, result: TestResult):
+    def test_api_pipeline(self, result: _TestResult):
         """Testa pipeline via API"""
         payload = {
             "text": "Texto para análise de pipeline. Muito bom!",
@@ -254,7 +255,7 @@ class QualiaTestSuite:
             self.dashboard_process.wait(timeout=5)
             self.dashboard_process = None
     
-    def test_dashboard_health(self, result: TestResult):
+    def test_dashboard_health(self, result: _TestResult):
         """Testa endpoint de health do dashboard"""
         response = requests.get("http://localhost:8080/health", timeout=5)
         response.raise_for_status()
@@ -271,7 +272,7 @@ class QualiaTestSuite:
     
     # ========== TESTES DE INFRAESTRUTURA ==========
     
-    def test_circuit_breaker_import(self, result: TestResult):
+    def test_circuit_breaker_import(self, result: _TestResult):
         """Testa se circuit breaker pode ser importado"""
         try:
             from ops.monitoring.circuit_breaker import circuit_breaker
@@ -282,7 +283,7 @@ class QualiaTestSuite:
             result.details['has_circuit_breaker'] = False
             result.details['has_fallback'] = True
     
-    def test_backup_script(self, result: TestResult):
+    def test_backup_script(self, result: _TestResult):
         """Testa se script de backup existe e é executável"""
         backup_script = Path("ops/scripts/backup.sh")
         
@@ -296,7 +297,7 @@ class QualiaTestSuite:
         
         result.details['backup_script'] = str(backup_script)
     
-    def test_docker_files(self, result: TestResult):
+    def test_docker_files(self, result: _TestResult):
         """Testa se arquivos Docker existem"""
         required_files = ['Dockerfile', 'docker-compose.yml']
         missing = []
@@ -312,7 +313,7 @@ class QualiaTestSuite:
     
     # ========== TESTES DE PERFORMANCE ==========
     
-    def test_plugin_performance(self, result: TestResult):
+    def test_plugin_performance(self, result: _TestResult):
         """Testa performance dos plugins"""
         from qualia.core import QualiaCore
         core = QualiaCore()
@@ -330,7 +331,7 @@ class QualiaTestSuite:
         
         result.details['word_frequency_time'] = f"{wf_time*1000:.0f}ms"
     
-    def test_memory_usage(self, result: TestResult):
+    def test_memory_usage(self, result: _TestResult):
         """Testa uso de memória"""
         process = psutil.Process()
         memory_mb = process.memory_info().rss / 1024 / 1024
