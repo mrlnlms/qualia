@@ -1,11 +1,7 @@
 <script>
   let { plugin, onUse } = $props();
 
-  const typeConfig = {
-    analyzer: { color: 'var(--accent)', bg: 'var(--accent-dim)', label: 'analyzer' },
-    visualizer: { color: 'var(--accent-green)', bg: 'var(--accent-green-dim)', label: 'visualizer' },
-    document: { color: 'var(--warning)', bg: 'var(--warning-dim)', label: 'document' },
-  };
+  import { typeConfig } from '../lib/constants.js';
 
   const config = $derived(typeConfig[plugin.type] || typeConfig.analyzer);
 </script>
@@ -66,7 +62,7 @@
   .card:hover {
     border-color: var(--border-focus);
     transform: translateY(-2px);
-    box-shadow: var(--shadow), var(--shadow-glow);
+    box-shadow: var(--shadow);
   }
 
   .card:hover::before {
@@ -81,14 +77,14 @@
   }
 
   .type-badge {
-    font-size: 0.68em;
+    font-size: 0.66em;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1.2px;
+    letter-spacing: 1px;
     color: var(--tc);
-    padding: 3px 10px;
+    padding: 2px 8px;
     background: var(--tbg);
-    border-radius: 6px;
+    border-radius: var(--radius);
   }
 
   .version {
@@ -129,7 +125,7 @@
     font-size: 0.68em;
     padding: 2px 8px;
     background: var(--bg-input);
-    border-radius: 6px;
+    border-radius: var(--radius);
     color: var(--text-muted);
     font-family: var(--font-mono);
   }

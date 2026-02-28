@@ -155,8 +155,9 @@
   }
 
   .page-title {
-    font-size: 1.65em;
-    font-weight: 500;
+    font-family: var(--font-serif);
+    font-size: 1.5em;
+    font-weight: 600;
     color: var(--text-primary);
     letter-spacing: -0.3px;
     margin-bottom: 2px;
@@ -201,7 +202,7 @@
 
   .metric-card:hover {
     border-color: var(--border-focus);
-    box-shadow: var(--shadow-glow);
+    box-shadow: var(--shadow-sm);
   }
 
   .metric-label {

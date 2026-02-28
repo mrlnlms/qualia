@@ -2,9 +2,11 @@ import { writable, derived } from 'svelte/store';
 
 export const plugins = writable([]);
 export const health = writable(null);
-export const currentPage = writable(getInitialPage());
 export const globalError = writable(null);
-export const pendingPluginId = writable(null);
+
+// Route state: { page: 'analyze', pluginId: 'word_frequency' }
+export const route = writable(parseHash());
+export const currentPage = derived(route, ($route) => $route.page);
 
 export const pluginsByType = derived(plugins, ($plugins) => ({
   analyzers: $plugins.filter(p => p.type === 'analyzer'),
@@ -12,19 +14,23 @@ export const pluginsByType = derived(plugins, ($plugins) => ({
   document: $plugins.filter(p => p.type === 'document'),
 }));
 
-function getInitialPage() {
-  const hash = window.location.hash.replace('#/', '').replace('#', '');
-  return hash || 'home';
+function parseHash() {
+  const raw = window.location.hash.replace('#/', '').replace('#', '');
+  if (!raw) return { page: 'home', pluginId: null };
+  const parts = raw.split('/');
+  return { page: parts[0], pluginId: parts[1] || null };
 }
 
-// Sync hash changes to store
 if (typeof window !== 'undefined') {
   window.addEventListener('hashchange', () => {
-    const hash = window.location.hash.replace('#/', '').replace('#', '');
-    currentPage.set(hash || 'home');
+    route.set(parseHash());
   });
 }
 
-export function navigate(page) {
-  window.location.hash = `#/${page}`;
+export function navigate(page, pluginId) {
+  if (pluginId) {
+    window.location.hash = `#/${page}/${pluginId}`;
+  } else {
+    window.location.hash = `#/${page}`;
+  }
 }

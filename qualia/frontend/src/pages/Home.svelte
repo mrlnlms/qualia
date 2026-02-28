@@ -1,12 +1,11 @@
 <script>
-  import { health, pluginsByType, pendingPluginId, navigate } from '../lib/stores.js';
+  import { health, pluginsByType, navigate } from '../lib/stores.js';
   import PluginCard from '../components/PluginCard.svelte';
   import StatusDot from '../components/StatusDot.svelte';
 
   function usePlugin(plugin) {
-    pendingPluginId.set(plugin.id);
-    if (plugin.type === 'analyzer') navigate('analyze');
-    else if (plugin.type === 'document') navigate('transcribe');
+    if (plugin.type === 'analyzer') navigate('analyze', plugin.id);
+    else if (plugin.type === 'document') navigate('transcribe', plugin.id);
   }
 
   const sections = $derived([
@@ -67,10 +66,11 @@
   }
 
   .title {
-    font-size: 2.6em;
-    font-weight: 300;
+    font-family: var(--font-serif);
+    font-size: 2.2em;
+    font-weight: 400;
     color: var(--text-primary);
-    letter-spacing: -1px;
+    letter-spacing: -0.5px;
     margin-bottom: 4px;
     line-height: 1.1;
   }
