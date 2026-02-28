@@ -431,6 +431,14 @@ async def execute_pipeline(
             if not plugin:
                 raise HTTPException(status_code=400, detail=f"Plugin '{plugin_id}' not found")
 
+            plugin_type = plugin.meta().type.value
+
+            # Extract output format before validation (not a plugin param)
+            output_format = "png"
+            if plugin_type == "visualizer" and "format" in config_dict:
+                config_dict = {**config_dict}
+                output_format = config_dict.pop("format", "png")
+
             # Validate config via registry if available
             registry = core.get_config_registry()
             if registry and config_dict:
@@ -441,8 +449,6 @@ async def execute_pipeline(
                         detail={"message": f"Invalid config for {plugin_id}", "errors": errors},
                     )
 
-            plugin_type = plugin.meta().type.value
-
             if plugin_type == "visualizer":
                 # Visualizers receive data from previous step + render to image
                 if last_result is None:
@@ -451,7 +457,6 @@ async def execute_pipeline(
                         detail=f"Visualizer '{plugin_id}' requires a previous step's result as data",
                     )
                 viz_config = {**config_dict}
-                output_format = viz_config.pop("format", "png")
                 suffix = f".{output_format}"
                 with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
                     viz_path = Path(tmp.name)

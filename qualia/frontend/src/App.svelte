@@ -1,12 +1,13 @@
 <script>
   import { onMount } from 'svelte';
-  import { currentPage, plugins, health, globalError } from './lib/stores.js';
+  import { route, plugins, health, globalError } from './lib/stores.js';
   import { fetchPlugins, fetchHealth } from './lib/api.js';
   import Layout from './components/Layout.svelte';
   import Home from './pages/Home.svelte';
   import Analyze from './pages/Analyze.svelte';
   import Transcribe from './pages/Transcribe.svelte';
   import Pipeline from './pages/Pipeline.svelte';
+  import Workflow from './pages/Workflow.svelte';
   import Monitor from './pages/Monitor.svelte';
   import ErrorBanner from './components/ErrorBanner.svelte';
 
@@ -29,16 +30,18 @@
     <ErrorBanner message={$globalError} onDismiss={() => globalError.set(null)} />
   {/if}
 
-  {#key $currentPage}
-    {#if $currentPage === 'home'}
+  {#key $route.page + '/' + ($route.pluginId || '')}
+    {#if $route.page === 'home'}
       <Home />
-    {:else if $currentPage === 'analyze'}
-      <Analyze />
-    {:else if $currentPage === 'transcribe'}
-      <Transcribe />
-    {:else if $currentPage === 'pipeline'}
+    {:else if $route.page === 'analyze'}
+      <Analyze pluginId={$route.pluginId} />
+    {:else if $route.page === 'transcribe'}
+      <Transcribe pluginId={$route.pluginId} />
+    {:else if $route.page === 'pipeline'}
       <Pipeline />
-    {:else if $currentPage === 'monitor'}
+    {:else if $route.page === 'workflow'}
+      <Workflow />
+    {:else if $route.page === 'monitor'}
       <Monitor />
     {:else}
       <Home />

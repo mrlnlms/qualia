@@ -1,41 +1,73 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
-  --bg-primary: #08090c;
-  --bg-secondary: #0d0f14;
-  --bg-card: #12141a;
-  --bg-input: #1a1d26;
-  --bg-hover: #1e2130;
-  --border: #262a36;
-  --border-subtle: #1c1f2a;
-  --border-focus: #4d8be6;
-  --text-primary: #e2e4ea;
-  --text-secondary: #9da3b4;
-  --text-muted: #5e6478;
-  --accent: #4d8be6;
-  --accent-hover: #6ba0f0;
-  --accent-dim: rgba(77, 139, 230, 0.12);
-  --accent-green: #34d399;
-  --accent-green-dim: rgba(52, 211, 153, 0.12);
-  --accent-gradient: linear-gradient(135deg, #34d399 0%, #4d8be6 100%);
-  --error: #f06060;
-  --error-bg: rgba(240, 96, 96, 0.08);
-  --error-dim: rgba(240, 96, 96, 0.15);
-  --warning: #e6a54d;
-  --warning-dim: rgba(230, 165, 77, 0.12);
-  --success: #34d399;
-  --radius-sm: 8px;
-  --radius: 12px;
-  --radius-lg: 16px;
+  /* Lab Notebook — light paper default */
+  --bg-primary: #f6f4f0;
+  --bg-secondary: #edeae4;
+  --bg-card: #ffffff;
+  --bg-input: #f0ede8;
+  --bg-hover: #e8e5df;
+  --border: #d5d0c8;
+  --border-subtle: #e2ded7;
+  --border-focus: #2a7a6d;
+  --text-primary: #2c2c2b;
+  --text-secondary: #5a5852;
+  --text-muted: #918e85;
+  --accent: #2a7a6d;
+  --accent-hover: #1f5f54;
+  --accent-dim: rgba(42, 122, 109, 0.09);
+  --accent-green: #2a7a6d;
+  --accent-green-dim: rgba(42, 122, 109, 0.09);
+  --accent-gradient: linear-gradient(135deg, #2a7a6d 0%, #4a6fa5 100%);
+  --error: #b83a3a;
+  --error-bg: rgba(184, 58, 58, 0.06);
+  --error-dim: rgba(184, 58, 58, 0.12);
+  --warning: #a07030;
+  --warning-dim: rgba(160, 112, 48, 0.1);
+  --success: #2a7a6d;
+  --radius-sm: 3px;
+  --radius: 4px;
+  --radius-lg: 6px;
   --font-mono: 'JetBrains Mono', 'SF Mono', 'Fira Code', monospace;
-  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
-  --shadow-glow: 0 0 20px rgba(77, 139, 230, 0.15);
-  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-slow: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  --sidebar-width: 232px;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: 'Source Serif 4', 'Georgia', serif;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.08);
+  --transition: 0.15s ease;
+  --transition-slow: 0.3s ease;
+  --sidebar-width: 200px;
+  --node-width: 180px;
+  --port-size: 10px;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #1c1b19;
+  --bg-secondary: #242320;
+  --bg-card: #2a2926;
+  --bg-input: #32312d;
+  --bg-hover: #3a3935;
+  --border: #454340;
+  --border-subtle: #383633;
+  --border-focus: #5aaa9d;
+  --text-primary: #e0ded8;
+  --text-secondary: #a8a59e;
+  --text-muted: #706d66;
+  --accent: #5aaa9d;
+  --accent-hover: #72bfb3;
+  --accent-dim: rgba(90, 170, 157, 0.12);
+  --accent-green: #5aaa9d;
+  --accent-green-dim: rgba(90, 170, 157, 0.1);
+  --accent-gradient: linear-gradient(135deg, #5aaa9d 0%, #7a9ec5 100%);
+  --error: #d06060;
+  --error-bg: rgba(208, 96, 96, 0.1);
+  --error-dim: rgba(208, 96, 96, 0.15);
+  --warning: #c89050;
+  --warning-dim: rgba(200, 144, 80, 0.12);
+  --success: #5aaa9d;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -50,7 +82,7 @@ html, body {
   background: var(--bg-primary);
   color: var(--text-primary);
   line-height: 1.6;
-  font-size: 15px;
+  font-size: 14.5px;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -60,8 +92,7 @@ html, body {
 }
 
 ::selection {
-  background: rgba(77, 139, 230, 0.25);
-  color: #fff;
+  background: rgba(42, 122, 109, 0.2);
 }
 
 ::-webkit-scrollbar {
@@ -93,7 +124,7 @@ input, select, textarea {
 
 /* Shared page-level animation */
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
@@ -109,4 +140,9 @@ input, select, textarea {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes progressSlide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
 }

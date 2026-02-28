@@ -1,4 +1,5 @@
 <script>
+  import { onMount } from 'svelte';
   import { currentPage, navigate } from '../lib/stores.js';
 
   const navItems = [
@@ -6,42 +7,53 @@
     { id: 'transcribe', label: 'Transcribe', icon: 'T' },
     { id: 'analyze', label: 'Analyze', icon: 'A' },
     { id: 'pipeline', label: 'Pipeline', icon: 'P' },
+    { id: 'workflow', label: 'Workflow', icon: 'W' },
     { id: 'monitor', label: 'Monitor', icon: 'M' },
   ];
+
+  let darkMode = $state(false);
+
+  onMount(() => {
+    darkMode = localStorage.getItem('qualia-theme') === 'dark';
+    applyTheme();
+  });
+
+  function toggleTheme() {
+    darkMode = !darkMode;
+    localStorage.setItem('qualia-theme', darkMode ? 'dark' : 'light');
+    applyTheme();
+  }
+
+  function applyTheme() {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }
 </script>
 
 <div class="layout">
   <nav class="sidebar">
     <div class="sidebar-header">
-      <div class="logo-mark">Q</div>
-      <div class="logo-text">
-        <span class="logo-name">Qualia</span>
-        <span class="logo-sub">analysis engine</span>
-      </div>
+      <span class="logo">Qualia</span>
     </div>
     <ul class="nav-list">
-      {#each navItems as item, i}
-        <li style="animation-delay: {60 + i * 40}ms">
+      {#each navItems as item}
+        <li>
           <button
             class="nav-item"
             class:active={$currentPage === item.id}
             onclick={() => navigate(item.id)}
           >
-            <span class="nav-icon">{item.icon}</span>
+            <span class="nav-key">{item.icon}</span>
             <span class="nav-label">{item.label}</span>
-            {#if $currentPage === item.id}
-              <span class="nav-indicator"></span>
-            {/if}
           </button>
         </li>
       {/each}
     </ul>
     <div class="sidebar-footer">
-      <div class="footer-line"></div>
-      <div class="footer-info">
-        <span class="version">v0.1.0</span>
-        <a class="api-link" href="/docs" target="_blank">API Docs</a>
-      </div>
+      <span class="version">v0.1</span>
+      <button class="theme-toggle" onclick={toggleTheme} title={darkMode ? 'Light mode' : 'Dark mode'}>
+        {darkMode ? 'light' : 'dark'}
+      </button>
+      <a class="api-link" href="/docs" target="_blank">api</a>
     </div>
   </nav>
   <main class="content">
@@ -62,97 +74,44 @@
     width: var(--sidebar-width);
     min-width: var(--sidebar-width);
     background: var(--bg-secondary);
-    border-right: 1px solid var(--border-subtle);
+    border-right: 1px solid var(--border);
     display: flex;
     flex-direction: column;
-    position: relative;
-  }
-
-  .sidebar::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 1px;
-    background: linear-gradient(
-      to bottom,
-      transparent 0%,
-      var(--border) 20%,
-      var(--border) 80%,
-      transparent 100%
-    );
   }
 
   .sidebar-header {
-    padding: 28px 22px 24px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
+    padding: 24px 20px 20px;
   }
 
-  .logo-mark {
-    width: 36px;
-    height: 36px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.15em;
-    font-weight: 600;
-    background: var(--accent-gradient);
-    color: var(--bg-primary);
-    border-radius: 10px;
-    letter-spacing: -0.5px;
-    flex-shrink: 0;
-  }
-
-  .logo-text {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-
-  .logo-name {
-    font-size: 1.1em;
+  .logo {
+    font-family: var(--font-serif);
+    font-size: 1.25em;
     font-weight: 600;
     color: var(--text-primary);
-    letter-spacing: 0.3px;
-    line-height: 1.2;
-  }
-
-  .logo-sub {
-    font-size: 0.7em;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
+    letter-spacing: -0.3px;
   }
 
   .nav-list {
     list-style: none;
-    padding: 8px 10px;
+    padding: 4px 10px;
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 2px;
-  }
-
-  .nav-list li {
-    animation: fadeIn 0.3s ease backwards;
+    gap: 1px;
   }
 
   .nav-item {
     width: 100%;
     display: flex;
     align-items: center;
-    gap: 12px;
-    padding: 10px 14px;
+    gap: 10px;
+    padding: 8px 12px;
     border: none;
     background: transparent;
     color: var(--text-muted);
-    font-size: 0.9em;
-    font-weight: 400;
-    border-radius: var(--radius-sm);
+    font-size: 0.88em;
+    border-radius: var(--radius);
     transition: all var(--transition);
-    position: relative;
   }
 
   .nav-item:hover {
@@ -163,68 +122,70 @@
   .nav-item.active {
     background: var(--accent-dim);
     color: var(--accent);
-    font-weight: 500;
   }
 
-  .nav-icon {
-    width: 24px;
-    height: 24px;
+  .nav-key {
+    width: 20px;
+    height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.72em;
-    font-weight: 600;
+    font-size: 0.68em;
+    font-weight: 500;
     font-family: var(--font-mono);
-    letter-spacing: -0.3px;
-    border-radius: 6px;
+    border-radius: 3px;
     background: var(--bg-input);
     color: var(--text-muted);
-    transition: all var(--transition);
     flex-shrink: 0;
   }
 
-  .nav-item.active .nav-icon {
+  .nav-item.active .nav-key {
     background: var(--accent);
-    color: var(--bg-primary);
+    color: var(--bg-card);
   }
 
-  .nav-indicator {
-    position: absolute;
-    left: 0;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 3px;
-    height: 16px;
-    background: var(--accent);
-    border-radius: 0 3px 3px 0;
+  .nav-label {
+    font-weight: 400;
+  }
+
+  .nav-item.active .nav-label {
+    font-weight: 500;
   }
 
   .sidebar-footer {
-    padding: 16px 22px 20px;
-  }
-
-  .footer-line {
-    height: 1px;
-    background: linear-gradient(to right, var(--border), transparent);
-    margin-bottom: 14px;
-  }
-
-  .footer-info {
+    padding: 14px 20px 18px;
+    border-top: 1px solid var(--border-subtle);
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 12px;
   }
 
   .version {
-    font-size: 0.72em;
+    font-size: 0.68em;
     color: var(--text-muted);
     font-family: var(--font-mono);
   }
 
+  .theme-toggle {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.68em;
+    font-family: var(--font-mono);
+    padding: 2px 0;
+    transition: color var(--transition);
+  }
+
+  .theme-toggle:hover {
+    color: var(--accent);
+  }
+
   .api-link {
-    font-size: 0.72em;
+    font-size: 0.68em;
+    font-family: var(--font-mono);
     color: var(--text-muted);
     text-decoration: none;
+    margin-left: auto;
     transition: color var(--transition);
   }
 
@@ -239,8 +200,7 @@
   }
 
   .content-inner {
-    padding: 40px 48px;
-    animation: fadeUp 0.35s ease backwards;
+    padding: 36px 40px;
     min-height: 100%;
   }
 </style>
