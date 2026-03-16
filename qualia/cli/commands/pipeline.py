@@ -97,7 +97,7 @@ def pipeline(document_path: str, config: str, output_dir: str):
                                 viz_output = output_path / f"{step.output_name or step.plugin_id}.png"
                             else:
                                 viz_output = Path(f"{step.output_name or step.plugin_id}.png")
-                            plugin_instance = core.plugins[step.plugin_id]
+                            plugin_instance = core.get_plugin(step.plugin_id)
                             plugin_instance.render(data_for_viz, step.config or {}, viz_output)
                             results[step.output_name or step.plugin_id] = {"output": str(viz_output)}
                         else:

@@ -546,11 +546,13 @@ class CacheManager:
 # ============================================================================
 
 class PluginLoader:
-    """Carrega plugins dinamicamente.
+    """Carrega plugins com instanciação lazy ou eager automática.
 
-    Imports pesados (matplotlib, plotly, etc.) são lazy — ficam dentro
-    dos métodos dos plugins, não no module level. O custo de discover()
-    é basicamente stdlib + instanciação leve.
+    Plugins que definem __init__ próprio (warm-up, modelos, corpora)
+    são instanciados na main thread durante discover() (eager).
+    Os demais são instanciados sob demanda no primeiro get_plugin() (lazy).
+
+    A detecção é automática via '__init__' in cls.__dict__.
     """
 
     def __init__(self, plugins_dir: Path):
@@ -559,10 +561,11 @@ class PluginLoader:
         self._plugin_classes: Dict[str, type] = {}
 
     def discover(self) -> Dict[str, PluginMetadata]:
-        """Descobre e instancia todos os plugins disponíveis.
+        """Descobre plugins e instancia apenas os que precisam de warm-up.
 
-        Carrega módulos, instancia cada plugin (roda __init__ na main thread
-        pra garantir thread-safety) e extrai metadata.
+        Plugins com __init__ próprio → instanciados agora (main thread, thread-safe).
+        Plugins sem __init__ próprio → classe guardada, instanciação deferida.
+        Metadata extraída de todos (via instância temporária pra lazy plugins).
         """
         import logging
         logger = logging.getLogger(__name__)
@@ -593,26 +596,50 @@ class PluginLoader:
                                 obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin,
                                            IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
 
-                                instance = obj()
-                                meta = instance.meta()
+                                self._plugin_classes[obj.__name__] = obj
+                                needs_eager = '__init__' in obj.__dict__
+
+                                if needs_eager:
+                                    # Warm-up na main thread (thread-safe)
+                                    instance = obj()
+                                    meta = instance.meta()
+                                    self.loaded_plugins[meta.id] = instance
+                                    self._plugin_classes[meta.id] = obj
+                                    logger.debug(f"Plugin {meta.id}: eager (has __init__)")
+                                else:
+                                    # Instância temporária só pra extrair metadata
+                                    instance = obj()
+                                    meta = instance.meta()
+                                    self._plugin_classes[meta.id] = obj
+                                    # NÃO guarda em loaded_plugins — lazy
+                                    logger.debug(f"Plugin {meta.id}: lazy")
+
                                 discovered[meta.id] = meta
-                                self.loaded_plugins[meta.id] = instance
-                                self._plugin_classes[meta.id] = obj
 
                     elapsed = time.perf_counter() - t0
-                    logger.debug(f"Plugin {plugin_dir.name}: {elapsed:.3f}s")
+                    logger.debug(f"  {plugin_dir.name}: {elapsed:.3f}s")
 
                 except Exception as e:
                     print(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
 
+        eager_count = len(self.loaded_plugins)
+        lazy_count = len(discovered) - eager_count
         total = time.perf_counter() - t_total
-        logger.info(f"Discovery: {len(discovered)} plugins em {total:.3f}s")
+        logger.info(f"Discovery: {len(discovered)} plugins ({eager_count} eager, {lazy_count} lazy) em {total:.3f}s")
 
         return discovered
 
     def get_plugin(self, plugin_id: str) -> Optional[IPlugin]:
-        """Retorna instância de plugin carregado"""
-        return self.loaded_plugins.get(plugin_id)
+        """Retorna instância do plugin (lazy — instancia no primeiro acesso)."""
+        if plugin_id in self.loaded_plugins:
+            return self.loaded_plugins[plugin_id]
+
+        if plugin_id in self._plugin_classes:
+            instance = self._plugin_classes[plugin_id]()
+            self.loaded_plugins[plugin_id] = instance
+            return instance
+
+        return None
 
 
 # ============================================================================
@@ -687,22 +714,26 @@ class QualiaCore:
         self.discover_plugins()
     
     def discover_plugins(self) -> Dict[str, PluginMetadata]:
-        """
-        Descobre plugins disponíveis
-        Core não sabe o que vai encontrar!
-        """
+        """Descobre plugins disponíveis. Core não sabe o que vai encontrar."""
         self.registry = self.loader.discover()
+        # plugins aponta pro mesmo dict do loader — lazy plugins aparecem quando instanciados
         self.plugins = self.loader.loaded_plugins
 
-        # Atualiza resolver
         for plugin_id, metadata in self.registry.items():
             self.resolver.add_plugin(plugin_id, metadata)
 
-        # Criar ConfigurationRegistry com os plugins descobertos
-        if self.plugins:
-            self.config_registry = ConfigurationRegistry(self.plugins)
+        # ConfigurationRegistry usa metadata (não precisa de instâncias)
+        if self.registry:
+            self.config_registry = ConfigurationRegistry(self.registry)
 
         return self.registry
+
+    def get_plugin(self, plugin_id: str) -> IPlugin:
+        """Retorna instância do plugin (lazy — instancia no primeiro acesso)."""
+        plugin = self.loader.get_plugin(plugin_id)
+        if plugin is None:
+            raise ValueError(f"Plugin '{plugin_id}' não encontrado")
+        return plugin
     
     def execute_plugin(self, 
                   plugin_id: str, 
@@ -714,13 +745,11 @@ class QualiaCore:
                     Resolve dependências automaticamente
                     """
                     config = config or {}
-                    # REMOVER a linha: context = context or {}  # Essa linha está causando erro
-                    
-                    if plugin_id not in self.plugins:
+
+                    if plugin_id not in self.registry:
                         raise ValueError(f"Plugin '{plugin_id}' não encontrado")
-                    
-                    # REMOVER config = config or {} duplicado
-                    plugin = self.plugins[plugin_id]
+
+                    plugin = self.get_plugin(plugin_id)
                     metadata = self.registry[plugin_id]
                     
                     # Valida configuração

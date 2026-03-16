@@ -115,7 +115,7 @@ def watch(folder: str, plugin: str, pattern: str, output_dir: str,
     core = get_core()
     
     # Verificar plugin
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         return
     

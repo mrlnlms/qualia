@@ -37,7 +37,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
     core = get_core()
     
     # Verificar se plugin existe
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list -t visualizer' para ver visualizadores disponíveis.")
         return
@@ -134,7 +134,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
         
         try:
             # Instanciar plugin
-            plugin_instance = core.plugins[plugin]
+            plugin_instance = core.get_plugin(plugin)
             
             # Verificar se plugin tem método render
             if not hasattr(plugin_instance, 'render'):

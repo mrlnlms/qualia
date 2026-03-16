@@ -92,11 +92,10 @@ class PluginInfo(BaseModel):
 # Helper functions
 def plugin_to_info(plugin_id: str) -> PluginInfo:
     """Convert plugin metadata to API response model"""
-    plugin = core.plugins.get(plugin_id)
-    if not plugin:
+    meta = core.registry.get(plugin_id)
+    if not meta:
         raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-    
-    meta = plugin.meta()
+
     return PluginInfo(
         id=meta.id,
         name=meta.name,
@@ -156,8 +155,7 @@ def _api_info():
 def list_plugins(plugin_type: Optional[str] = None):
     """List all available plugins"""
     plugins = []
-    for plugin_id, plugin in core.plugins.items():
-        meta = plugin.meta()
+    for plugin_id, meta in core.registry.items():
         if plugin_type and meta.type.value != plugin_type:
             continue
         plugins.append(plugin_to_info(plugin_id))
@@ -281,10 +279,10 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
             output_path = Path(tmp.name)
         
         # Execute visualizer
-        plugin = core.plugins.get(plugin_id)
+        plugin = core.loader.get_plugin(plugin_id)
         if not plugin:
             raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-        
+
         # Run render in a thread to avoid blocking the event loop (matplotlib is not async-safe)
         try:
             await asyncio.wait_for(
@@ -378,8 +376,9 @@ async def execute_pipeline(
         step_offset = 0
 
         # Check if first step is a document plugin with file upload
-        first_plugin = core.plugins.get(steps_list[0].get("plugin_id", ""))
-        first_is_document = first_plugin and first_plugin.meta().type.value == "document"
+        first_plugin_id = steps_list[0].get("plugin_id", "")
+        first_meta = core.registry.get(first_plugin_id)
+        first_is_document = first_meta and first_meta.type.value == "document"
 
         if file and first_is_document:
             step0 = steps_list[0]
@@ -423,11 +422,11 @@ async def execute_pipeline(
             plugin_id = step_def["plugin_id"]
             config_dict = step_def.get("config", {})
 
-            plugin = core.plugins.get(plugin_id)
+            plugin = core.loader.get_plugin(plugin_id)
             if not plugin:
                 raise HTTPException(status_code=400, detail=f"Plugin '{plugin_id}' not found")
 
-            plugin_type = plugin.meta().type.value
+            plugin_type = core.registry[plugin_id].type.value
 
             # Extract output format before validation (not a plugin param)
             output_format = "png"
@@ -576,7 +575,7 @@ async def transcribe(
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
 
-    plugin = core.plugins.get(plugin_id)
+    plugin = core.loader.get_plugin(plugin_id)
     if not plugin:
         raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
 
@@ -640,11 +639,11 @@ def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy",
-        "plugins_loaded": len(core.plugins),
+        "plugins_loaded": len(core.registry),
         "plugin_types": {
-            "analyzers": len([p for p in core.plugins.values() if p.meta().type.value == "analyzer"]),
-            "visualizers": len([p for p in core.plugins.values() if p.meta().type.value == "visualizer"]),
-            "document_processors": len([p for p in core.plugins.values() if p.meta().type.value == "document"])
+            "analyzers": len([m for m in core.registry.values() if m.type.value == "analyzer"]),
+            "visualizers": len([m for m in core.registry.values() if m.type.value == "visualizer"]),
+            "document_processors": len([m for m in core.registry.values() if m.type.value == "document"])
         },
         "extensions": {
             "webhooks": HAS_EXTENSIONS,

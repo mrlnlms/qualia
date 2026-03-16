@@ -122,10 +122,10 @@ class HealthChecker:
             doc = core.add_document("health_check", "Texto de teste para verificação de saúde.")
             
             plugin_status = {}
-            total_plugins = len(core.plugins)
+            total_plugins = len(core.registry)
             working_plugins = 0
-            
-            for plugin_id, plugin in core.plugins.items():
+
+            for plugin_id, meta in core.registry.items():
                 try:
                     # Teste básico do plugin
                     result = core.execute_plugin(plugin_id, doc, {})

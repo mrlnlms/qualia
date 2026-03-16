@@ -114,7 +114,7 @@ class QualiaTestSuite:
         ]
         
         for plugin_id in required_plugins:
-            if plugin_id not in core.plugins:
+            if plugin_id not in core.registry:
                 raise AssertionError(f"Plugin '{plugin_id}' não foi carregado")
         
         result.details['all_plugins_loaded'] = True

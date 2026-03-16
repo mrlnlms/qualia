@@ -145,11 +145,11 @@ def analyze(document_path: str, plugin: str, config: str, param: tuple,
     core = get_core()
     
     # Verificar se plugin existe
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list' para ver plugins disponíveis.")
         return
-    
+
     # Verificar se é analyzer
     plugin_meta = core.registry[plugin]
     if plugin_meta.type != PluginType.ANALYZER:
@@ -231,10 +231,10 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param): 
     core = get_core()
     
     # Verificar plugin
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         return
-    
+
     plugin_meta = core.registry[plugin]
     if plugin_meta.type != PluginType.DOCUMENT:
         console.print(f"[red]'{plugin}' não é um processador de documentos![/red]")
@@ -510,7 +510,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
     core = get_core()
     
     # Verificar se plugin existe
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list -t visualizer' para ver visualizadores disponíveis.")
         return
@@ -620,7 +620,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
         
         try:
             # Instanciar plugin
-            plugin_instance = core.plugins[plugin]
+            plugin_instance = core.get_plugin(plugin)
             
             # Verificar se plugin tem método render
             if not hasattr(plugin_instance, 'render'):

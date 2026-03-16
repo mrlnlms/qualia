@@ -23,7 +23,7 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
     core = get_core()
     
     # Verificar plugin
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         return
     

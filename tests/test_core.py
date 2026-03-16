@@ -115,7 +115,7 @@ class TestQualiaCore:
         result1 = core.execute_plugin("word_frequency", sample_document)
         
         # Segunda execução (deve vir do cache)
-        with patch.object(core.plugins['word_frequency'], 'analyze') as mock_analyze:
+        with patch.object(core.get_plugin('word_frequency'), 'analyze') as mock_analyze:
             result2 = core.execute_plugin("word_frequency", sample_document)
             mock_analyze.assert_not_called()
         
@@ -226,7 +226,7 @@ class TestErrorHandling:
         )
         
         # Adicionar ao registry de forma segura
-        core.plugins["mock_plugin"] = mock_plugin
+        core.loader.loaded_plugins["mock_plugin"] = mock_plugin
         core.registry["mock_plugin"] = mock_plugin.meta()
         
         doc = core.add_document("test", "texto")

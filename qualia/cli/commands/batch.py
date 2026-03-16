@@ -71,7 +71,7 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
     core = get_core()
     
     # Verificar plugin
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         return
     

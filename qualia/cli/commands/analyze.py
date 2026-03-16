@@ -32,7 +32,7 @@ def analyze(document_path: str, plugin: str, config: str, param: tuple,
     core = get_core()
     
     # Verificar se plugin existe
-    if plugin not in core.plugins:
+    if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list' para ver plugins disponíveis.")
         return

@@ -236,7 +236,7 @@ class TestConfigIntegration:
         from qualia.core import QualiaCore
         core = QualiaCore()
         core.discover_plugins()
-        assert "transcription" in core.plugins
+        assert "transcription" in core.registry
 
     def test_registry_has_schema(self):
         """ConfigurationRegistry normaliza o schema do plugin."""

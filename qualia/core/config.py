@@ -44,17 +44,18 @@ class ConfigurationRegistry:
     - Visão consolidada para consumers
     """
 
-    def __init__(self, plugins: Dict[str, Any]):
+    def __init__(self, plugins_or_registry):
         """
         Args:
-            plugins: Dict[plugin_id, IPlugin] — plugins já instanciados
+            plugins_or_registry: Dict[plugin_id, IPlugin] (instâncias) OU
+                                 Dict[plugin_id, PluginMetadata] (metadata).
+                                 Aceita ambos pra backward compatibility.
         """
-        self._plugins = plugins
         self._schemas: Dict[str, Dict[str, Any]] = {}
 
-        # Construir schemas normalizados na inicialização
-        for plugin_id, plugin in self._plugins.items():
-            meta = plugin.meta()
+        for plugin_id, value in plugins_or_registry.items():
+            # Se é instância de plugin, extrai metadata. Se já é metadata, usa direto.
+            meta = value.meta() if hasattr(value, 'meta') else value
             self._schemas[plugin_id] = self._normalize_schema(meta)
 
     # ------------------------------------------------------------------
