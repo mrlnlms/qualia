@@ -629,6 +629,12 @@ async def transcribe(
         Path(tmp_path).unlink(missing_ok=True)
 
 
+@app.get("/cache/stats")
+def cache_stats():
+    """Retorna estatísticas do cache (tamanho, hits, misses, evictions)"""
+    return core.cache.stats()
+
+
 @app.get("/health")
 def health_check():
     """Health check endpoint"""
