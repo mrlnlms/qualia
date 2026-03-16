@@ -1,0 +1,38 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Instalar dependências
+        run: |
+          pip install -r requirements.txt
+          pip install -e .
+
+      - name: Rodar testes
+        run: pytest tests/ -v --tb=short
+
+      - name: Verificar startup da API
+        run: |
+          timeout 15 python -c "
+          from qualia.api import app
+          from qualia.core import QualiaCore
+          core = QualiaCore()
+          print(f'Plugins: {len(core.registry)}')
+          print('API importa OK')
+          " || exit 1

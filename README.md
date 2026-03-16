@@ -191,7 +191,7 @@ qualia/
 **Limitações conhecidas:**
 - `sentiment_analyzer` usa TextBlob, que tem suporte limitado a português
 - Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo
-- CI/CD no GitHub Actions está desabilitado
+- CI roda automaticamente no push/PR via GitHub Actions (`pytest tests/`)
 
 ## Licença
 
