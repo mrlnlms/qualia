@@ -153,20 +153,19 @@ nltk.download('punkt', quiet=True)   # <- NETWORK CALL no init!
 ## Prioridades
 
 ```
-ALTO IMPACTO, BAIXO ESFORCO:
-1. Lazy imports no wordcloud_viz (1 hora)
-2. Mover nltk.download pra lazy (30 min)
-3. Remover pandas do requirements (5 min)
-4. Testes de logica dos plugins (2-3 dias)
+CONCLUIDO:
+1. ✅ Lazy imports no wordcloud_viz
+2. ✅ Mover nltk.download pra lazy (+ fix thread-safety com warm-up)
+3. ✅ Remover pandas do requirements
+4. ✅ Testes de logica dos plugins (40 testes)
+6. ✅ Testes de cache + dependency resolver (15 testes)
+7. ✅ Testes async/concorrencia (9 testes)
+8. ✅ Cache com LRU + TTL (15 testes + endpoint /cache/stats)
+9. ✅ Testes de webhooks/monitor (31 testes)
+10. ✅ Testes de CLI (21 testes)
 
-ALTO IMPACTO, MEDIO ESFORCO:
-5. Lazy plugin loading no core (1 dia)
-6. Testes de cache + dependency resolver (1 dia)
-7. Testes async/concorrencia (1 dia)
+PENDENTE:
+5. Lazy plugin loading real no core (infra preparada mas nao ativada)
+```
 
-MEDIO IMPACTO:
-8. Cache com LRU + TTL (meio dia)
-9. Testes de webhooks/monitor (1 dia)
-
-BAIXA PRIORIDADE:
-10. Testes de CLI (2 dias)
+**Total atual: 237 testes passando (era 125 antes deste sprint)**

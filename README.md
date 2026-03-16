@@ -84,6 +84,7 @@ curl -X POST http://localhost:8000/transcribe/transcription \
 - `POST /visualize/{plugin_id}` — gera visualização
 - `POST /pipeline` — executa sequência de plugins
 - `GET /config/consolidated` — visão consolidada de todos os schemas (para consumers)
+- `GET /cache/stats` — estatísticas do cache (tamanho, hits, misses, evictions)
 
 ### CLI — linha de comando
 
@@ -143,6 +144,8 @@ class MeuPlugin(BaseAnalyzerPlugin):
 
 Tipos de plugin disponíveis: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
 
+**Thread-safety:** plugins são singletons compartilhados entre threads. Se o plugin usa modelos pesados (NLTK, sentence-transformers, spaCy), carregue no `__init__` — não no `_analyze_impl`. O template `tools/create_plugin.py` já inclui esse padrão.
+
 ## Estrutura do projeto
 
 ```
@@ -180,14 +183,14 @@ qualia/
 - API REST stateless com Swagger autodocumentado
 - Transcrição de áudio/vídeo via Groq Whisper (testado com mp4)
 - ConfigurationRegistry com validação, calibração por tamanho de texto e visão consolidada
-- Sistema de cache por hash de conteúdo
+- Cache com LRU e TTL (`GET /cache/stats` para monitorar)
 - Resolução automática de dependências entre plugins
 - Integração validada com CodeMarker (plugin Obsidian)
+- 237 testes passando (plugins, API, webhooks, monitor, async, CLI, cache, performance)
 
 **Limitações conhecidas:**
 - `sentiment_analyzer` usa TextBlob, que tem suporte limitado a português
 - Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo
-- Testes antigos (test_api, test_core) precisam de atualização
 - CI/CD no GitHub Actions está desabilitado
 
 ## Licença
