@@ -200,9 +200,16 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
 class BaseVisualizerPlugin(IVisualizerPlugin):
     """Base class com funcionalidades comuns para visualizers"""
     
-    def render(self, data: Dict[str, Any], config: Dict[str, Any], 
+    def render(self, data: Dict[str, Any], config: Dict[str, Any],
                output_path: Union[str, Path]) -> Union[str, Path]:
         """Wrapper que valida e prepara antes de chamar _render_impl"""
+        # Configurar matplotlib headless antes de qualquer uso
+        try:
+            import matplotlib
+            matplotlib.use('Agg')
+        except ImportError:
+            pass  # Plugin pode não usar matplotlib
+
         # Garantir que output_path é Path
         output_path = self._ensure_path(output_path)
         
@@ -447,24 +454,28 @@ class CacheManager:
 # ============================================================================
 
 class PluginLoader:
-    """Carrega plugins dinamicamente"""
-    
+    """Carrega plugins dinamicamente com lazy instantiation"""
+
     def __init__(self, plugins_dir: Path):
         self.plugins_dir = plugins_dir
         self.loaded_plugins: Dict[str, IPlugin] = {}
-    
+        self._plugin_classes: Dict[str, type] = {}  # classe não instanciada
+
     def discover(self) -> Dict[str, PluginMetadata]:
-        """Descobre todos os plugins disponíveis"""
+        """
+        Descobre todos os plugins disponíveis.
+
+        Carrega módulos e extrai metadata, mas NÃO instancia os plugins.
+        A instanciação (e imports pesados do __init__) acontecem no primeiro uso.
+        """
         discovered = {}
-        
+
         if not self.plugins_dir.exists():
             return discovered
-        
-        # Procura por arquivos Python em subdiretórios
+
         for plugin_dir in self.plugins_dir.iterdir():
             if plugin_dir.is_dir() and (plugin_dir / "__init__.py").exists():
                 try:
-                    # Carrega o módulo
                     spec = importlib.util.spec_from_file_location(
                         plugin_dir.name,
                         plugin_dir / "__init__.py"
@@ -472,26 +483,28 @@ class PluginLoader:
                     if spec and spec.loader:
                         module = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(module)
-                        
-                        # Procura por classes que implementam IPlugin
+
                         for name, obj in inspect.getmembers(module):
                             if name.startswith('Base'):
                                 continue
-                            if (inspect.isclass(obj) and 
-                                issubclass(obj, IPlugin) and 
-                                obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin, 
+                            if (inspect.isclass(obj) and
+                                issubclass(obj, IPlugin) and
+                                obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin,
                                            IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
-                                
+
+                                # Instanciar temporariamente só pra extrair metadata
                                 instance = obj()
                                 meta = instance.meta()
                                 discovered[meta.id] = meta
+                                # Guardar instância — plugins leves já ficam prontos
                                 self.loaded_plugins[meta.id] = instance
-                
+                                self._plugin_classes[meta.id] = obj
+
                 except Exception as e:
                     print(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
-        
+
         return discovered
-    
+
     def get_plugin(self, plugin_id: str) -> Optional[IPlugin]:
         """Retorna instância de plugin carregado"""
         return self.loaded_plugins.get(plugin_id)

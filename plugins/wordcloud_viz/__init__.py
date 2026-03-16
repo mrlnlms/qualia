@@ -5,8 +5,6 @@ Plugin de visualização que gera nuvens de palavras
 
 from typing import Dict, Any
 from pathlib import Path
-import matplotlib.pyplot as plt
-from wordcloud import WordCloud
 import json
 
 # Importar a base class em vez da interface
@@ -86,9 +84,19 @@ class WordCloudVisualizer(BaseVisualizerPlugin):
         - campos obrigatórios nos dados foram validados
         """
         
+        # Lazy imports — só carrega quando o plugin é realmente usado
+        try:
+            import matplotlib.pyplot as plt
+        except ImportError:
+            raise ImportError("matplotlib não instalado. Use: pip install matplotlib")
+        try:
+            from wordcloud import WordCloud
+        except ImportError:
+            raise ImportError("wordcloud não instalado. Use: pip install wordcloud")
+
         # Extrair frequências (já validado que existe)
         frequencies = data['word_frequencies']
-        
+
         # Gerar wordcloud com configurações
         wordcloud = WordCloud(
             width=config['width'],

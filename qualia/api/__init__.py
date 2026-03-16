@@ -4,9 +4,6 @@ Qualia Core REST API
 Expõe as funcionalidades do Qualia Core via HTTP REST API.
 """
 
-import matplotlib
-matplotlib.use('Agg')  # Headless backend — must be set before any pyplot import
-
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -50,9 +47,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Qualia Core
+# Initialize Qualia Core (discover_plugins é chamado no __init__ do QualiaCore)
 core = QualiaCore()
-core.discover_plugins()
 
 # Initialize extensions if available
 if HAS_EXTENSIONS:

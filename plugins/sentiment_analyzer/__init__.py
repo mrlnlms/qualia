@@ -30,30 +30,34 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         super().__init__()
         self._textblob_available = False
         self._langdetect_available = False
-        
+        self._nltk_ready = False
+
         # Tentar importar dependências
         try:
             from textblob import TextBlob
             self._textblob_available = True
             self.TextBlob = TextBlob
-            
-            # Baixar corpora se necessário
-            try:
-                import nltk
-                nltk.download('brown', quiet=True)
-                nltk.download('punkt', quiet=True)
-            except:
-                pass
-                
         except ImportError:
             logger.warning("TextBlob não instalado. Instale com: pip install textblob")
-        
+
         try:
             import langdetect
             self._langdetect_available = True
             self.langdetect = langdetect
         except ImportError:
             logger.warning("langdetect não instalado. Instale com: pip install langdetect")
+
+    def _ensure_nltk(self):
+        """Baixa corpora do NLTK no primeiro uso (lazy)"""
+        if self._nltk_ready:
+            return
+        try:
+            import nltk
+            nltk.download('brown', quiet=True)
+            nltk.download('punkt', quiet=True)
+            self._nltk_ready = True
+        except Exception:
+            self._nltk_ready = True  # Não tentar de novo
     
     def meta(self) -> PluginMetadata:
         return PluginMetadata(
@@ -141,6 +145,7 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
     
     def _analyze_impl(self, document: Document, config: Dict[str, Any], context: ExecutionContext) -> Dict[str, Any]:
         """Implementa análise de sentimento"""
+        self._ensure_nltk()
         text = document.content
         
         # Configurações
