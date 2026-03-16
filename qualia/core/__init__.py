@@ -546,28 +546,37 @@ class CacheManager:
 # ============================================================================
 
 class PluginLoader:
-    """Carrega plugins dinamicamente com lazy instantiation"""
+    """Carrega plugins dinamicamente.
+
+    Imports pesados (matplotlib, plotly, etc.) são lazy — ficam dentro
+    dos métodos dos plugins, não no module level. O custo de discover()
+    é basicamente stdlib + instanciação leve.
+    """
 
     def __init__(self, plugins_dir: Path):
         self.plugins_dir = plugins_dir
         self.loaded_plugins: Dict[str, IPlugin] = {}
-        self._plugin_classes: Dict[str, type] = {}  # classe não instanciada
+        self._plugin_classes: Dict[str, type] = {}
 
     def discover(self) -> Dict[str, PluginMetadata]:
-        """
-        Descobre todos os plugins disponíveis.
+        """Descobre e instancia todos os plugins disponíveis.
 
-        Carrega módulos e extrai metadata, mas NÃO instancia os plugins.
-        A instanciação (e imports pesados do __init__) acontecem no primeiro uso.
+        Carrega módulos, instancia cada plugin (roda __init__ na main thread
+        pra garantir thread-safety) e extrai metadata.
         """
+        import logging
+        logger = logging.getLogger(__name__)
         discovered = {}
 
         if not self.plugins_dir.exists():
             return discovered
 
+        t_total = time.perf_counter()
+
         for plugin_dir in self.plugins_dir.iterdir():
             if plugin_dir.is_dir() and (plugin_dir / "__init__.py").exists():
                 try:
+                    t0 = time.perf_counter()
                     spec = importlib.util.spec_from_file_location(
                         plugin_dir.name,
                         plugin_dir / "__init__.py"
@@ -584,16 +593,20 @@ class PluginLoader:
                                 obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin,
                                            IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
 
-                                # Instanciar temporariamente só pra extrair metadata
                                 instance = obj()
                                 meta = instance.meta()
                                 discovered[meta.id] = meta
-                                # Guardar instância — plugins leves já ficam prontos
                                 self.loaded_plugins[meta.id] = instance
                                 self._plugin_classes[meta.id] = obj
 
+                    elapsed = time.perf_counter() - t0
+                    logger.debug(f"Plugin {plugin_dir.name}: {elapsed:.3f}s")
+
                 except Exception as e:
                     print(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
+
+        total = time.perf_counter() - t_total
+        logger.info(f"Discovery: {len(discovered)} plugins em {total:.3f}s")
 
         return discovered
 
