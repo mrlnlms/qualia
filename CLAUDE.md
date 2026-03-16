@@ -45,6 +45,8 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 
 **Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_viz, frequency_chart, sentiment_viz.
 
+**Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Template: `tools/create_plugin.py`.
+
 ## ConfigurationRegistry (`qualia/core/config.py`)
 
 - Normaliza schemas dos plugins (integer→int, string→str, boolean→bool)

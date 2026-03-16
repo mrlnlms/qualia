@@ -44,13 +44,13 @@ class TestConcurrentRequests:
     async def test_simultaneous_analyze_requests(self, ac):
         """5 requests simultâneos ao analyze devem todos retornar 200.
 
-        Nota: usa remove_stopwords=False para evitar bug de thread-safety
-        do NLTK LazyCorpusLoader (WordListCorpusReader.__args race condition).
+        Usa config default (remove_stopwords=True) — o warm-up do NLTK
+        no __init__ do plugin resolve a race condition do LazyCorpusLoader.
         """
         tasks = [
             ac.post("/analyze/word_frequency", json={
                 "text": f"Texto único número {i} para evitar colisão de cache e doc_id.",
-                "config": {"remove_stopwords": False},
+                "config": {},
             })
             for i in range(5)
         ]

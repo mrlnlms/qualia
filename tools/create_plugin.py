@@ -52,21 +52,36 @@ from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 class {class_name}(BaseAnalyzerPlugin):
     """
     🚨 TODO: DESCREVA O QUE SEU ANALYZER FAZ!
-    
+
     {description}
-    
+
     Este plugin analisa {what_it_analyzes}.
-    
+
     Exemplo de uso:
         qualia analyze documento.txt -p {plugin_id}
         qualia analyze doc.txt -p {plugin_id} -P param1=valor -P param2=10
-    
+
     Exemplo de resultado:
         {{
             "metric1": 0.75,
             "metric2": ["item1", "item2"],
             "summary": "Análise concluída com sucesso"
         }}
+    """
+
+    def __init__(self):
+        super().__init__()
+        # ⚠️ THREAD-SAFETY: Plugins são singletons compartilhados entre threads.
+        # __init__ roda na main thread (sem concorrência).
+        # _analyze_impl roda em worker threads (com concorrência).
+        #
+        # Carregue recursos pesados AQUI — modelos, corpora, conexões.
+        # NÃO carregue dentro de _analyze_impl.
+        #
+        # Exemplos:
+        #   self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        #   self._stopwords = set(stopwords.words('portuguese'))
+        pass  # 🚨 TODO: Carregue seus recursos aqui
     """
     
     def meta(self) -> PluginMetadata:

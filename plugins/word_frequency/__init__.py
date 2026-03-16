@@ -14,36 +14,66 @@ import re
 from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 
 
-class WordFrequencyAnalyzer(BaseAnalyzerPlugin):  # MUDANÇA: Herdar de Base
+class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
     """
     Analisa frequência de palavras em documentos
-    
+
     Features:
     - Contagem de palavras com filtros configuráveis
     - Suporte para múltiplos idiomas (stopwords)
     - Análise por segmento ou speaker
     - Identificação de hapax legomena
-    
+
     Exemplo de uso via CLI:
         qualia analyze documento.txt -p word_frequency
         qualia analyze documento.txt -p word_frequency -P min_word_length=4
         qualia analyze documento.txt -p word_frequency -P remove_stopwords=true -P language=portuguese
-    
+
     Exemplo de uso via Python:
         from qualia.core import QualiaCore
-        
+
         core = QualiaCore()
         doc = core.add_document("exemplo", "Este é um texto de exemplo.")
-        
+
         result = core.execute_plugin("word_frequency", doc, {
             "min_word_length": 3,
             "remove_stopwords": True
         })
-        
+
         print(f"Palavras únicas: {result['vocabulary_size']}")
         print(f"Top 5 palavras: {result['top_words'][:5]}")
     """
-    
+
+    def __init__(self):
+        super().__init__()
+        self._stopwords_cache: Dict[str, set] = {}
+        self._nltk_available = False
+        self._warm_up_nltk()
+
+    def _warm_up_nltk(self):
+        """Pré-carrega recursos NLTK na main thread (antes de concorrência).
+
+        Plugins são singletons compartilhados entre worker threads.
+        O LazyCorpusLoader do NLTK não é thread-safe, então forçamos
+        a resolução aqui — onde só existe uma thread.
+        """
+        try:
+            import nltk
+            nltk.download('stopwords', quiet=True)
+            nltk.download('punkt', quiet=True)
+            nltk.download('punkt_tab', quiet=True)
+            self._nltk_available = True
+
+            # Forçar LazyCorpusLoader a resolver agora (single-threaded)
+            from nltk.corpus import stopwords
+            for lang in ('portuguese', 'english', 'spanish'):
+                try:
+                    self._stopwords_cache[lang] = set(stopwords.words(lang))
+                except Exception:
+                    pass
+        except ImportError:
+            self._nltk_available = False
+
     def meta(self) -> PluginMetadata:
         return PluginMetadata(
             id="word_frequency",
@@ -170,20 +200,10 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):  # MUDANÇA: Herdar de Base
             return re.findall(r'\b\w+\b', text)
         
         elif method == "nltk":
-            try:
-                import nltk
-                # Tentar usar tokenizador NLTK
-                try:
-                    tokens = nltk.word_tokenize(text)
-                except LookupError:
-                    # Baixar recursos se necessário
-                    nltk.download('punkt')
-                    tokens = nltk.word_tokenize(text)
-                return tokens
-            except ImportError:
-                # NLTK não instalado, usar simple
-                print("NLTK não instalado. Usando tokenização simples.")
+            if not self._nltk_available:
                 return self._tokenize(text, "simple")
+            import nltk
+            return nltk.word_tokenize(text)
         
         elif method == "spacy":
             try:
@@ -240,63 +260,39 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):  # MUDANÇA: Herdar de Base
         return filtered
     
     def _get_stopwords(self, language: str) -> set:
-        """
-        Obtém lista de stopwords para o idioma
-        
-        Args:
-            language: 'portuguese', 'english' ou 'spanish'
-            
-        Returns:
-            Set de stopwords
-        """
-        try:
-            import nltk
-            from nltk.corpus import stopwords
-            
-            # Mapear para nomes NLTK
-            lang_map = {
-                'portuguese': 'portuguese',
-                'english': 'english', 
-                'spanish': 'spanish'
-            }
-            
-            try:
-                return set(stopwords.words(lang_map[language]))
-            except LookupError:
-                # Baixar stopwords se necessário
-                nltk.download('stopwords')
-                return set(stopwords.words(lang_map[language]))
-                
-        except ImportError:
-            # NLTK não disponível - usar lista básica
-            # Lista mínima de stopwords em português
-            basic_pt = {
-                'a', 'o', 'que', 'e', 'do', 'da', 'em', 'um', 'para', 
-                'é', 'com', 'não', 'uma', 'os', 'no', 'se', 'na', 'por',
-                'mais', 'as', 'dos', 'como', 'mas', 'foi', 'ao', 'ele',
-                'das', 'tem', 'seu', 'sua', 'ou', 'ser', 'quando', 'muito',
-                'já', 'eu', 'também', 'só', 'pelo', 'pela', 'até', 'isso',
-                'ela', 'entre', 'era', 'depois', 'sem', 'mesmo', 'aos',
-                'ter', 'seus', 'quem', 'nas', 'me', 'esse', 'eles', 'estão',
-                'você', 'tinha', 'foram', 'essa', 'num', 'nem', 'suas',
-                'meu', 'às', 'minha', 'têm', 'numa', 'pelos', 'elas'
-            }
-            
-            basic_en = {
-                'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have',
-                'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you',
-                'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they',
-                'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one',
-                'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out',
-                'if', 'about', 'who', 'get', 'which', 'go', 'me'
-            }
-            
-            if language == 'portuguese':
-                return basic_pt
-            elif language == 'english':
-                return basic_en
-            else:
-                return set()
+        """Obtém lista de stopwords para o idioma (cache ou fallback)."""
+        # Cache NLTK (pré-carregado no __init__)
+        if language in self._stopwords_cache:
+            return self._stopwords_cache[language]
+
+        # Fallback: listas básicas (NLTK não disponível)
+        basic_pt = {
+            'a', 'o', 'que', 'e', 'do', 'da', 'em', 'um', 'para',
+            'é', 'com', 'não', 'uma', 'os', 'no', 'se', 'na', 'por',
+            'mais', 'as', 'dos', 'como', 'mas', 'foi', 'ao', 'ele',
+            'das', 'tem', 'seu', 'sua', 'ou', 'ser', 'quando', 'muito',
+            'já', 'eu', 'também', 'só', 'pelo', 'pela', 'até', 'isso',
+            'ela', 'entre', 'era', 'depois', 'sem', 'mesmo', 'aos',
+            'ter', 'seus', 'quem', 'nas', 'me', 'esse', 'eles', 'estão',
+            'você', 'tinha', 'foram', 'essa', 'num', 'nem', 'suas',
+            'meu', 'às', 'minha', 'têm', 'numa', 'pelos', 'elas'
+        }
+
+        basic_en = {
+            'the', 'be', 'to', 'of', 'and', 'a', 'in', 'that', 'have',
+            'i', 'it', 'for', 'not', 'on', 'with', 'he', 'as', 'you',
+            'do', 'at', 'this', 'but', 'his', 'by', 'from', 'they',
+            'we', 'say', 'her', 'she', 'or', 'an', 'will', 'my', 'one',
+            'all', 'would', 'there', 'their', 'what', 'so', 'up', 'out',
+            'if', 'about', 'who', 'get', 'which', 'go', 'me'
+        }
+
+        if language == 'portuguese':
+            return basic_pt
+        elif language == 'english':
+            return basic_en
+        else:
+            return set()
 
 
 # Exemplo de uso standalone (para testes)

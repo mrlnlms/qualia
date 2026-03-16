@@ -162,7 +162,12 @@ class Document:
 # from typing import Dict, Any, List, Optional, Union, Set, Tuple
 
 class BaseAnalyzerPlugin(IAnalyzerPlugin):
-    """Base class com funcionalidades comuns para analyzers"""
+    """Base class com funcionalidades comuns para analyzers.
+
+    Thread-safety: plugins são singletons. __init__ roda na main thread;
+    _analyze_impl roda em worker threads via asyncio.to_thread.
+    Carregue modelos, corpora e recursos pesados no __init__.
+    """
     
     # meta() NÃO é abstrato aqui - será implementado pelas subclasses
     # Removemos @abstractmethod para não conflitar
@@ -199,7 +204,11 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
 
 
 class BaseVisualizerPlugin(IVisualizerPlugin):
-    """Base class com funcionalidades comuns para visualizers"""
+    """Base class com funcionalidades comuns para visualizers.
+
+    Thread-safety: plugins são singletons. __init__ roda na main thread;
+    _render_impl roda em worker threads. Carregue recursos pesados no __init__.
+    """
     
     def render(self, data: Dict[str, Any], config: Dict[str, Any],
                output_path: Union[str, Path]) -> Union[str, Path]:
