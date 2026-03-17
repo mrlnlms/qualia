@@ -1,44 +1,28 @@
 """
 Qualia Core REST API
 
-Expõe as funcionalidades do Qualia Core via HTTP REST API.
+Fachada mínima: cria app, monta routers, serve SPA.
+Lógica de endpoints em qualia/api/routes/.
 """
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Response
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel, Field
-from typing import Dict, Any, List, Optional
-import tempfile
-import json
+from fastapi.responses import JSONResponse
 from pathlib import Path
-import base64
-import hashlib
-import io
-import asyncio
 
-from qualia.core import QualiaCore, Document, PipelineConfig, PipelineStep
+from qualia.core import QualiaCore
+from qualia.api.deps import set_core, set_extensions
 
-# Import new modules
-try:
-    from qualia.api.webhooks import router as webhook_router, init_webhooks
-    from qualia.api.monitor import router as monitor_router, track_request, track_webhook
-    HAS_EXTENSIONS = True
-except ImportError:
-    HAS_EXTENSIONS = False
-    print("Warning: Webhook and monitor modules not found. Running in basic mode.")
-
-# Initialize FastAPI app
+# App
 app = FastAPI(
     title="Qualia Core API",
     description="REST API for Qualia Core - Análise Qualitativa Framework",
     version="0.1.0"
 )
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,611 +31,42 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize Qualia Core (discover_plugins é chamado no __init__ do QualiaCore)
+# Core singleton
 core = QualiaCore()
+set_core(core)
 
-# Initialize extensions if available
-if HAS_EXTENSIONS:
-    # Initialize webhooks with core instance
+# Extensions (opcionais)
+try:
+    from qualia.api.webhooks import router as webhook_router, init_webhooks
+    from qualia.api.monitor import router as monitor_router
+    set_extensions(True)
     init_webhooks(core)
-#     set_tracking_callback(track_webhook)
-    
-    # Include routers
     app.include_router(webhook_router)
     app.include_router(monitor_router)
-
-# Pydantic models for request/response
-class AnalyzeRequest(BaseModel):
-    text: str = Field(..., description="Text content to analyze")
-    config: Dict[str, Any] = Field(default_factory=dict, description="Plugin configuration parameters")
-    context: Dict[str, Any] = Field(default_factory=dict, description="Execution context")
-
-class ProcessRequest(BaseModel):
-    text: str = Field(..., description="Text content to process")
-    config: Dict[str, Any] = Field(default_factory=dict, description="Plugin configuration parameters")
-
-class VisualizeRequest(BaseModel):
-    data: Dict[str, Any] = Field(..., description="Data to visualize (usually from analyzer output)")
-    config: Dict[str, Any] = Field(default_factory=dict, description="Visualization configuration")
-    output_format: str = Field("png", description="Output format: png, svg, html")
-
-class ConfigResolveRequest(BaseModel):
-    plugin_id: str = Field(..., description="Plugin ID to resolve config for")
-    text_size: str = Field("medium", description="Text size category: short_text, medium, long_text")
-
-class PluginInfo(BaseModel):
-    id: str
-    name: str
-    type: str
-    description: str
-    version: str
-    provides: List[str]
-    requires: List[str]
-    parameters: Dict[str, Any]
-
-# Helper functions
-def plugin_to_info(plugin_id: str) -> PluginInfo:
-    """Convert plugin metadata to API response model"""
-    meta = core.registry.get(plugin_id)
-    if not meta:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-
-    return PluginInfo(
-        id=meta.id,
-        name=meta.name,
-        type=meta.type.value,
-        description=meta.description,
-        version=meta.version,
-        provides=meta.provides,
-        requires=meta.requires,
-        parameters=meta.parameters
-    )
-
-# API Endpoints
-
-# Check if frontend dist exists (for root route decision)
-_frontend_dist_check = Path(__file__).parent.parent / "frontend" / "dist"
-_has_frontend = _frontend_dist_check.exists() and (_frontend_dist_check / "index.html").exists()
-
-@app.get("/")
-def root():
-    """Serve frontend if available, otherwise API info"""
-    if _has_frontend:
-        return FileResponse(_frontend_dist_check / "index.html")
-
-    return _api_info()
-
-@app.get("/api")
-def api_info():
-    """API information and available endpoints"""
-    return _api_info()
-
-def _api_info():
-    endpoints = {
-        "plugins": "/plugins",
-        "analyze": "/analyze/{plugin_id}",
-        "process": "/process/{plugin_id}",
-        "visualize": "/visualize/{plugin_id}",
-        "pipeline": "/pipeline",
-        "transcribe": "/transcribe/{plugin_id}",
-        "health": "/health"
-    }
-    if HAS_EXTENSIONS:
-        endpoints.update({
-            "webhooks": "/webhook/{provider}",
-            "webhook_stats": "/webhook/stats",
-            "monitor": "/monitor/",
-            "monitor_stream": "/monitor/stream"
-        })
-    return {
-        "name": "Qualia Core API",
-        "version": "0.1.0",
-        "description": "REST API for qualitative analysis",
-        "endpoints": endpoints,
-        "documentation": "/docs"
-    }
-
-@app.get("/plugins", response_model=List[PluginInfo])
-def list_plugins(plugin_type: Optional[str] = None):
-    """List all available plugins"""
-    plugins = []
-    for plugin_id, meta in core.registry.items():
-        if plugin_type and meta.type.value != plugin_type:
-            continue
-        plugins.append(plugin_to_info(plugin_id))
-    return plugins
-
-@app.get("/plugins/{plugin_id}", response_model=PluginInfo)
-def get_plugin(plugin_id: str):
-    """Get detailed information about a specific plugin"""
-    return plugin_to_info(plugin_id)
-
-@app.post("/analyze/{plugin_id}")
-async def analyze(plugin_id: str, request: AnalyzeRequest):
-    """Execute an analyzer plugin on text"""
-    try:
-        # Validate config via registry if available
-        registry = core.get_config_registry()
-        if registry and request.config:
-            valid, errors = registry.validate_config(plugin_id, request.config)
-            if not valid:
-                raise HTTPException(
-                    status_code=422,
-                    detail={"message": "Configuração inválida", "errors": errors}
-                )
-
-        # Create document
-        doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-
-        # Execute plugin in thread to avoid blocking event loop
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config, request.context)
-        
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request(f"/analyze/{plugin_id}", plugin_id)
-        
-        return {
-            "status": "success",
-            "plugin_id": plugin_id,
-            "result": result
-        }
-    except Exception as e:
-        # Track error if monitoring available
-        if HAS_EXTENSIONS:
-            await track_request(f"/analyze/{plugin_id}", plugin_id, str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/analyze/{plugin_id}/file")
-async def analyze_file(
-    plugin_id: str,
-    file: UploadFile = File(...),
-    config: str = Form("{}"),
-    context: str = Form("{}")
-):
-    """Execute an analyzer plugin on uploaded file"""
-    try:
-        # Parse JSON strings from form data
-        config_dict = json.loads(config)
-        context_dict = json.loads(context)
-        
-        # Read file content
-        content = await file.read()
-        text = content.decode('utf-8')
-        
-        # Create document
-        doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
-        
-        # Execute plugin
-        result = core.execute_plugin(plugin_id, doc, config_dict, context_dict)
-        
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request(f"/analyze/{plugin_id}/file", plugin_id)
-        
-        return {
-            "status": "success",
-            "plugin_id": plugin_id,
-            "filename": file.filename,
-            "result": result
-        }
-    except Exception as e:
-        # Track error if monitoring available
-        if HAS_EXTENSIONS:
-            await track_request(f"/analyze/{plugin_id}/file", plugin_id, str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/process/{plugin_id}")
-async def process(plugin_id: str, request: ProcessRequest):
-    """Execute a document processor plugin"""
-    try:
-        # Create document
-        doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-        
-        # Execute plugin
-        result = core.execute_plugin(plugin_id, doc, request.config)
-        
-        # For document processors, the result is usually the processed text
-        if isinstance(result, Document):
-            result = result.content
-        
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request(f"/process/{plugin_id}", plugin_id)
-        
-        return {
-            "status": "success",
-            "plugin_id": plugin_id,
-            "processed_text": result
-        }
-    except Exception as e:
-        # Track error if monitoring available
-        if HAS_EXTENSIONS:
-            await track_request(f"/process/{plugin_id}", plugin_id, str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/visualize/{plugin_id}")
-async def visualize(plugin_id: str, request: VisualizeRequest):
-    """Execute a visualizer plugin"""
-    try:
-        # Create temporary output file
-        suffix = f".{request.output_format}"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            output_path = Path(tmp.name)
-        
-        # Execute visualizer
-        plugin = core.loader.get_plugin(plugin_id)
-        if not plugin:
-            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-
-        # Run render in a thread to avoid blocking the event loop (matplotlib is not async-safe)
-        try:
-            await asyncio.wait_for(
-                asyncio.to_thread(plugin.render, request.data, request.config, output_path),
-                timeout=60.0
-            )
-        except asyncio.TimeoutError:
-            output_path.unlink(missing_ok=True)
-            raise HTTPException(status_code=504, detail=f"Visualization timed out after 60s")
-        
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request(f"/visualize/{plugin_id}", plugin_id)
-        
-        # Return file based on format
-        if request.output_format in ["png", "svg"]:
-            # Return as base64 for images
-            with open(output_path, "rb") as f:
-                content = base64.b64encode(f.read()).decode()
-            
-            # Clean up
-            output_path.unlink()
-            
-            return {
-                "status": "success",
-                "plugin_id": plugin_id,
-                "format": request.output_format,
-                "data": content,
-                "encoding": "base64"
-            }
-        elif request.output_format == "html":
-            # Return HTML as text
-            with open(output_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            
-            # Clean up
-            output_path.unlink()
-            
-            return {
-                "status": "success",
-                "plugin_id": plugin_id,
-                "format": "html",
-                "data": content,
-                "encoding": "utf-8"
-            }
-        else:
-            # For other formats, return file
-            return FileResponse(
-                output_path,
-                media_type=f"application/{request.output_format}",
-                filename=f"visualization.{request.output_format}"
-            )
-            
-    except Exception as e:
-        # Track error if monitoring available
-        if HAS_EXTENSIONS:
-            await track_request(f"/visualize/{plugin_id}", plugin_id, str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-
-@app.post("/pipeline")
-async def execute_pipeline(
-    steps: str = Form(...),
-    text: str = Form(None),
-    file: UploadFile = File(None),
-):
-    """Execute a pipeline of plugins.
-
-    Accepts multipart/form-data with:
-    - steps: JSON array of {plugin_id, config}
-    - text: input text (optional if file provided)
-    - file: uploaded file for document plugins (optional if text provided)
-
-    When file is provided and step[0] is a document plugin, the file is
-    transcribed first and the resulting text feeds into subsequent steps.
-    Each analyzer step receives the text produced by the chain so far.
-    """
-    # Parse steps JSON
-    try:
-        steps_list = json.loads(steps)
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=422, detail=f"Invalid steps JSON: {e}")
-
-    if not steps_list:
-        raise HTTPException(status_code=422, detail="Pipeline must have at least one step")
-
-    tmp_path = None
-    all_results = []
-
-    try:
-        current_text = text or ""
-        step_offset = 0
-
-        # Check if first step is a document plugin with file upload
-        first_plugin_id = steps_list[0].get("plugin_id", "")
-        first_meta = core.registry.get(first_plugin_id)
-        first_is_document = first_meta and first_meta.type.value == "document"
-
-        if file and first_is_document:
-            step0 = steps_list[0]
-            plugin_id = step0["plugin_id"]
-            config_dict = step0.get("config", {})
-
-            # Save uploaded file to temp
-            suffix = Path(file.filename).suffix if file.filename else ""
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                content = await file.read()
-                tmp.write(content)
-                tmp_path = tmp.name
-
-            # Create document with file path in metadata (same pattern as /transcribe)
-            doc = core.add_document(
-                f"api_pipeline_file_{file.filename}_{hashlib.md5(content).hexdigest()[:8]}",
-                "",
-            )
-            doc.metadata["file_path"] = tmp_path
-            doc.metadata["original_filename"] = file.filename
-            doc.metadata["file_size"] = len(content)
-
-            # Execute document plugin
-            result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
-            all_results.append({"plugin_id": plugin_id, "result": result})
-
-            # Extract transcription text for downstream steps
-            if isinstance(result, dict) and "transcription" in result:
-                current_text = result["transcription"]
-            elif isinstance(result, str):
-                current_text = result
-
-            step_offset = 1
-        elif not current_text:
-            raise HTTPException(status_code=422, detail="Pipeline requires text or file input")
-
-        # Execute remaining steps with chaining
-        last_result = all_results[-1]["result"] if all_results else None
-
-        for step_def in steps_list[step_offset:]:
-            plugin_id = step_def["plugin_id"]
-            config_dict = step_def.get("config", {})
-
-            plugin = core.loader.get_plugin(plugin_id)
-            if not plugin:
-                raise HTTPException(status_code=400, detail=f"Plugin '{plugin_id}' not found")
-
-            plugin_type = core.registry[plugin_id].type.value
-
-            # Extract output format before validation (not a plugin param)
-            output_format = "png"
-            if plugin_type == "visualizer" and "format" in config_dict:
-                config_dict = {**config_dict}
-                output_format = config_dict.pop("format", "png")
-
-            # Validate config via registry if available
-            registry = core.get_config_registry()
-            if registry and config_dict:
-                valid, errors = registry.validate_config(plugin_id, config_dict)
-                if not valid:
-                    raise HTTPException(
-                        status_code=422,
-                        detail={"message": f"Invalid config for {plugin_id}", "errors": errors},
-                    )
-
-            if plugin_type == "visualizer":
-                # Visualizers receive data from previous step + render to image
-                if last_result is None:
-                    raise HTTPException(
-                        status_code=422,
-                        detail=f"Visualizer '{plugin_id}' requires a previous step's result as data",
-                    )
-                viz_config = {**config_dict}
-                suffix = f".{output_format}"
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    viz_path = Path(tmp.name)
-                try:
-                    await asyncio.wait_for(
-                        asyncio.to_thread(plugin.render, last_result, viz_config, viz_path),
-                        timeout=60.0,
-                    )
-                    if output_format in ("png", "svg"):
-                        with open(viz_path, "rb") as f:
-                            viz_data = base64.b64encode(f.read()).decode()
-                        result = {
-                            "format": output_format,
-                            "data": viz_data,
-                            "encoding": "base64",
-                        }
-                    elif output_format == "html":
-                        result = {
-                            "format": "html",
-                            "data": viz_path.read_text(encoding="utf-8"),
-                            "encoding": "utf-8",
-                        }
-                    else:
-                        with open(viz_path, "rb") as f:
-                            viz_data = base64.b64encode(f.read()).decode()
-                        result = {"format": output_format, "data": viz_data, "encoding": "base64"}
-                finally:
-                    viz_path.unlink(missing_ok=True)
-            else:
-                # Analyzers / document processors receive text
-                doc = core.add_document(
-                    f"api_pipeline_{plugin_id}_{hashlib.md5(current_text.encode()).hexdigest()[:8]}",
-                    current_text,
-                )
-                result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
-
-            all_results.append({"plugin_id": plugin_id, "result": result})
-            last_result = result
-
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request("/pipeline")
-
-        return {
-            "status": "success",
-            "pipeline": "API Pipeline",
-            "steps_executed": len(all_results),
-            "results": all_results,
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        if HAS_EXTENSIONS:
-            await track_request("/pipeline", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        if tmp_path:
-            Path(tmp_path).unlink(missing_ok=True)
-
-# ============================================================================
-# ConfigurationRegistry endpoints
-# ============================================================================
-
-@app.get("/plugins/{plugin_id}/schema")
-def get_plugin_schema(plugin_id: str):
-    """Get normalized schema for a plugin"""
-    registry = core.get_config_registry()
-    if not registry:
-        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
-
-    schema = registry.get_plugin_schema(plugin_id)
-    if not schema:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-
-    return schema
-
-@app.get("/config/consolidated")
-def get_consolidated_config():
-    """Get consolidated view of all schemas and text_size rules"""
-    registry = core.get_config_registry()
-    if not registry:
-        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
-
-    return registry.get_consolidated_view()
-
-@app.post("/config/resolve")
-def resolve_config(request: ConfigResolveRequest):
-    """Resolve final config for a plugin with text_size cascade"""
-    registry = core.get_config_registry()
-    if not registry:
-        raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
-
-    if not registry.get_plugin_schema(request.plugin_id):
-        raise HTTPException(status_code=404, detail=f"Plugin '{request.plugin_id}' not found")
-
-    config = registry.get_config_for_plugin(
-        request.plugin_id,
-        text_size=request.text_size,
-    )
-
-    return {
-        "plugin_id": request.plugin_id,
-        "text_size": request.text_size,
-        "resolved_config": config,
-    }
-
-
-@app.post("/transcribe/{plugin_id}")
-async def transcribe(
-    plugin_id: str,
-    file: UploadFile = File(...),
-    config: str = Form("{}"),
-):
-    """Transcribe an audio/video file using a document plugin.
-
-    Receives file via multipart/form-data, saves to temp,
-    passes path via document metadata to the plugin.
-    """
-    try:
-        config_dict = json.loads(config)
-    except json.JSONDecodeError as e:
-        raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
-
-    plugin = core.loader.get_plugin(plugin_id)
-    if not plugin:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-
-    # Validate config via registry if available
-    registry = core.get_config_registry()
-    if registry and config_dict:
-        valid, errors = registry.validate_config(plugin_id, config_dict)
-        if not valid:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "Configuração inválida", "errors": errors}
-            )
-
-    # Save uploaded file to temp
-    suffix = Path(file.filename).suffix if file.filename else ""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-        content = await file.read()
-        tmp.write(content)
-        tmp_path = tmp.name
-
-    try:
-        # Create document with file path in metadata
-        doc = core.add_document(
-            f"api_transcribe_{file.filename}_{hashlib.md5(content).hexdigest()[:8]}",
-            "",  # content is binary, text stays empty
-        )
-        doc.metadata["file_path"] = tmp_path
-        doc.metadata["original_filename"] = file.filename
-        doc.metadata["file_size"] = len(content)
-
-        # Execute plugin
-        result = core.execute_plugin(plugin_id, doc, config_dict)
-
-        # Track metrics if available
-        if HAS_EXTENSIONS:
-            await track_request(f"/transcribe/{plugin_id}", plugin_id)
-
-        return {
-            "status": "success",
-            "plugin_id": plugin_id,
-            "filename": file.filename,
-            "result": result,
-        }
-    except Exception as e:
-        if HAS_EXTENSIONS:
-            await track_request(f"/transcribe/{plugin_id}", plugin_id, str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        # Clean up temp file
-        Path(tmp_path).unlink(missing_ok=True)
-
-
-@app.get("/cache/stats")
-def cache_stats():
-    """Retorna estatísticas do cache (tamanho, hits, misses, evictions)"""
-    return core.cache.stats()
-
-
-@app.get("/health")
-def health_check():
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "plugins_loaded": len(core.registry),
-        "plugin_types": {
-            "analyzers": len([m for m in core.registry.values() if m.type.value == "analyzer"]),
-            "visualizers": len([m for m in core.registry.values() if m.type.value == "visualizer"]),
-            "document_processors": len([m for m in core.registry.values() if m.type.value == "document"])
-        },
-        "extensions": {
-            "webhooks": HAS_EXTENSIONS,
-            "monitoring": HAS_EXTENSIONS
-        }
-    }
-
-# Error handlers
+except ImportError:
+    pass
+
+# Rotas
+from qualia.api.routes.health import router as health_router
+from qualia.api.routes.plugins import router as plugins_router
+from qualia.api.routes.analyze import router as analyze_router
+from qualia.api.routes.process import router as process_router
+from qualia.api.routes.visualize import router as visualize_router
+from qualia.api.routes.pipeline import router as pipeline_router
+from qualia.api.routes.config import router as config_router
+from qualia.api.routes.transcribe import router as transcribe_router
+
+app.include_router(health_router)
+app.include_router(plugins_router)
+app.include_router(analyze_router)
+app.include_router(process_router)
+app.include_router(visualize_router)
+app.include_router(pipeline_router)
+app.include_router(config_router)
+app.include_router(transcribe_router)
+
+
+# Exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
     return JSONResponse(
@@ -672,11 +87,13 @@ async def general_exception_handler(request, exc):
         }
     )
 
-# Serve frontend static files (must be after all API routes)
+
+# SPA catch-all (DEVE ser último — após todas as rotas)
 from fastapi.staticfiles import StaticFiles
 
 _frontend_dist = Path(__file__).parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
+    from fastapi.responses import FileResponse
     _assets_dir = _frontend_dist / "assets"
     if _assets_dir.exists():
         app.mount("/assets", StaticFiles(directory=_assets_dir), name="frontend-assets")
@@ -688,7 +105,7 @@ if _frontend_dist.exists():
             return FileResponse(index)
         raise HTTPException(status_code=404)
 
-# Run with: uvicorn qualia.api:app --reload
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

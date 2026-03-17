@@ -296,7 +296,7 @@ class TestVisualizeEndpoint:
         """Timeout na visualizacao retorna 504"""
         import asyncio
 
-        with patch("qualia.api.asyncio.wait_for", side_effect=asyncio.TimeoutError):
+        with patch("qualia.api.routes.visualize.asyncio.wait_for", side_effect=asyncio.TimeoutError):
             response = client.post(
                 "/visualize/frequency_chart",
                 json={
