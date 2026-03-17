@@ -187,7 +187,7 @@ qualia/
 - Cache com LRU e TTL (`GET /cache/stats` para monitorar)
 - Resolução automática de dependências entre plugins
 - Integração validada com CodeMarker (plugin Obsidian)
-- 237 testes passando (plugins, API, webhooks, monitor, async, CLI, cache, performance)
+- 610 testes passando, 84% coverage (plugins, API, webhooks, monitor, async, CLI, cache, performance)
 
 **Limitações conhecidas:**
 - `sentiment_analyzer` usa TextBlob, que tem suporte limitado a português
