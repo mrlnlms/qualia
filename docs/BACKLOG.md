@@ -4,10 +4,6 @@
 
 ## Pendente
 
-### Decisões arquiteturais
-
-- [ ] **Document stateful (`self.documents`)** — limpar ou evoluir? Design spaCy-inspired nunca usado na prática. `get_document()`, `get_analysis()`, `add_variant()`, `get_variant()` são dead code. `self.documents` dict cresce sem limite. Deferida até haver use case concreto (sessões no frontend, consumers stateful). Levantamento completo abaixo em "Referência".
-
 ### Cobertura de testes
 
 615 testes, 84% coverage. Módulos abaixo de 90%:
@@ -21,6 +17,10 @@
 ---
 
 ## Roadmap
+
+### Arquitetura
+
+- **Document stateful (`self.documents`)** — decidir se limpa (remove dead code) ou evolui (sessões, TTL/LRU). Design spaCy-inspired nunca usado na prática. Levantamento completo na seção "Referência" abaixo e em `memory/project_document_stateful.md`.
 
 ### Plugins (próxima fronteira)
 
