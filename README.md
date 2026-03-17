@@ -169,7 +169,7 @@ qualia/
 │       ├── monitor.py  # Dashboard de monitoramento em tempo real (SSE)
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
-├── tests/              # 706 testes (pytest, 90% coverage)
+├── tests/              # 727 testes (pytest, 90% coverage)
 ├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
 ├── ops/                # Scripts operacionais (backup, monitoramento)
 ├── tools/              # Utilitários (gerador de plugins)
@@ -195,13 +195,14 @@ qualia/
 - Transcrição de áudio/vídeo via Groq Whisper (testado com mp4)
 - ConfigurationRegistry com validação, calibração por tamanho de texto e visão consolidada
 - Cache com LRU e TTL (`GET /cache/stats` para monitorar)
-- Resolução automática de dependências entre plugins
+- Resolução automática de dependências entre plugins (topológica, com detecção de ciclos)
 - Integração validada com CodeMarker (plugin Obsidian)
-- 706 testes (90% coverage)
+- 727 testes (90% coverage)
 
 **Limitações conhecidas:**
 - Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo
-- CI roda automaticamente no push/PR via GitHub Actions (`pytest tests/`)
+
+**CI:** GitHub Actions roda `pytest tests/` automaticamente no push/PR.
 
 ## Licença
 
