@@ -38,13 +38,22 @@ qualia/
     cache.py        # CacheManager (LRU + TTL)
     resolver.py     # DependencyResolver (ordenação topológica)
     config.py       # ConfigurationRegistry (normalização, validação, calibração)
-  cli/commands/   # 11 comandos Click (analyze, batch, export, watch, etc.)
+  cli/
+    commands/     # 11 comandos Click (analyze, batch, export, watch, etc.)
+    interactive/  # Menu interativo
+      handlers.py   # Fachada de orquestração (delega pra actions/services)
+      actions.py    # Lógica de execução (analyze, visualize, pipeline)
+      services.py   # Settings e sistema (cache, config, deps, open file)
+      menu.py       # Menu principal + navegação
+      wizards.py    # PipelineWizard
+      utils.py      # Helpers (choose_plugin, configure_parameters)
   api/            # FastAPI — REST API
     __init__.py   # Bootstrap mínimo (~110 linhas): app, CORS, routers, SPA
     deps.py       # Dependências compartilhadas (get_core, track, HAS_EXTENSIONS)
     schemas.py    # Modelos Pydantic (request/response)
     routes/       # Endpoints por domínio (analyze, process, visualize, pipeline, etc.)
-    monitor.py    # Dashboard tempo real via SSE
+    monitor.py    # Métricas + SSE stream (~155 linhas)
+    templates/    # monitor.html (dashboard HTML/CSS/JS)
     webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core

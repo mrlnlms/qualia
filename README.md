@@ -161,12 +161,14 @@ qualia/
 │   │   ├── resolver.py    # Resolução de dependências
 │   │   └── config.py      # ConfigurationRegistry (normalização, validação)
 │   ├── cli/            # Interface de terminal (Click + Rich)
-│   │   └── commands/   # 11 comandos (analyze, batch, export, watch, etc.)
+│   │   ├── commands/   # 11 comandos (analyze, batch, export, watch, etc.)
+│   │   └── interactive/ # Menu interativo (fachada, actions, services, wizards)
 │   └── api/            # REST API (FastAPI)
 │       ├── deps.py     # Dependências compartilhadas (core singleton, tracking)
 │       ├── schemas.py  # Modelos Pydantic (request/response)
 │       ├── routes/     # Endpoints por domínio (analyze, visualize, pipeline, etc.)
-│       ├── monitor.py  # Dashboard de monitoramento em tempo real (SSE)
+│       ├── monitor.py  # Métricas + SSE em tempo real
+│       ├── templates/  # Templates HTML da API (ex: dashboard de monitoramento)
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
 ├── tests/              # 726 testes (pytest, 90% coverage)
@@ -192,10 +194,12 @@ qualia/
 **Funciona:**
 - Todos os 8 plugins executam corretamente
 - API REST stateless com Swagger autodocumentado
+- API e core modularizados por domínio/responsabilidade
 - Transcrição de áudio/vídeo via Groq Whisper (testado com mp4)
 - ConfigurationRegistry com validação, calibração por tamanho de texto e visão consolidada
 - Cache com LRU e TTL (`GET /cache/stats` para monitorar)
 - Resolução automática de dependências entre plugins (topológica, com detecção de ciclos)
+- Menu interativo modularizado em fachada + actions + services
 - Integração validada com CodeMarker (plugin Obsidian)
 - 726 testes (90% coverage)
 

@@ -55,7 +55,9 @@ qualia/api/
     pipeline.py   # POST /pipeline
     config.py     # GET /plugins/{id}/schema, /config/consolidated, POST /config/resolve
     transcribe.py # POST /transcribe/{id}
-  monitor.py      # Dashboard tempo real via SSE
+  monitor.py      # Métricas + SSE stream (~155 linhas)
+  templates/
+    monitor.html  # Dashboard HTML/CSS/JS (servido pelo monitor.py)
   webhooks.py     # Webhook genérico
 ```
 
@@ -94,6 +96,19 @@ qualia/core/
   cache.py         # CacheManager (LRU + TTL)
   resolver.py      # DependencyResolver (ordenação topológica)
   config.py        # ConfigurationRegistry (normalização, validação, calibração)
+```
+
+## CLI interativa — Estrutura modular
+
+```
+qualia/cli/interactive/
+  handlers.py   # Fachada fina; delega fluxo para módulos menores
+  actions.py    # Execução de analyze, visualize, pipeline e operações interativas
+  services.py   # Settings, sistema, cache e tarefas operacionais
+  menu.py       # Loop principal e navegação
+  utils.py      # Helpers de input/output
+  wizards.py    # Assistentes de criação de pipeline
+  tutorials.py  # Tutoriais guiados
 ```
 
 ## Arquitetura de loading
@@ -154,3 +169,10 @@ GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Trigger: push e PR na main
 - Python 3.13, `pip install -r requirements.txt`, `pytest tests/ -v --cov=qualia`
 - Verifica startup da API
+
+## Refactors recentes
+
+- `qualia/core/__init__.py` virou fachada de re-exports; implementação distribuída em módulos internos.
+- `qualia/api/__init__.py` virou bootstrap fino; endpoints migrados para `qualia/api/routes/`.
+- `qualia/api/monitor.py` foi reduzido a métricas + SSE; dashboard extraído para `qualia/api/templates/monitor.html`.
+- `qualia/cli/interactive/handlers.py` virou fachada; lógica operacional extraída para `actions.py` e `services.py`.
