@@ -2,7 +2,7 @@
 # Optimized for size and security
 
 # Stage 1: Builder
-FROM python:3.9-slim as builder
+FROM python:3.13-slim as builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
 
 # Stage 2: Runtime
-FROM python:3.9-slim
+FROM python:3.13-slim
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
@@ -63,4 +63,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import requests; requests.get('http://localhost:8000/health')"
 
 # Default command
-CMD ["python", "run_api.py", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "uvicorn", "qualia.api:app", "--host", "0.0.0.0", "--port", "8000"]

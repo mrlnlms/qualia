@@ -24,8 +24,10 @@ jobs:
           pip install -r requirements.txt
           pip install -e .
 
-      - name: Rodar testes
-        run: pytest tests/ -v --tb=short
+      - name: Rodar testes com coverage
+        run: |
+          pip install pytest-cov
+          pytest tests/ -v --tb=short --cov=qualia --cov-report=term-missing
 
       - name: Verificar startup da API
         run: |
