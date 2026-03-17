@@ -56,7 +56,16 @@ async def analyze_file(
         context_dict = json.loads(context)
 
         content = await file.read()
-        text = content.decode('utf-8')
+        try:
+            text = content.decode('utf-8')
+        except UnicodeDecodeError:
+            try:
+                text = content.decode('latin-1')
+            except UnicodeDecodeError:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Encoding não suportado. Envie arquivo em UTF-8 ou Latin-1."
+                )
 
         doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
         result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict, context_dict)

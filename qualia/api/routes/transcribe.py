@@ -60,6 +60,13 @@ async def transcribe(
         doc.metadata["file_size"] = len(content)
 
         result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
+
+        # Plugin retorna status: "error" para falhas de domínio (sem API key, arquivo inválido, etc)
+        if isinstance(result, dict) and result.get("status") == "error":
+            error_msg = result.get("error", "Erro na transcrição")
+            await track(f"/transcribe/{plugin_id}", plugin_id, error_msg)
+            raise HTTPException(status_code=400, detail=error_msg)
+
         await track(f"/transcribe/{plugin_id}", plugin_id)
 
         return {

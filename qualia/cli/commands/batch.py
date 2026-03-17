@@ -141,6 +141,9 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
         )
         
         # Processar em paralelo se solicitado
+        # NOTA: com --parallel, todos os jobs são submetidos ao executor
+        # antes da coleta. Se --continue-on-error não estiver ativo, o break
+        # interrompe a coleta mas jobs já disparados continuam até completar.
         if parallel > 1:
             with ThreadPoolExecutor(max_workers=parallel) as executor:
                 # Submeter todos os trabalhos
@@ -201,9 +204,9 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
             "pattern": pattern,
             "total_files": len(files),
             "successful": len(results),
-            "errors": len(errors),
+            "error_count": len(errors),
             "results": results,
-            "errors": errors
+            "error_details": errors
         }
         log_path.write_text(json.dumps(log_data, indent=2))
         console.print(f"\n[green]Log completo salvo em: {log_path}[/green]")
