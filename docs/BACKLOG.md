@@ -4,24 +4,11 @@
 
 ## Pendente
 
-### Cobertura de testes
-
-706 testes, 90% coverage. Todos os módulos atacáveis acima de 90%.
-
-Linhas residuais sem cobertura (não vale o esforço):
-- Abstract methods em interfaces.py e base_plugins.py (pass statements)
-- Dead code em models.py (get_analysis, add_variant — decisão deferida no roadmap)
-- Prompts interativos complexos em config.py (pipeline creation wizard)
-- ImportError fallback e `__main__` entry points em api/__init__.py
-- Formatação de console em batch.py
+_(sem itens no momento)_
 
 ---
 
 ## Roadmap
-
-### Arquitetura
-
-- **Document stateful (`self.documents`)** — decidir se limpa (remove dead code) ou evolui (sessões, TTL/LRU). Design spaCy-inspired nunca usado na prática. Levantamento completo na seção "Referência" abaixo e em `memory/project_document_stateful.md`.
 
 ### Plugins (próxima fronteira)
 
@@ -46,6 +33,20 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ---
 
+## Parking lot
+
+- **Document stateful (`self.documents`)** — decidir se limpa (remove dead code) ou evolui (sessões, TTL/LRU). Design spaCy-inspired nunca usado na prática. Levantamento completo na seção "Referência" abaixo e em `memory/project_document_stateful.md`.
+
+---
+
+## Notas
+
+### Coverage
+
+727 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+
+---
+
 ## Concluído
 
 ### Sprint 2026-03-17 (saneamento)
@@ -55,7 +56,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - [x] Integrar DependencyResolver no execute_plugin (field-name→plugin-id, detecção de ciclos)
 - [x] Limpar dívidas técnicas (validate_config consistente, wizard stubs, TODOs)
 - [x] Pipeline fail-fast com RuntimeError descritivo
-- [x] Coverage de 42% → 90% (237→706 testes, todos módulos de produção acima de 90%)
+- [x] Coverage de 42% → 90% (237→727 testes, todos módulos de produção acima de 90%)
 - [x] Remover código morto (run_api.py, módulos vazios, protection morta)
 - [x] Migrar setup.py → pyproject.toml
 - [x] Organizar docs (mortos → docs/morto/)
