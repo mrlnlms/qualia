@@ -6,13 +6,12 @@
 
 ### Cobertura de testes
 
-615 testes, 84% coverage. Módulos abaixo de 90%:
+643 testes, 87% coverage. Todos os módulos-alvo acima de 90%.
 
-| Módulo | Coverage | Gap |
-|--------|----------|-----|
-| `commands/batch.py` | 80% | Edge cases de processamento paralelo |
-| `commands/export.py` | 86% | Formatos de exportação alternativos |
-| `interactive/menu.py` | 83% | Navegação e edge cases do menu |
+Linhas residuais sem cobertura (não vale o esforço):
+- Abstract methods em interfaces.py e base_plugins.py (pass statements)
+- Dead code em models.py (get_analysis, add_variant — decisão deferida no roadmap)
+- Formatação de console em batch.py (output visual)
 
 ---
 
