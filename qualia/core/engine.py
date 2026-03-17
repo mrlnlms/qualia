@@ -147,6 +147,8 @@ class QualiaCore:
             self.cache.set(document.id, plugin_id, config, result)
             document.add_analysis(plugin_id, result)
 
+        if result is None:
+            logger.warning("Plugin '%s' retornou None", plugin_id)
         return result or {}
 
     def execute_pipeline(self,

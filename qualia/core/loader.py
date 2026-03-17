@@ -65,6 +65,7 @@ class PluginLoader:
                         module = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(module)
 
+                        found_plugin = False
                         for name, obj in inspect.getmembers(module):
                             if name.startswith('Base'):
                                 continue
@@ -73,6 +74,7 @@ class PluginLoader:
                                 obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin,
                                            IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
 
+                                found_plugin = True
                                 self._plugin_classes[obj.__name__] = obj
                                 needs_eager = '__init__' in obj.__dict__
 
@@ -91,13 +93,21 @@ class PluginLoader:
                                     # NÃO guarda em loaded_plugins — lazy
                                     logger.debug(f"Plugin {meta.id}: lazy")
 
+                                if meta.id in discovered:
+                                    raise ValueError(
+                                        f"Plugin ID duplicado: '{meta.id}' em '{plugin_dir.name}' "
+                                        f"(já registrado)"
+                                    )
                                 discovered[meta.id] = meta
+
+                        if not found_plugin:
+                            logger.warning(f"Plugin dir '{plugin_dir.name}' não exporta nenhuma classe IPlugin")
 
                     elapsed = time.perf_counter() - t0
                     logger.debug(f"  {plugin_dir.name}: {elapsed:.3f}s")
 
                 except Exception as e:
-                    print(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
+                    logger.error(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
 
         eager_count = len(self.loaded_plugins)
         lazy_count = len(discovered) - eager_count

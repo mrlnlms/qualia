@@ -47,7 +47,7 @@ class DependencyResolver:
         Deve ser chamado após todos os add_plugin(). Cada requires é resolvido:
         - Se é um plugin ID conhecido → edge direta
         - Se é um field name no provides_map → resolve pro provider
-        - Se desconhecido → ignorado silenciosamente
+        - Se desconhecido → warning no log
         """
         for plugin_id, metadata in self.metadata.items():
             resolved_deps: Set[str] = set()
@@ -56,6 +56,11 @@ class DependencyResolver:
                     resolved_deps.add(req)
                 elif req in self._provides_map:
                     resolved_deps.add(self._provides_map[req])
+                else:
+                    logger.warning(
+                        "Plugin '%s' requires '%s' mas nenhum plugin fornece este campo",
+                        plugin_id, req,
+                    )
             self.graph[plugin_id] = resolved_deps
 
     def resolve_provider(self, field_name: str) -> Optional[str]:
