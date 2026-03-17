@@ -24,10 +24,7 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
         try:
             content = file_path.read_text(encoding='utf-8')
         except UnicodeDecodeError:
-            try:
-                content = file_path.read_text(encoding='latin-1')
-            except UnicodeDecodeError:
-                return {"file": file_path.name, "status": "error", "error": "Encoding não suportado"}
+            content = file_path.read_text(encoding='latin-1')
         doc = core.add_document(file_path.stem, content)
         
         # Executar plugin

@@ -67,16 +67,12 @@ async def analyze_file(
         context_dict = json.loads(context)
 
         content = await file.read()
+        encoding_used = "utf-8"
         try:
             text = content.decode('utf-8')
         except UnicodeDecodeError:
-            try:
-                text = content.decode('latin-1')
-            except UnicodeDecodeError:
-                raise HTTPException(
-                    status_code=422,
-                    detail="Encoding não suportado. Envie arquivo em UTF-8 ou Latin-1."
-                )
+            text = content.decode('latin-1')
+            encoding_used = "latin-1"
 
         doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
         try:
@@ -89,12 +85,18 @@ async def analyze_file(
             raise HTTPException(status_code=504, detail="Plugin execution timed out (60s)")
         await track(f"/analyze/{plugin_id}/file", plugin_id)
 
-        return {
+        response = {
             "status": "success",
             "plugin_id": plugin_id,
             "filename": file.filename,
             "result": result
         }
+        if encoding_used != "utf-8":
+            response["encoding_warning"] = (
+                f"Arquivo decodificado como {encoding_used} (UTF-8 falhou). "
+                "Caracteres podem estar incorretos. Reenvie em UTF-8 para garantir fidelidade."
+            )
+        return response
     except HTTPException:
         raise
     except Exception as e:

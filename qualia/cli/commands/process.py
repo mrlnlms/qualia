@@ -37,11 +37,8 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
     try:
         content = doc_path.read_text(encoding='utf-8')
     except UnicodeDecodeError:
-        try:
-            content = doc_path.read_text(encoding='latin-1')
-        except UnicodeDecodeError:
-            console.print("[red]Erro: encoding não suportado. Use UTF-8 ou Latin-1.[/red]")
-            raise SystemExit(1)
+        content = doc_path.read_text(encoding='latin-1')
+        console.print("[yellow]⚠ Arquivo não é UTF-8 — decodificado como latin-1. Caracteres podem estar incorretos.[/yellow]")
     doc = core.add_document(doc_path.stem, content)
     
     # Configuração
