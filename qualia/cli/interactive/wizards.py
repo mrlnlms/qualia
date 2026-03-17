@@ -165,19 +165,3 @@ class PipelineWizard:
             console.print(yaml_content)
 
 
-class ReportWizard:
-    """Assistente para criação de relatórios (futuro)"""
-    
-    def create_report(self):
-        """Cria um relatório combinando múltiplas análises"""
-        console.print(format_warning("Funcionalidade em desenvolvimento"))
-        # TODO: Implementar wizard de relatórios
-
-
-class MethodologyWizard:
-    """Assistente para criação de metodologias (futuro)"""
-    
-    def create_methodology(self):
-        """Cria uma metodologia de análise"""
-        console.print(format_warning("Funcionalidade em desenvolvimento"))
-        # TODO: Implementar wizard de metodologias

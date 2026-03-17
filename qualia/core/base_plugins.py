@@ -31,11 +31,13 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
         validated_config = self._validate_config(config)
         return self._analyze_impl(document, validated_config, context)
 
-    def validate_config(self, config: Dict[str, Any]) -> bool:
-        """Implementação concreta do validate_config"""
-        # Por enquanto sempre retorna True
-        # TODO: implementar validação baseada em meta().parameters
-        return True, None
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Valida configuração delegando para _validate_config"""
+        try:
+            self._validate_config(config)
+            return True, None
+        except Exception as e:
+            return False, str(e)
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Valida e aplica defaults aos parâmetros"""
@@ -157,9 +159,13 @@ class BaseDocumentPlugin(IDocumentPlugin):
         validated_config = self._validate_config(config)
         return self._process_impl(document, validated_config, context)
 
-    def validate_config(self, config: Dict[str, Any]) -> bool:
-        """Implementação concreta do validate_config"""
-        return True, None
+    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
+        """Valida configuração delegando para _validate_config"""
+        try:
+            self._validate_config(config)
+            return True, None
+        except Exception as e:
+            return False, str(e)
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Reutiliza lógica de validação"""

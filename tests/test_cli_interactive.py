@@ -930,21 +930,6 @@ class TestGetMetadata:
         assert "author" not in meta
 
 
-class TestReportWizard:
-
-    def test_create_report_placeholder(self):
-        from qualia.cli.interactive.wizards import ReportWizard
-        wizard = ReportWizard()
-        wizard.create_report()  # Não deve crashar
-
-
-class TestMethodologyWizard:
-
-    def test_create_methodology_placeholder(self):
-        from qualia.cli.interactive.wizards import MethodologyWizard
-        wizard = MethodologyWizard()
-        wizard.create_methodology()  # Não deve crashar
-
 
 # =============================================================================
 # START_MENU (entry point)
