@@ -1313,3 +1313,219 @@ class TestTutorials:
                         tm._show_tutorial(info["title"], info["content"])
 
                     mock_show.assert_called_once()
+
+
+# =============================================================================
+# ANALYZE EDGE CASES
+# =============================================================================
+
+class TestAnalyzeCommandEdgeCases:
+    """Testa caminhos não cobertos do analyze.py"""
+
+    def test_analyze_yaml_format_output(self, tmp_path):
+        """analyze com --format yaml produz saída YAML"""
+        from qualia.cli.commands.analyze import analyze as analyze_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "texto.txt"
+        doc.write_text("gato cachorro gato pato")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.analyze.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.ANALYZER
+            mock_plugin_meta.name = "Word Frequency"
+            mock_core.registry = {"word_frequency": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.return_value = {"total_words": 4, "top": ["gato"]}
+
+            result = runner.invoke(analyze_cmd, [
+                str(doc), "-p", "word_frequency", "--format", "yaml",
+            ])
+
+            assert result.exit_code == 0
+            # YAML output contains colon-separated key-value pairs
+            assert "total_words:" in result.output
+
+    def test_analyze_with_config_file(self, tmp_path):
+        """analyze com --config carrega parâmetros do arquivo YAML"""
+        from qualia.cli.commands.analyze import analyze as analyze_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "texto.txt"
+        doc.write_text("gato cachorro gato")
+
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({"min_length": 5, "top_n": 10}))
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.analyze.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.ANALYZER
+            mock_plugin_meta.name = "Word Frequency"
+            mock_core.registry = {"word_frequency": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.return_value = {"total_words": 3}
+
+            result = runner.invoke(analyze_cmd, [
+                str(doc), "-p", "word_frequency",
+                "--config", str(config_file),
+            ])
+
+            assert result.exit_code == 0
+            # Verify execute_plugin was called with the loaded config params
+            call_args = mock_core.execute_plugin.call_args
+            params = call_args[0][2]
+            assert params["min_length"] == 5
+            assert params["top_n"] == 10
+
+    def test_analyze_execution_error(self, tmp_path):
+        """analyze mostra erro e exit code 1 quando plugin falha"""
+        from qualia.cli.commands.analyze import analyze as analyze_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "texto.txt"
+        doc.write_text("gato cachorro")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.analyze.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.ANALYZER
+            mock_plugin_meta.name = "Word Frequency"
+            mock_core.registry = {"word_frequency": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.side_effect = RuntimeError("Plugin explodiu")
+
+            result = runner.invoke(analyze_cmd, [
+                str(doc), "-p", "word_frequency",
+            ])
+
+            assert result.exit_code == 1
+            assert "Erro" in result.output
+            assert "Plugin explodiu" in result.output
+
+
+# =============================================================================
+# UTILS EDGE CASES
+# =============================================================================
+
+class TestUtilsEdgeCases:
+    """Testa caminhos não cobertos do utils.py"""
+
+    def test_load_config_json(self, tmp_path):
+        """load_config carrega arquivo JSON corretamente"""
+        from qualia.cli.commands.utils import load_config
+
+        config_file = tmp_path / "config.json"
+        config_file.write_text(json.dumps({"min_length": 3, "enabled": True}))
+
+        result = load_config(config_file)
+        assert result == {"min_length": 3, "enabled": True}
+
+    def test_parse_params_invalid_format(self):
+        """parse_params ignora parâmetro sem '=' e imprime aviso"""
+        from qualia.cli.commands.utils import parse_params
+
+        with patch("qualia.cli.commands.utils.console"):
+            result = parse_params(("invalid_no_equals",))
+        assert result == {}
+
+    def test_display_result_pretty_complex_data(self):
+        """display_result_pretty exibe '<dados complexos>' para dados grandes"""
+        from qualia.cli.commands.utils import display_result_pretty
+
+        large_dict = {f"key_{i}": f"value_{i}" for i in range(50)}
+        result = {
+            "custom_data": large_dict,
+        }
+
+        with patch("qualia.cli.commands.utils.console") as mock_console:
+            display_result_pretty("Test Plugin", result)
+
+            # Deve ter chamado print com '<dados complexos>'
+            all_calls = [str(c) for c in mock_console.print.call_args_list]
+            joined = " ".join(all_calls)
+            assert "dados complexos" in joined
+
+    def test_display_result_pretty_simple_data(self):
+        """display_result_pretty exibe valor simples diretamente"""
+        from qualia.cli.commands.utils import display_result_pretty
+
+        result = {
+            "status": "ok",
+        }
+
+        with patch("qualia.cli.commands.utils.console") as mock_console:
+            display_result_pretty("Test Plugin", result)
+
+            all_calls = [str(c) for c in mock_console.print.call_args_list]
+            joined = " ".join(all_calls)
+            assert "status" in joined
+            assert "ok" in joined
+
+
+# =============================================================================
+# CONFIG EDGE CASES
+# =============================================================================
+
+class TestConfigCommandEdgeCases:
+    """Testa caminhos não cobertos do config.py"""
+
+    def test_config_create_nonexistent_plugin(self):
+        """config create com plugin inexistente mostra erro"""
+        from qualia.cli.commands.config import config as config_cmd
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.config.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+            mock_core.registry = {"word_frequency": MagicMock()}
+
+            result = runner.invoke(config_cmd, [
+                "create", "-p", "nonexistent_plugin",
+            ])
+
+            assert "não encontrado" in result.output
+
+    def test_config_list_with_invalid_files(self, tmp_path):
+        """config list não crasheia com arquivos YAML inválidos"""
+        from qualia.cli.commands.config import config as config_cmd
+
+        configs_dir = tmp_path / "configs"
+        configs_dir.mkdir()
+
+        # Arquivo YAML válido
+        valid = configs_dir / "valid.yaml"
+        valid.write_text(yaml.dump({"min_length": 3}))
+
+        # Arquivo YAML inválido (conteúdo corrompido)
+        invalid = configs_dir / "broken.yaml"
+        invalid.write_text(":\n  - :\n    {{invalid yaml content")
+
+        runner = CliRunner()
+        import os
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(config_cmd, ["list"])
+            # Não deve crashear
+            assert result.exit_code == 0
+            # Deve listar o arquivo válido
+            assert "valid.yaml" in result.output
+        finally:
+            os.chdir(old_cwd)

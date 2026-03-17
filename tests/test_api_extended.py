@@ -728,3 +728,41 @@ class TestReadabilityAnalyzer:
         data = response.json()
         assert data["status"] == "success"
         assert "result" in data
+
+
+# ============================================================================
+# Edge cases — api/__init__.py uncovered lines
+# ============================================================================
+
+class TestAPIEdgeCases:
+    """Testa branches nao cobertos em api/__init__.py"""
+
+    def test_general_exception_handler(self, client):
+        """Excecao generica nao tratada retorna 500 com JSON de erro"""
+        from starlette.routing import Route
+        from qualia.api import app as test_app
+
+        async def raise_error(request):
+            raise RuntimeError("erro interno simulado")
+
+        # Insere rota ANTES do SPA catch-all (ultimo) para garantir match
+        test_route = Route("/test-500-route", raise_error, methods=["GET"])
+        test_app.routes.insert(0, test_route)
+
+        try:
+            response = client.get("/test-500-route")
+            assert response.status_code == 500
+            data = response.json()
+            assert data["status"] == "error"
+            assert "Internal server error" in data["message"]
+            assert "erro interno simulado" in data["message"]
+        finally:
+            test_app.routes.remove(test_route)
+
+    def test_spa_fallback_no_index(self, client):
+        """SPA catch-all sem index.html retorna 404"""
+        with patch.object(Path, "exists", return_value=False):
+            response = client.get("/nonexistent-page")
+            assert response.status_code == 404
+            data = response.json()
+            assert data["status"] == "error"
