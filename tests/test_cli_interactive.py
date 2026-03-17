@@ -958,3 +958,89 @@ class TestStartMenu:
         mock_menu_cls.return_value.run.side_effect = RuntimeError("boom")
         with pytest.raises(RuntimeError, match="boom"):
             start_menu()
+
+
+# =============================================================================
+# MENU — cobertura adicional (handler execution, recent files display)
+# =============================================================================
+
+class TestMenuHandlerExecution:
+
+    @patch("qualia.cli.interactive.menu.Prompt.ask")
+    @patch("qualia.cli.interactive.menu.QualiaInteractiveMenu.show_banner")
+    def test_menu_handler_execution(self, mock_banner, mock_prompt):
+        """Selecionar opção do menu chama o handler correspondente"""
+        from qualia.cli.interactive.menu import QualiaInteractiveMenu
+        menu = QualiaInteractiveMenu()
+
+        # Mock o handler de analyze_document
+        mock_handler = MagicMock()
+        menu.handlers.analyze_document = mock_handler
+
+        # Simula: escolher opção 1 (Analisar documento), depois 0 (Sair)
+        mock_prompt.side_effect = ["1", "0"]
+        menu.run()
+
+        mock_handler.assert_called_once()
+
+    @patch("qualia.cli.interactive.menu.Prompt.ask")
+    @patch("qualia.cli.interactive.menu.QualiaInteractiveMenu.show_banner")
+    def test_menu_handler_option_8(self, mock_banner, mock_prompt):
+        """Selecionar opção 8 (Explorar plugins) chama o handler correto"""
+        from qualia.cli.interactive.menu import QualiaInteractiveMenu
+        menu = QualiaInteractiveMenu()
+
+        mock_handler = MagicMock()
+        menu.handlers.explore_plugins = mock_handler
+
+        mock_prompt.side_effect = ["8", "0"]
+        menu.run()
+
+        mock_handler.assert_called_once()
+
+
+class TestMenuRecentFilesDisplay:
+
+    @patch("qualia.cli.interactive.menu.Prompt.ask", return_value="0")
+    @patch("qualia.cli.interactive.menu.QualiaInteractiveMenu.clear_screen")
+    def test_menu_recent_files_display(self, mock_clear, mock_prompt, capsys):
+        """Arquivos recentes são exibidos quando disponíveis"""
+        from qualia.cli.interactive.menu import QualiaInteractiveMenu
+        menu = QualiaInteractiveMenu()
+
+        # Adicionar arquivos recentes
+        menu.add_recent_file("/tmp/doc1.txt")
+        menu.add_recent_file("/tmp/doc2.txt")
+        menu.add_recent_file("/tmp/doc3.txt")
+        menu.add_recent_file("/tmp/doc4.txt")
+
+        menu.run()
+
+        # _show_recent_files mostra os últimos 3 via console.print (Rich)
+        # Verificar que recent_files contém todos os 4
+        assert len(menu.recent_files) == 4
+        assert "/tmp/doc4.txt" in menu.recent_files
+
+    @patch("qualia.cli.interactive.menu.Prompt.ask", return_value="0")
+    @patch("qualia.cli.interactive.menu.QualiaInteractiveMenu.clear_screen")
+    def test_menu_no_recent_files(self, mock_clear, mock_prompt):
+        """Menu funciona sem arquivos recentes"""
+        from qualia.cli.interactive.menu import QualiaInteractiveMenu
+        menu = QualiaInteractiveMenu()
+
+        assert menu.recent_files == []
+        menu.run()
+        # Deve completar sem erro
+
+    def test_show_recent_files_method(self):
+        """_show_recent_files não crasha com lista vazia ou populada"""
+        from qualia.cli.interactive.menu import QualiaInteractiveMenu
+        menu = QualiaInteractiveMenu()
+
+        # Sem arquivos — não deve crashar
+        menu._show_recent_files()
+
+        # Com arquivos
+        menu.add_recent_file("/tmp/a.txt")
+        menu.add_recent_file("/tmp/b.txt")
+        menu._show_recent_files()

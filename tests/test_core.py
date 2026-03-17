@@ -11,7 +11,8 @@ from unittest.mock import Mock, patch, MagicMock
 
 from qualia.core import (
     QualiaCore, Document, PluginMetadata, PluginType,
-    BaseAnalyzerPlugin, BaseVisualizerPlugin
+    BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin,
+    PipelineConfig, PipelineStep, ExecutionContext, DependencyResolver
 )
 
 
@@ -274,3 +275,321 @@ class TestPerformance:
         # Mudando para teste mais realista
         assert time2 <= time1  # Cache não pode ser mais lento
         assert result1 == result2  # Resultados devem ser iguais
+
+
+class TestEngineEdgeCases:
+    """Testes de edge cases do engine.py"""
+
+    def test_get_plugin_not_found(self, core):
+        """get_plugin com plugin inexistente deve levantar ValueError"""
+        with pytest.raises(ValueError, match="não encontrado"):
+            core.get_plugin("nonexistent")
+
+    def test_execute_plugin_invalid_config(self, core, temp_dir):
+        """Plugin cuja validate_config retorna (False, msg) deve levantar ValueError"""
+        mock_plugin = MagicMock()
+        mock_plugin.validate_config.return_value = (False, "bad config")
+        meta = PluginMetadata(
+            id="invalid_config_plugin",
+            type=PluginType.ANALYZER,
+            name="InvalidConfig",
+            description="Test",
+            version="1.0",
+        )
+        mock_plugin.meta.return_value = meta
+
+        core.loader.loaded_plugins["invalid_config_plugin"] = mock_plugin
+        core.registry["invalid_config_plugin"] = meta
+
+        doc = core.add_document("test_inv", "texto")
+        with pytest.raises(ValueError, match="Configuração inválida"):
+            core.execute_plugin("invalid_config_plugin", doc, {"x": 1})
+
+    def test_execute_plugin_with_dependencies(self, core):
+        """Plugin com dependência deve auto-executar o provider primeiro"""
+        # Provider
+        provider = MagicMock()
+        provider_meta = PluginMetadata(
+            id="provider_plugin",
+            type=PluginType.ANALYZER,
+            name="Provider",
+            description="Provides data_field",
+            version="1.0",
+            provides=["data_field"],
+        )
+        provider.meta.return_value = provider_meta
+        provider.validate_config.return_value = (True, None)
+        provider.analyze.return_value = {"data_field": [1, 2, 3]}
+
+        # Consumer
+        consumer = MagicMock()
+        consumer_meta = PluginMetadata(
+            id="consumer_plugin",
+            type=PluginType.ANALYZER,
+            name="Consumer",
+            description="Requires data_field",
+            version="1.0",
+            requires=["data_field"],
+        )
+        consumer.meta.return_value = consumer_meta
+        consumer.validate_config.return_value = (True, None)
+        consumer.analyze.return_value = {"consumed": True}
+
+        # Registrar ambos
+        core.loader.loaded_plugins["provider_plugin"] = provider
+        core.registry["provider_plugin"] = provider_meta
+        core.loader.loaded_plugins["consumer_plugin"] = consumer
+        core.registry["consumer_plugin"] = consumer_meta
+
+        # Reconstruir grafo de dependências
+        core.resolver = DependencyResolver()
+        for pid, meta in core.registry.items():
+            core.resolver.add_plugin(pid, meta)
+        core.resolver.build_graph()
+
+        doc = core.add_document("dep_test", "texto")
+        result = core.execute_plugin("consumer_plugin", doc)
+
+        # Provider deve ter sido chamado
+        provider.analyze.assert_called_once()
+        # Consumer deve ter sido chamado com dep_results contendo resultado do provider
+        consumer.analyze.assert_called_once()
+        assert result == {"consumed": True}
+
+    def test_execute_plugin_visualizer(self, core, temp_dir):
+        """Visualizer cujo render retorna Path deve devolver dict com output_path"""
+        viz = MagicMock()
+        viz_meta = PluginMetadata(
+            id="test_viz",
+            type=PluginType.VISUALIZER,
+            name="TestViz",
+            description="Test visualizer",
+            version="1.0",
+        )
+        viz.meta.return_value = viz_meta
+        viz.validate_config.return_value = (True, None)
+        output = temp_dir / "result.png"
+        viz.render.return_value = output
+
+        core.loader.loaded_plugins["test_viz"] = viz
+        core.registry["test_viz"] = viz_meta
+
+        doc = core.add_document("viz_test", "texto")
+        result = core.execute_plugin("test_viz", doc)
+
+        assert "output_path" in result
+        assert str(output) == result["output_path"]
+
+    def test_execute_pipeline_step_failure(self, core):
+        """Pipeline deve levantar RuntimeError quando um step falha"""
+        from qualia.core import PipelineConfig, PipelineStep
+
+        # Plugin que falha
+        failing = MagicMock()
+        failing_meta = PluginMetadata(
+            id="failing_plugin",
+            type=PluginType.ANALYZER,
+            name="Failing",
+            description="Always fails",
+            version="1.0",
+        )
+        failing.meta.return_value = failing_meta
+        failing.validate_config.return_value = (True, None)
+        failing.analyze.side_effect = RuntimeError("boom")
+
+        core.loader.loaded_plugins["failing_plugin"] = failing
+        core.registry["failing_plugin"] = failing_meta
+
+        pipeline = PipelineConfig(
+            name="fail_pipeline",
+            steps=[PipelineStep("failing_plugin")],
+        )
+        doc = core.add_document("pipe_fail", "texto")
+
+        with pytest.raises(RuntimeError, match="failing_plugin"):
+            core.execute_pipeline(pipeline, doc)
+
+    def test_save_pipeline(self, core):
+        """save_pipeline deve armazenar pipeline em core.pipelines"""
+        from qualia.core import PipelineConfig, PipelineStep
+
+        pipeline = PipelineConfig(
+            name="saved_pipe",
+            steps=[PipelineStep("word_frequency")],
+        )
+        core.save_pipeline(pipeline)
+        assert "saved_pipe" in core.pipelines
+        assert core.pipelines["saved_pipe"] is pipeline
+
+    def test_list_plugins_filtered(self, core):
+        """list_plugins com tipo deve retornar somente plugins daquele tipo"""
+        analyzers = core.list_plugins(PluginType.ANALYZER)
+        assert len(analyzers) > 0
+        for meta in analyzers:
+            assert meta.type == PluginType.ANALYZER
+
+        visualizers = core.list_plugins(PluginType.VISUALIZER)
+        assert len(visualizers) > 0
+        for meta in visualizers:
+            assert meta.type == PluginType.VISUALIZER
+
+    def test_get_plugin_info(self, core):
+        """get_plugin_info com plugin válido deve retornar PluginMetadata"""
+        info = core.get_plugin_info("word_frequency")
+        assert info is not None
+        assert isinstance(info, PluginMetadata)
+        assert info.id == "word_frequency"
+
+    def test_get_plugin_info_not_found(self, core):
+        """get_plugin_info com plugin inexistente deve retornar None"""
+        info = core.get_plugin_info("nonexistent")
+        assert info is None
+
+
+class TestBasePluginValidation:
+    """Testes de validação das base classes de plugins"""
+
+    def test_analyzer_validate_config_catches_error(self):
+        """validate_config de BaseAnalyzerPlugin deve capturar exceção e retornar (False, msg)"""
+
+        class FailAnalyzer(BaseAnalyzerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="fail_analyzer", type=PluginType.ANALYZER,
+                    name="Fail", description="Test", version="1.0",
+                )
+
+            def _validate_config(self, config):
+                raise ValueError("param X inválido")
+
+        plugin = FailAnalyzer()
+        valid, error = plugin.validate_config({"x": 1})
+        assert valid is False
+        assert "param X inválido" in error
+
+    def test_visualizer_validate_config_catches_error(self):
+        """validate_config de BaseVisualizerPlugin deve capturar exceção"""
+
+        class FailVisualizer(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="fail_viz", type=PluginType.VISUALIZER,
+                    name="Fail", description="Test", version="1.0",
+                )
+
+            def _validate_config(self, config):
+                raise ValueError("config ruim")
+
+        plugin = FailVisualizer()
+        valid, error = plugin.validate_config({"y": 2})
+        assert valid is False
+        assert "config ruim" in error
+
+    def test_document_validate_config_catches_error(self):
+        """validate_config de BaseDocumentPlugin deve capturar exceção"""
+        from qualia.core import BaseDocumentPlugin
+
+        class FailDoc(BaseDocumentPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="fail_doc", type=PluginType.DOCUMENT,
+                    name="Fail", description="Test", version="1.0",
+                )
+
+            def _validate_config(self, config):
+                raise TypeError("tipo errado")
+
+        plugin = FailDoc()
+        valid, error = plugin.validate_config({"z": 3})
+        assert valid is False
+        assert "tipo errado" in error
+
+    def test_visualizer_type_conversion_integer(self):
+        """Visualizer deve converter string '42' para int quando type='integer'"""
+
+        class IntViz(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="int_viz", type=PluginType.VISUALIZER,
+                    name="IntViz", description="Test", version="1.0",
+                    parameters={"count": {"type": "integer", "default": 10}},
+                )
+
+        plugin = IntViz()
+        result = plugin._validate_config({"count": "42"})
+        assert result["count"] == 42
+        assert isinstance(result["count"], int)
+
+    def test_visualizer_type_conversion_bool_string(self):
+        """Visualizer deve converter string 'true' para True quando type='bool'"""
+
+        class BoolViz(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="bool_viz", type=PluginType.VISUALIZER,
+                    name="BoolViz", description="Test", version="1.0",
+                    parameters={"flag": {"type": "bool", "default": False}},
+                )
+
+        plugin = BoolViz()
+        result = plugin._validate_config({"flag": "true"})
+        assert result["flag"] is True
+
+    def test_visualizer_type_conversion_bool_value(self):
+        """Visualizer deve converter 0 para False quando type='bool'"""
+
+        class BoolViz2(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="bool_viz2", type=PluginType.VISUALIZER,
+                    name="BoolViz2", description="Test", version="1.0",
+                    parameters={"flag": {"type": "bool", "default": True}},
+                )
+
+        plugin = BoolViz2()
+        result = plugin._validate_config({"flag": 0})
+        assert result["flag"] is False
+
+    def test_visualizer_validate_data_missing_field(self):
+        """_validate_data deve levantar ValueError se campo requerido estiver faltando"""
+
+        class NeedyViz(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="needy_viz", type=PluginType.VISUALIZER,
+                    name="NeedyViz", description="Test", version="1.0",
+                    requires=["needed_field"],
+                )
+
+        plugin = NeedyViz()
+        with pytest.raises(ValueError, match="needed_field"):
+            plugin._validate_data({})
+
+
+class TestModels:
+    """Testes para models.py — ExecutionContext"""
+
+    def test_execution_context_add_and_get_results(self):
+        """add_result + get_dependency_results deve retornar apenas deps solicitadas"""
+        from qualia.core import ExecutionContext, Document
+
+        doc = Document(id="ctx_test", content="texto")
+        ctx = ExecutionContext(document=doc)
+
+        ctx.add_result("plugin_a", {"score": 0.8})
+        ctx.add_result("plugin_b", {"count": 42})
+
+        deps = ctx.get_dependency_results(["plugin_a"])
+        assert "plugin_a" in deps
+        assert deps["plugin_a"] == {"score": 0.8}
+        assert "plugin_b" not in deps
+
+    def test_execution_context_missing_dependency(self):
+        """get_dependency_results para dep inexistente deve retornar dict vazio"""
+        from qualia.core import ExecutionContext, Document
+
+        doc = Document(id="ctx_test2", content="texto")
+        ctx = ExecutionContext(document=doc)
+
+        deps = ctx.get_dependency_results(["nonexistent"])
+        assert deps == {}

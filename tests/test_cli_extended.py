@@ -10,6 +10,7 @@ import json
 import yaml
 import csv
 from pathlib import Path
+from unittest.mock import patch
 from click.testing import CliRunner
 
 from qualia.cli.commands import cli
@@ -673,3 +674,134 @@ class TestExportCommand:
         data = yaml.safe_load(output.read_text())
         assert "metadata" in data
         assert "results" in data
+
+
+# =============================================================================
+# BATCH COMMAND — cobertura adicional (error paths, recursive, sequential stop)
+# =============================================================================
+
+class TestBatchCommandExtended:
+
+    def test_batch_process_file_error(self, runner, tmp_path):
+        """Erro durante processamento de arquivo é capturado, não crasha"""
+        # Criar arquivo de texto
+        f = tmp_path / "error_test.txt"
+        f.write_text("Conteúdo para análise.")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "error_output"
+
+        with patch("qualia.cli.commands.batch.process_file") as mock_pf:
+            mock_pf.return_value = {
+                "file": "error_test.txt",
+                "status": "error",
+                "error": "Falha simulada no plugin"
+            }
+            result = runner.invoke(cli, [
+                "batch", pattern,
+                "-p", "word_frequency",
+                "-o", str(output_dir),
+                "--continue-on-error",
+            ])
+            assert result.exit_code == 0
+            assert "Erro" in result.output or "erro" in result.output.lower()
+
+    def test_batch_recursive_pattern(self, runner, tmp_path):
+        """Flag --recursive encontra arquivos em subdiretórios"""
+        # Criar estrutura de diretórios aninhados
+        sub1 = tmp_path / "sub1"
+        sub2 = tmp_path / "sub1" / "sub2"
+        sub1.mkdir()
+        sub2.mkdir()
+
+        (tmp_path / "root.txt").write_text("Arquivo na raiz.")
+        (sub1 / "level1.txt").write_text("Arquivo nível 1.")
+        (sub2 / "level2.txt").write_text("Arquivo nível 2.")
+
+        pattern = str(tmp_path / "*.txt")
+        result = runner.invoke(cli, [
+            "batch", pattern,
+            "-p", "word_frequency",
+            "--recursive",
+            "--dry-run",
+        ])
+        assert result.exit_code == 0
+        # Deve encontrar arquivos em subdiretórios (3 arquivos total)
+        assert "3" in result.output
+
+    def test_batch_sequential_error_stops(self, runner, tmp_path):
+        """Em modo sequencial sem --continue-on-error, erro para o processamento"""
+        # Criar dois arquivos
+        (tmp_path / "file_a.txt").write_text("Primeiro arquivo.")
+        (tmp_path / "file_b.txt").write_text("Segundo arquivo.")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "seq_output"
+
+        call_count = 0
+
+        def mock_process(file_path, plugin_id, config, output_dir_arg=None):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {"file": file_path.name, "status": "success", "result": {}, "output": None}
+            return {"file": file_path.name, "status": "error", "error": "Erro no segundo arquivo"}
+
+        with patch("qualia.cli.commands.batch.process_file", side_effect=mock_process):
+            result = runner.invoke(cli, [
+                "batch", pattern,
+                "-p", "word_frequency",
+                "-o", str(output_dir),
+            ])
+            assert result.exit_code == 0
+            # Deve ter parado após o erro
+            assert "Parando" in result.output or "Erro" in result.output or "erro" in result.output.lower()
+            # Deve mostrar 1 sucesso e 1 erro
+            assert "1" in result.output
+
+
+# =============================================================================
+# EXPORT COMMAND — cobertura adicional (CSV vazio, Excel com pandas)
+# =============================================================================
+
+class TestExportCommandExtended:
+
+    def test_export_csv_empty_data(self, runner, tmp_path):
+        """Dados com estrutura sem rows tabulares produz arquivo (fallback)"""
+        data = {"info": "sem dados tabulares", "count": 0}
+        input_file = tmp_path / "minimal.json"
+        input_file.write_text(json.dumps(data))
+
+        output = tmp_path / "minimal.csv"
+        result = runner.invoke(cli, [
+            "export", str(input_file),
+            "--format", "csv",
+            "--output", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+        # Deve ter escrito algo (fallback path com dict como uma linha)
+        content = output.read_text()
+        assert len(content) > 0
+
+    def test_export_excel_if_pandas(self, runner, tmp_path):
+        """Exporta para .xlsx se pandas estiver disponível"""
+        pytest.importorskip("pandas")
+        pytest.importorskip("openpyxl")
+
+        data = {
+            "word_frequencies": {"gato": 5, "tapete": 3},
+            "total_words": 8,
+        }
+        input_file = tmp_path / "for_excel.json"
+        input_file.write_text(json.dumps(data))
+
+        output = tmp_path / "result.xlsx"
+        result = runner.invoke(cli, [
+            "export", str(input_file),
+            "--format", "excel",
+            "--output", str(output),
+        ])
+        assert result.exit_code == 0
+        assert output.exists()
+        assert output.stat().st_size > 0
