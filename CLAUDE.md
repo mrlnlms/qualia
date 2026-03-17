@@ -57,6 +57,8 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 
 **Sem perfis de domínio.** Perfis são responsabilidade do consumer.
 
+**Loading:** plugins com `__init__` próprio carregam no startup (eager, thread-safe). Os demais carregam no primeiro uso (lazy). Detecção automática via `'__init__' in cls.__dict__`. Ver `docs/TECHNICAL_STATE.md`.
+
 ## API endpoints principais
 
 - `GET /plugins` — lista plugins
@@ -66,6 +68,8 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 - `POST /visualize/{plugin_id}` — gera visualização
 - `POST /pipeline` — executa sequência de plugins
 - `GET /config/consolidated` — todos os schemas + rules
+- `GET /cache/stats` — estatísticas do cache (size, hits, misses, evictions)
+- `POST /webhook/custom` — webhook genérico (extrai texto, analisa)
 
 ## Convenções
 

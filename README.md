@@ -160,6 +160,7 @@ qualia/
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
 ├── tests/              # Testes (pytest)
+├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
 ├── ops/                # Scripts operacionais (backup, monitoramento)
 ├── tools/              # Utilitários (gerador de plugins)
 ├── Dockerfile          # Build multi-stage

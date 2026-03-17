@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qualia-core"
+version = "0.1.0"
+description = "Framework bare metal para análise qualitativa"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+authors = [
+    { name = "Marlon Lemes", email = "hello.marlonlemes@gmail.com" },
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "click>=8.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "nltk>=3.8",
+    "numpy",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.25.0",
+    "python-multipart>=0.0.6",
+    "sentry-sdk[fastapi]>=1.40.0",
+    "psutil>=5.9.0",
+]
+viz = [
+    "matplotlib>=3.8.0",
+    "wordcloud>=1.9.0",
+    "plotly>=5.18.0",
+    "kaleido>=0.2.1",
+]
+nlp = [
+    "textblob>=0.17.1",
+    "langdetect>=1.0.9",
+]
+transcription = [
+    "groq>=0.4.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21.0",
+    "httpx>=0.24.0",
+    "black",
+    "flake8",
+    "mypy",
+]
+all = [
+    "qualia-core[api,viz,nlp,transcription]",
+]
+
+[project.scripts]
+qualia = "qualia.cli:cli"
+
+[project.urls]
+Repository = "https://github.com/mrlnlms/qualia"
+
+[tool.setuptools.packages.find]
+include = ["qualia*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
