@@ -1,70 +1,88 @@
 # Backlog — Qualia Core
 
-Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesma sessão.
+Última atualização: 2026-03-17
 
-## Refatoração (prioridade técnica)
+## Pendente
 
-1. [x] ~~Dividir `qualia/api/__init__.py` (694→111 linhas) — deps.py, schemas.py, routes/~~
-2. [x] ~~Quebrar `qualia/core/__init__.py` (902→47 linhas) — interfaces, models, base_plugins, resolver, cache, loader, engine. Re-exports no `__init__.py`~~
+### Decisões arquiteturais
 
-## Infra do Engine (preparar para plugins pesados)
+- [ ] **Document stateful (`self.documents`)** — limpar ou evoluir? Design spaCy-inspired nunca usado na prática. `get_document()`, `get_analysis()`, `add_variant()`, `get_variant()` são dead code. `self.documents` dict cresce sem limite. Deferida até haver use case concreto (sessões no frontend, consumers stateful). Levantamento completo abaixo em "Referência".
 
-3. [x] ~~Integrar DependencyResolver no execute_plugin — ordenação topológica, detecção de ciclos, resolução field-name→plugin-id via provides_map~~
+### Cobertura de testes
 
-4. [ ] **Decidir destino do Document stateful (`self.documents`)** — decisão arquitetural deferida.
+615 testes, 84% coverage. Módulos abaixo de 90%:
 
-   **Contexto:** O design original (jun/2025) era inspirado no spaCy — Document como hub central que acumula análises progressivamente. O fluxo imaginado era: criar documento → rodar múltiplos plugins → resultados acumulam em `doc._analyses` → recuperar depois via `get_document()`. Na prática, o Qualia evoluiu pra stateless (API REST, cada request cria Document efêmero, executa, descarta).
+| Módulo | Coverage | Gap |
+|--------|----------|-----|
+| `commands/batch.py` | 80% | Edge cases de processamento paralelo |
+| `commands/export.py` | 86% | Formatos de exportação alternativos |
+| `interactive/menu.py` | 83% | Navegação e edge cases do menu |
 
-   **Estado atual (mar/2026):**
-   - `add_document()` chamado em 11 pontos (5 API, 5 CLI, 1 webhook) — todos criam, executam, descartam
-   - `get_document()` nunca chamado em produção (só 2 testes)
-   - `get_analysis()`, `add_variant()`, `get_variant()` — nunca chamados por ninguém
-   - `self.documents` dict cresce sem limite (memory leak lento, inofensivo pro uso local)
-   - `Document._analyses` é populado pelo `execute_plugin` mas nunca lido (resultados vão pro cache e pro response direto)
+---
 
-   **Onde faria sentido no futuro:**
-   - Sessões de análise interativa no frontend (múltiplas análises no mesmo doc, acumulando)
-   - Pipeline stateful onde plugin B lê resultado do plugin A via `doc.get_analysis("A")`
-   - Consumers stateful (DeepVoC, Observatório) que mantêm histórico de análises
+## Roadmap
 
-   **Hoje esses cenários já são cobertos** pelo CacheManager (resultados cacheados por doc_id+plugin_id+config) e pelo DependencyResolver (deps executadas automaticamente). O Document stateful seria uma camada adicional de conveniência.
+### Plugins (próxima fronteira)
 
-   **Arquivos envolvidos (não deletar sem decisão):**
-   - `qualia/core/models.py` — Document class (campos: `_analyses`, `_variants`, `_cache`; métodos: `add_analysis`, `get_analysis`, `add_variant`, `get_variant`)
-   - `qualia/core/engine.py` — `self.documents` dict, `add_document()`, `get_document()`, `self.pipelines`, `save_pipeline()`
-   - `qualia/core/engine.py:135` — `document.add_analysis(plugin_id, result)` dentro do `execute_plugin`
+A infra está pronta (DependencyResolver com ordenação topológica, cache LRU/TTL, loading eager/lazy, base classes thread-safe). Próximos plugins candidatos:
 
-   **Decisão pendente:** limpar (remover dict e dead code) ou evoluir (adicionar TTL/LRU e implementar sessões). Deferida até haver use case concreto.
+- **NLP pesado** — spaCy (NER, POS tagging), sentence-transformers (embeddings)
+- **Topic modeling** — BERTopic, LDA
+- **LLM** — integração com APIs de LLM pra análise semântica
+- **Clustering** — agrupamento de documentos por similaridade
 
-## Comportamento
+Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_impl()`. Core descobre automaticamente.
 
-- [x] Pipeline fail-fast vs fail-soft — definir comportamento claro em falha de step
+### Frontend
 
-## Cobertura de Testes
+- Página de Workflow (pipeline builder visual)
+- Sessões de análise (múltiplos plugins no mesmo documento, resultados acumulando)
 
-Sessão de 2026-03-17: de 237 testes (42%) para 610 testes (84%).
+### Ecossistema
 
-Módulos ainda abaixo de 90%:
-- `core/__init__.py` — 83% (interfaces abstratas + edge cases)
-- `api/__init__.py` — 91% (SPA fallback, import errors)
-- `commands/batch.py` — 80%
-- `commands/export.py` — 86%
-- `interactive/wizards.py` — 80%
-- `interactive/menu.py` — 83%
+- **CodeMarker** — evoluir PoC pra integração completa (hoje só word_frequency)
+- **Consumers** — DeepVoC e Observatório consumindo Qualia via API
 
-## Feito nesta sessão
+---
 
-- [x] Remover código morto (run_api.py, api/run.py, cli/commands.py)
-- [x] Remover módulos vazios (document_lab, para_meta, quali_metrics, visual_engine)
-- [x] Remover protection morta (auto_protection.py, protected_bases.py)
+## Concluído
+
+### Sprint 2026-03-17 (saneamento)
+
+- [x] Dividir `api/__init__.py` (694→111 linhas) em deps, schemas, routes/
+- [x] Quebrar `core/__init__.py` (902→47 linhas) em 7 módulos
+- [x] Integrar DependencyResolver no execute_plugin (field-name→plugin-id, detecção de ciclos)
+- [x] Limpar dívidas técnicas (validate_config consistente, wizard stubs, TODOs)
+- [x] Pipeline fail-fast com RuntimeError descritivo
+- [x] Coverage de 42% → 84% (237→615 testes)
+- [x] Remover código morto (run_api.py, módulos vazios, protection morta)
 - [x] Migrar setup.py → pyproject.toml
-- [x] Organizar docs (históricos → docs/morto/, ignorado pelo git)
-- [x] Adicionar coverage ao CI
-- [x] Alinhar Python 3.13 no Dockerfile + corrigir entrypoint
-- [x] Arquivar planos finalizados
-- [x] Coverage de 42% → 84% (373 testes novos)
-- [x] Dividir api/__init__.py (694→111 linhas) em deps, schemas, routes/
-- [x] Corrigir Makefile (targets quebrados, referências mortas)
-- [x] Remover test_suite.py legado (esperava 6 plugins, usava run_api.py)
-- [x] Limpar docker-compose (remover prometheus/grafana/redis fantasma)
-- [x] Atualizar README (237→610 testes)
+- [x] Organizar docs (mortos → docs/morto/)
+- [x] CI com coverage no GitHub Actions
+- [x] Dockerfile + docker-compose limpos
+- [x] Makefile corrigido
+- [x] Instalar pytest-timeout
+
+---
+
+## Referência: Document stateful
+
+O design original (jun/2025) era inspirado no spaCy — Document como hub central que acumula análises. Na prática, o Qualia é stateless (cada request cria Document efêmero, executa, descarta).
+
+**Dead code confirmado:**
+- `get_document()` — 0 chamadas em produção
+- `get_analysis()` — 0 chamadas
+- `add_variant()` / `get_variant()` — 0 chamadas
+- `self.documents` dict — só cresce, nunca limpo
+- `self.pipelines` / `save_pipeline()` — nunca usado
+
+**Cenários futuros onde faria sentido:**
+- Sessões de análise interativa no frontend
+- Pipeline stateful (plugin B lê resultado do plugin A via doc)
+- Consumers stateful (DeepVoC, Observatório)
+
+**Hoje já coberto por:** CacheManager (resultados por doc_id+plugin_id+config) e DependencyResolver (deps automáticas).
+
+**Arquivos envolvidos (não deletar sem decisão):**
+- `qualia/core/models.py` — Document class (`_analyses`, `_variants`, `_cache`)
+- `qualia/core/engine.py` — `self.documents`, `add_document()`, `get_document()`, `self.pipelines`, `save_pipeline()`
