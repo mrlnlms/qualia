@@ -35,9 +35,9 @@ class DependencyResolver:
         for field_name in metadata.provides:
             if field_name in self._provides_map:
                 existing = self._provides_map[field_name]
-                logger.warning(
-                    f"Campo '{field_name}' já fornecido por '{existing}', "
-                    f"sobrescrito por '{plugin_id}'"
+                raise ValueError(
+                    f"Colisão de provides: campo '{field_name}' fornecido por "
+                    f"'{existing}' e '{plugin_id}'. Renomeie um deles."
                 )
             self._provides_map[field_name] = plugin_id
 

@@ -22,7 +22,7 @@ class WordCloudVisualizer(BaseVisualizerPlugin):
             version="1.0.0",
             description="Gera nuvens de palavras a partir de frequências",
             requires=["word_frequencies"],  # Precisa deste campo nos dados
-            provides=["visualization_path", "visualization_html"],
+            provides=[],  # Visualizers retornam Path, não dict — sem provides
             parameters={
                 "max_words": {
                     "type": "integer",

@@ -28,7 +28,7 @@ class SentimentVisualizer(BaseVisualizerPlugin):
             type=PluginType.VISUALIZER,
             version="1.0.0",
             description="Visualiza resultados de análise de sentimento",
-            provides=["sentiment_visualization"],
+            provides=[],  # Visualizers retornam Path, não dict — sem provides
             requires=["polarity", "subjectivity"],  # Do sentiment_analyzer
             parameters={
                 "chart_type": {

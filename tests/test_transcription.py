@@ -53,7 +53,7 @@ class TestMeta:
     def test_meta_provides(self, plugin):
         provides = plugin.meta().provides
         assert "transcription" in provides
-        assert "language" in provides
+        assert "detected_language" in provides
         assert "duration" in provides
 
     def test_meta_parameters(self, plugin):

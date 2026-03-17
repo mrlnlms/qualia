@@ -49,7 +49,7 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             name="Audio/Video Transcription",
             description="Transcreve arquivos de áudio e vídeo usando Groq Whisper API",
             version="0.1.0",
-            provides=["transcription", "language", "duration"],
+            provides=["transcription", "detected_language", "duration"],
             requires=[],
             parameters={
                 "language": {
@@ -87,7 +87,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": "Nenhum arquivo fornecido. Use o endpoint /transcribe com upload de arquivo.",
             }
@@ -99,7 +100,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": f"Arquivo não encontrado: {file_path}",
             }
@@ -111,7 +113,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": (
                     f"Arquivo muito grande: {size_mb:.1f}MB. "
@@ -124,7 +127,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": "Groq não instalado. Execute: pip install groq",
             }
@@ -135,7 +139,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": "GROQ_API_KEY não configurada no ambiente.",
             }
@@ -163,10 +168,12 @@ class TranscriptionPlugin(BaseDocumentPlugin):
                     **api_kwargs,
                 )
 
+            detected = getattr(transcription, "language", "unknown")
             return {
                 "transcription": transcription.text,
                 "status": "completed",
-                "language": getattr(transcription, "language", "unknown"),
+                "detected_language": detected,
+                "language": detected,  # backward compat
                 "duration": getattr(transcription, "duration", None),
                 "error": None,
             }
@@ -175,7 +182,8 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             return {
                 "transcription": None,
                 "status": "error",
-                "language": None,
+                "detected_language": None,
+                "language": None,  # backward compat
                 "duration": None,
                 "error": f"Erro na transcrição: {str(e)}",
             }

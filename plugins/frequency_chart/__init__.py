@@ -22,7 +22,7 @@ class FrequencyChartVisualizer(BaseVisualizerPlugin):
             version="1.0.0",
             description="Gera gráficos de frequência (barras, linha, área)",
             requires=["word_frequencies"],  # ou ["frequencies"] genérico
-            provides=["chart_path", "chart_html"],
+            provides=[],  # Visualizers retornam Path, não dict — sem provides
             parameters={
                 "chart_type": {
                     "type": "choice",
