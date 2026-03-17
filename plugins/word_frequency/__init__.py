@@ -59,9 +59,12 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
         """
         try:
             import nltk
-            nltk.download('stopwords', quiet=True)
-            nltk.download('punkt', quiet=True)
-            nltk.download('punkt_tab', quiet=True)
+            # Só baixa se não estiver em cache local (evita tentativa de rede)
+            for resource in ('stopwords', 'punkt', 'punkt_tab'):
+                try:
+                    nltk.data.find(f'corpora/{resource}' if resource == 'stopwords' else f'tokenizers/{resource}')
+                except LookupError:
+                    nltk.download(resource, quiet=True)
             self._nltk_available = True
 
             # Forçar LazyCorpusLoader a resolver agora (single-threaded)

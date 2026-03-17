@@ -170,7 +170,7 @@ qualia/
 │       ├── templates/  # Templates HTML da API (ex: dashboard de monitoramento)
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
-├── tests/              # 726 testes (pytest, 90% coverage)
+├── tests/              # 700+ testes (pytest, 90% coverage)
 ├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
 ├── tools/              # Utilitários (gerador de plugins)
 ├── Dockerfile          # Build multi-stage (Python 3.13)
@@ -199,7 +199,7 @@ qualia/
 - Resolução automática de dependências entre plugins (topológica, com detecção de ciclos)
 - Menu interativo modularizado em fachada + actions + services
 - Integração validada com CodeMarker (plugin Obsidian)
-- 726 testes (90% coverage)
+- 700+ testes (90% coverage)
 
 **Limitações conhecidas:**
 - Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo

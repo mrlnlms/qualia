@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (733 passando, 90% coverage)
+## Testes (700+ passando, 90% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -132,8 +132,10 @@ Request (worker thread via asyncio.to_thread):
   plugin.analyze(doc, config, context)
 ```
 
-Startup medido (8 plugins): ~910ms
-- 2 eager: word_frequency (139ms), sentiment_analyzer (455ms)
+Startup medido (8 plugins):
+- Primeiro startup (cold — NLTK download/validação): ~910ms
+- Startups subsequentes (warm — NLTK em cache local): ~500ms
+- 2 eager: word_frequency (~139ms), sentiment_analyzer (~455ms)
 - 6 lazy: ~0ms cada (instanciam sob demanda)
 
 ## Cache
