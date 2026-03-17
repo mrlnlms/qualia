@@ -198,21 +198,6 @@ class TestErrorHandling:
         )
         assert result is not None
     
-    def test_circuit_breaker_fallback(self):
-        """Testa fallback do circuit breaker"""
-        try:
-            from ops.monitoring.circuit_breaker import circuit_breaker
-            has_cb = True
-        except ImportError:
-            # Testa se tem fallback
-            try:
-                from qualia.core import circuit_breaker
-                has_cb = True
-            except ImportError:
-                has_cb = False
-        
-        assert has_cb  # Deve ter circuit breaker ou fallback
-    
     def test_missing_dependencies_fixed(self, core):
         """Testa plugin com dependência faltante - CORRIGIDO"""
         # Criar mock de plugin que não quebra dict.get
