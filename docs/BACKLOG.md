@@ -9,7 +9,7 @@ Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesm
 
 ## Infra do Engine (preparar para plugins pesados)
 
-3. [ ] **Integrar DependencyResolver no execute_plugin** — Hoje o engine faz resolução manual de deps (loop recursivo inline, sem detecção de ciclo — stack overflow silencioso). O `DependencyResolver` existe em `resolver.py` com ordenação topológica e detecção de ciclos, mas nunca é chamado. Refatorar `execute_plugin` para: (1) chamar `resolver.resolve([plugin_id])` antes de executar, (2) executar deps na ordem topológica retornada, (3) proteger contra ciclos com erro descritivo. Motivação: plugins futuros (LLM, BERTopic, spaCy) terão chains de deps complexas — a infra precisa estar pronta.
+3. [x] ~~Integrar DependencyResolver no execute_plugin — ordenação topológica, detecção de ciclos, resolução field-name→plugin-id via provides_map~~
 
 4. [ ] **Simplificar `self.documents` no engine** — `add_document()` acumula Documents num dict que só cresce (memory leak lento). `get_document()` nunca é chamado por ninguém. Toda request cria um Document, passa pro `execute_plugin`, e nunca mais recupera. Opção: `add_document()` criar e retornar sem guardar, remover `get_document()`. Baixa prioridade — inofensivo pro uso local atual.
 
