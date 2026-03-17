@@ -32,12 +32,16 @@ qualia/
     __init__.py   # QualiaCore — orquestrador principal
     config.py     # ConfigurationRegistry (normalização, validação, calibração)
   cli/commands/   # 11 comandos Click (analyze, batch, export, watch, etc.)
-  api/            # FastAPI — REST endpoints + monitor SSE + webhooks
-    __init__.py   # App FastAPI, monta StaticFiles + SPA catch-all
+  api/            # FastAPI — REST API
+    __init__.py   # Bootstrap mínimo (~110 linhas): app, CORS, routers, SPA
+    deps.py       # Dependências compartilhadas (get_core, track, HAS_EXTENSIONS)
+    schemas.py    # Modelos Pydantic (request/response)
+    routes/       # Endpoints por domínio (analyze, process, visualize, pipeline, etc.)
     monitor.py    # Dashboard tempo real via SSE
+    webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core
-tests/            # pytest
+tests/            # pytest (610 testes, 84% coverage)
 ```
 
 ## Plugins

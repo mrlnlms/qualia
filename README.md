@@ -156,15 +156,18 @@ qualia/
 │   ├── cli/            # Interface de terminal (Click + Rich)
 │   │   └── commands/   # 11 comandos (analyze, batch, export, watch, etc.)
 │   └── api/            # REST API (FastAPI)
+│       ├── deps.py     # Dependências compartilhadas (core singleton, tracking)
+│       ├── schemas.py  # Modelos Pydantic (request/response)
+│       ├── routes/     # Endpoints por domínio (analyze, visualize, pipeline, etc.)
 │       ├── monitor.py  # Dashboard de monitoramento em tempo real (SSE)
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
-├── tests/              # Testes (pytest)
+├── tests/              # 610 testes (pytest, 84% coverage)
 ├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
 ├── ops/                # Scripts operacionais (backup, monitoramento)
 ├── tools/              # Utilitários (gerador de plugins)
-├── Dockerfile          # Build multi-stage
-└── docker-compose.yml  # API + nginx + Redis + Prometheus (opcional)
+├── Dockerfile          # Build multi-stage (Python 3.13)
+└── docker-compose.yml  # API + nginx (opcional)
 ```
 
 ## Stack

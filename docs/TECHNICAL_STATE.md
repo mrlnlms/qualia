@@ -1,6 +1,6 @@
 # Qualia Core — Estado Técnico
 
-Última atualização: 2026-03-16
+Última atualização: 2026-03-17
 
 ## Plugins (8)
 
@@ -15,24 +15,49 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (237 passando)
+## Testes (610 passando, 84% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
 | test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
 | test_plugin_logic.py | 40 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
-| test_cli.py | 21 | Comandos Click: list, analyze, pipeline, batch, export, config |
+| test_cli.py | 49 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
+| test_cli_extended.py | 46 | Visualize, batch, export — happy paths e edge cases |
+| test_cli_config_watch.py | 33 | Config validate/create/list, watch command, QualiaFileHandler |
+| test_cli_interactive.py | 95 | Handlers, menu, utils, wizards — módulo interactive completo |
+| test_cli_remaining.py | 72 | Init, list, watch, export, visualize, tutorials — gaps restantes |
+| test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
 | test_api.py | 20 | Endpoints REST: health, plugins, analyze, file upload |
+| test_api_extended.py | 44 | Todos endpoints com variações, timeout, file upload, pipeline |
 | test_webhooks.py | 19 | WebhookProcessor, GenericWebhook, endpoints /webhook/* |
 | test_pragmatic.py | 18 | Contratos de plugin, pipeline, usage real |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_core.py | 16 | Discovery, documents, execution, cache básico |
 | test_cache_lru.py | 15 | LRU eviction, TTL expiration, stats, backward compat |
 | test_cache_deps.py | 15 | CacheManager hit/miss, DependencyResolver ciclos |
-| test_monitor.py | 12 | Metrics, track_request, track_webhook, SSE, dashboard |
+| test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
 | test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
-| test_suite.py | ~11 | Suite manual orquestradora |
+
+## API — Estrutura modular
+
+```
+qualia/api/
+  __init__.py     # Bootstrap (~110 linhas): app, CORS, router mounting, SPA catch-all
+  deps.py         # get_core(), track(), HAS_EXTENSIONS
+  schemas.py      # 5 modelos Pydantic + plugin_to_info helper
+  routes/
+    health.py     # GET /, /api, /health, /cache/stats
+    plugins.py    # GET /plugins, /plugins/{id}
+    analyze.py    # POST /analyze/{id}, /analyze/{id}/file
+    process.py    # POST /process/{id}
+    visualize.py  # POST /visualize/{id}
+    pipeline.py   # POST /pipeline
+    config.py     # GET /plugins/{id}/schema, /config/consolidated, POST /config/resolve
+    transcribe.py # POST /transcribe/{id}
+  monitor.py      # Dashboard tempo real via SSE
+  webhooks.py     # Webhook genérico
+```
 
 ## API endpoints
 
@@ -47,7 +72,7 @@
 | POST | /process/{id} | Processamento de documento |
 | POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart) |
 | POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML) |
-| POST | /pipeline | Executa sequência de plugins |
+| POST | /pipeline | Executa sequência de plugins (fail-fast) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
 | POST | /config/resolve | Resolve config com text_size |
 | GET | /cache/stats | Estatísticas do cache (size, hits, misses, evictions) |
@@ -112,5 +137,5 @@ Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__i
 
 GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Trigger: push e PR na main
-- Python 3.13, `pip install -r requirements.txt`, `pytest tests/ -v`
+- Python 3.13, `pip install -r requirements.txt`, `pytest tests/ -v --cov=qualia`
 - Verifica startup da API

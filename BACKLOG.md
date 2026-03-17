@@ -4,7 +4,7 @@ Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesm
 
 ## Refatoração (prioridade técnica)
 
-1. [ ] Dividir `qualia/api/__init__.py` (694 linhas) — separar bootstrap, schemas e rotas. Manter `qualia.api:app` como contrato público
+1. [x] ~~Dividir `qualia/api/__init__.py` (694→111 linhas) — deps.py, schemas.py, routes/~~
 2. [ ] Quebrar `qualia/core/__init__.py` (902 linhas) — separar em contracts, models, loader, cache, executor, pipeline. Manter re-exports no `__init__.py` pra não quebrar imports
 
 ## Comportamento
@@ -34,3 +34,8 @@ Módulos ainda abaixo de 90%:
 - [x] Alinhar Python 3.13 no Dockerfile + corrigir entrypoint
 - [x] Arquivar planos finalizados
 - [x] Coverage de 42% → 84% (373 testes novos)
+- [x] Dividir api/__init__.py (694→111 linhas) em deps, schemas, routes/
+- [x] Corrigir Makefile (targets quebrados, referências mortas)
+- [x] Remover test_suite.py legado (esperava 6 plugins, usava run_api.py)
+- [x] Limpar docker-compose (remover prometheus/grafana/redis fantasma)
+- [x] Atualizar README (237→610 testes)
