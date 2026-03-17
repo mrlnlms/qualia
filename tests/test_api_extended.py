@@ -178,14 +178,14 @@ class TestAnalyzeFile:
         assert data["status"] == "success"
 
     def test_analyze_file_invalid_plugin(self, client):
-        """Upload para plugin inexistente deve retornar erro"""
+        """Upload para plugin inexistente deve retornar 404"""
         file_data = io.BytesIO(b"qualquer texto")
         response = client.post(
             "/analyze/plugin_fantasma/file",
             files={"file": ("test.txt", file_data, "text/plain")},
             data={"config": "{}", "context": "{}"},
         )
-        assert response.status_code == 400
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -214,12 +214,12 @@ class TestProcessEndpoint:
         assert "processed_text" in data
 
     def test_process_invalid_plugin(self, client):
-        """Plugin inexistente retorna erro"""
+        """Plugin inexistente retorna 404"""
         response = client.post(
             "/process/plugin_invalido",
             json={"text": "qualquer texto", "config": {}},
         )
-        assert response.status_code == 400
+        assert response.status_code == 404
 
 
 # ============================================================================
@@ -754,8 +754,7 @@ class TestAPIEdgeCases:
             assert response.status_code == 500
             data = response.json()
             assert data["status"] == "error"
-            assert "Internal server error" in data["message"]
-            assert "erro interno simulado" in data["message"]
+            assert data["message"] == "Internal server error"
         finally:
             test_app.routes.remove(test_route)
 

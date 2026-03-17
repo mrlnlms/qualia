@@ -16,6 +16,8 @@ router = APIRouter()
 async def analyze(plugin_id: str, request: AnalyzeRequest):
     """Execute an analyzer plugin on text"""
     core = get_core()
+    if plugin_id not in core.registry:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
     try:
         registry = core.get_config_registry()
         if registry and request.config:
@@ -27,7 +29,14 @@ async def analyze(plugin_id: str, request: AnalyzeRequest):
                 )
 
         doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config, request.context)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config, request.context),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            await track(f"/analyze/{plugin_id}", plugin_id, "timeout")
+            raise HTTPException(status_code=504, detail="Plugin execution timed out (60s)")
         await track(f"/analyze/{plugin_id}", plugin_id)
 
         return {
@@ -51,6 +60,8 @@ async def analyze_file(
 ):
     """Execute an analyzer plugin on uploaded file"""
     core = get_core()
+    if plugin_id not in core.registry:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
     try:
         config_dict = json.loads(config)
         context_dict = json.loads(context)
@@ -68,7 +79,14 @@ async def analyze_file(
                 )
 
         doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict, context_dict)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict, context_dict),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            await track(f"/analyze/{plugin_id}/file", plugin_id, "timeout")
+            raise HTTPException(status_code=504, detail="Plugin execution timed out (60s)")
         await track(f"/analyze/{plugin_id}/file", plugin_id)
 
         return {

@@ -88,7 +88,7 @@ async def notify_streams():
     for stream in list(active_streams):
         try:
             await stream.put(json.dumps(event_data))
-        except:
+        except Exception:
             active_streams.discard(stream)
 
 # SSE endpoint

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, HTTPException
 
-from qualia.api.deps import get_core
+from qualia.api.deps import get_core, track
 from qualia.api.schemas import ConfigResolveRequest
 
 router = APIRouter()
@@ -24,14 +24,16 @@ def get_plugin_schema(plugin_id: str):
 
 
 @router.get("/config/consolidated")
-def get_consolidated_config():
+async def get_consolidated_config():
     """Get consolidated view of all schemas and text_size rules"""
     core = get_core()
     registry = core.get_config_registry()
     if not registry:
         raise HTTPException(status_code=503, detail="ConfigurationRegistry not initialized")
 
-    return registry.get_consolidated_view()
+    result = registry.get_consolidated_view()
+    await track("/config/consolidated", "config")
+    return result
 
 
 @router.post("/config/resolve")

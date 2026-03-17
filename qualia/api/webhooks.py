@@ -11,6 +11,7 @@ from typing import Dict, Any, Optional
 import hmac
 import hashlib
 import json
+import logging
 from datetime import datetime
 import asyncio
 from enum import Enum
@@ -77,9 +78,13 @@ class WebhookProcessor:
                 "result": result
             }
             
+        except HTTPException:
+            self.stats["total_errors"] += 1
+            raise
         except Exception as e:
             self.stats["total_errors"] += 1
-            raise HTTPException(status_code=500, detail=str(e))
+            logging.getLogger("qualia.api").error("Webhook error: %s", e, exc_info=True)
+            raise HTTPException(status_code=500, detail="Erro interno no processamento do webhook")
     
     async def verify_signature(self, payload: Dict[str, Any], headers: Dict[str, str]) -> bool:
         """Verify webhook signature. Override in subclasses."""

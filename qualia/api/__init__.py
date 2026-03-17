@@ -8,6 +8,7 @@ Lógica de endpoints em qualia/api/routes/.
 from dotenv import load_dotenv
 load_dotenv()
 
+import logging
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -69,22 +70,18 @@ app.include_router(transcribe_router)
 # Exception handlers
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={
-            "status": "error",
-            "message": exc.detail
-        }
-    )
+    if isinstance(exc.detail, dict):
+        content = {"status": "error", **exc.detail}
+    else:
+        content = {"status": "error", "message": exc.detail}
+    return JSONResponse(status_code=exc.status_code, content=content)
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request, exc):
+    logging.getLogger("qualia.api").error("Unhandled exception: %s", exc, exc_info=True)
     return JSONResponse(
         status_code=500,
-        content={
-            "status": "error",
-            "message": f"Internal server error: {str(exc)}"
-        }
+        content={"status": "error", "message": "Internal server error"}
     )
 
 

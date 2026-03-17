@@ -16,9 +16,18 @@ router = APIRouter()
 async def process(plugin_id: str, request: ProcessRequest):
     """Execute a document processor plugin"""
     core = get_core()
+    if plugin_id not in core.registry:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
     try:
         doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config)
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config),
+                timeout=60.0
+            )
+        except asyncio.TimeoutError:
+            await track(f"/process/{plugin_id}", plugin_id, "timeout")
+            raise HTTPException(status_code=504, detail="Plugin execution timed out (60s)")
 
         if isinstance(result, Document):
             result = result.content
