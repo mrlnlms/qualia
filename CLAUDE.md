@@ -57,7 +57,7 @@ qualia/
     webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core
-tests/            # pytest (726 testes, 90% coverage)
+tests/            # pytest (700+ testes, 90% coverage)
 ```
 
 ## Plugins
@@ -67,6 +67,8 @@ Tipos: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
 O core descobre plugins automaticamente — basta criar pasta em `plugins/` com `__init__.py` que exporte a classe. Sem registro manual.
 
 **Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_viz, frequency_chart, sentiment_viz.
+
+**Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Dois plugins não podem fornecer o mesmo campo (ValueError no startup). Visualizers não declaram provides (retornam Path, não dict).
 
 **Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Template: `tools/create_plugin.py`.
 

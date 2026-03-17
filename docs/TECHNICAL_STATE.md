@@ -162,6 +162,15 @@ Stats via `GET /cache/stats`:
 {"size": 42, "max_size": 0, "ttl": 0, "hits": 128, "misses": 15, "evictions": 0}
 ```
 
+## Provides e dependências
+
+`provides` é contrato: campos que o resultado do plugin DEVE conter.
+
+- **Analyzers/Documents:** declaram provides, engine valida com warning se resultado não contém os campos
+- **Visualizers:** `provides=[]` (retornam Path, engine envolve em `{"output_path": ...}`)
+- **Colisão:** dois plugins com mesmo campo em provides → `ValueError` no startup (fail-fast)
+- **Resolver:** field names em `requires` são resolvidos automaticamente via `provides_map` → plugin ID
+
 ## Thread-safety
 
 Plugins são singletons compartilhados entre worker threads.
