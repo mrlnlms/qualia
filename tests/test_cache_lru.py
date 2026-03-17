@@ -145,6 +145,19 @@ class TestTTLExpiration:
         pkl_files_after = list(cache_dir.glob("*.pkl"))
         assert len(pkl_files_after) == 0
 
+    def test_expired_item_cleans_reverse_index(self, ttl_cache):
+        """TTL expiration limpa índices reversos (sem chaves zumbis)"""
+        ttl_cache.set("d1", "p", {}, {"v": 1})
+        assert "d1" in ttl_cache._doc_index
+        assert "p" in ttl_cache._plugin_index
+
+        for key in ttl_cache._timestamps:
+            ttl_cache._timestamps[key] = time.time() - 2
+
+        ttl_cache.get("d1", "p", {})  # trigger cleanup
+        assert "d1" not in ttl_cache._doc_index
+        assert "p" not in ttl_cache._plugin_index
+
     def test_ttl_zero_means_no_expiration(self, cache):
         """ttl=0 (default) → sem expiração"""
         cache.set("d1", "p", {}, {"v": 1})
@@ -219,6 +232,19 @@ class TestBackwardCompat:
         # Todos devem retornar None
         for i in range(5):
             assert cache.get(f"d{i}", "p", {}) is None
+
+    def test_corrupt_cache_cleans_reverse_index(self, cache, cache_dir):
+        """Arquivo corrompido limpa índices reversos (sem chaves zumbis)"""
+        cache.set("d1", "p", {}, {"v": 1})
+        assert "d1" in cache._doc_index
+
+        # Corromper o arquivo
+        for pkl in cache_dir.glob("*.pkl"):
+            pkl.write_bytes(b"corrupted")
+
+        cache.get("d1", "p", {})  # trigger cleanup
+        assert "d1" not in cache._doc_index
+        assert "p" not in cache._plugin_index
 
     def test_existing_cache_tests_still_pass(self, cache):
         """Reproduz cenários do test_cache_deps.py pra garantir regressão"""
@@ -304,6 +330,28 @@ class TestCacheInvalidate:
 
         cache.invalidate(doc_id="doc1")
         assert len(list(cache_dir.glob("*.pkl"))) == 1
+
+    def test_invalidate_cleans_empty_buckets(self, cache):
+        """Buckets vazios são removidos dos índices após invalidação"""
+        cache.set("doc1", "plugin_a", {}, {"v": 1})
+        assert "doc1" in cache._doc_index
+        assert "plugin_a" in cache._plugin_index
+
+        cache.invalidate(doc_id="doc1")
+        assert "doc1" not in cache._doc_index
+        # plugin_a bucket também vazio → removido
+        assert "plugin_a" not in cache._plugin_index
+
+    def test_evict_lru_cleans_empty_buckets(self, cache_dir):
+        """LRU eviction remove buckets vazios dos índices"""
+        lru = CacheManager(cache_dir, max_size=1)
+        lru.set("d1", "p1", {}, {"v": 1})
+        lru.set("d2", "p2", {}, {"v": 2})  # evicta d1
+
+        assert "d1" not in lru._doc_index
+        assert "p1" not in lru._plugin_index
+        assert "d2" in lru._doc_index
+        assert "p2" in lru._plugin_index
 
     def test_evict_lru_empty_access_order(self, cache_dir):
         """_evict_lru() com _access_order vazio retorna sem fazer nada"""

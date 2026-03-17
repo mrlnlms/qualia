@@ -53,11 +53,7 @@ class CacheManager:
             if self.ttl > 0 and cache_key in self._timestamps:
                 age = time.time() - self._timestamps[cache_key]
                 if age > self.ttl:
-                    # Expirado
-                    cache_file.unlink(missing_ok=True)
-                    self._timestamps.pop(cache_key, None)
-                    if cache_key in self._access_order:
-                        self._access_order.remove(cache_key)
+                    self._remove_entry(cache_key)
                     self._misses += 1
                     return None
 
@@ -71,11 +67,7 @@ class CacheManager:
                 self._hits += 1
                 return result
             except Exception:
-                # Cache corrompido, ignora
-                cache_file.unlink(missing_ok=True)
-                self._timestamps.pop(cache_key, None)
-                if cache_key in self._access_order:
-                    self._access_order.remove(cache_key)
+                self._remove_entry(cache_key)
 
         self._misses += 1
         return None
@@ -113,8 +105,13 @@ class CacheManager:
         if cache_key in self._access_order:
             self._access_order.remove(cache_key)
         for index in (self._doc_index, self._plugin_index):
-            for key_set in index.values():
+            empty_keys = []
+            for idx_key, key_set in index.items():
                 key_set.discard(cache_key)
+                if not key_set:
+                    empty_keys.append(idx_key)
+            for idx_key in empty_keys:
+                del index[idx_key]
 
     def _evict_lru(self) -> None:
         """Remove a entrada menos recentemente usada"""

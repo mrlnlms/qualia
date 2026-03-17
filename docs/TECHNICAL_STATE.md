@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (729 passando, 90% coverage)
+## Testes (733 passando, 90% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -33,7 +33,7 @@
 | test_pragmatic.py | 18 | Contratos de plugin, pipeline, usage real |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_core.py | 16 | Discovery, documents, execution, cache básico |
-| test_cache_lru.py | 19 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
+| test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva, limpeza de índices |
 | test_cache_deps.py | 15 | CacheManager hit/miss, DependencyResolver ciclos |
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
