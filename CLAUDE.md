@@ -48,7 +48,7 @@ qualia/
     webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core
-tests/            # pytest (706 testes, 90% coverage)
+tests/            # pytest (726 testes, 90% coverage)
 ```
 
 ## Plugins

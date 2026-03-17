@@ -43,7 +43,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-727 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+726 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
@@ -56,7 +56,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - [x] Integrar DependencyResolver no execute_plugin (field-name→plugin-id, detecção de ciclos)
 - [x] Limpar dívidas técnicas (validate_config consistente, wizard stubs, TODOs)
 - [x] Pipeline fail-fast com RuntimeError descritivo
-- [x] Coverage de 42% → 90% (237→727 testes, todos módulos de produção acima de 90%)
+- [x] Coverage de 42% → 90% (237→726 testes, todos módulos de produção acima de 90%)
 - [x] Remover código morto (run_api.py, módulos vazios, protection morta)
 - [x] Migrar setup.py → pyproject.toml
 - [x] Organizar docs (mortos → docs/morto/)
