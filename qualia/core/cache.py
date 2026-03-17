@@ -7,6 +7,7 @@ import hashlib
 import json
 import pickle
 import time
+from collections import OrderedDict
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -25,8 +26,8 @@ class CacheManager:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.max_size = max_size
         self.ttl = ttl
-        # Ordem de acesso (mais recente no final)
-        self._access_order: list = []
+        # Ordem de acesso (mais recente no final) — OrderedDict para O(1) em move/delete
+        self._access_order: OrderedDict = OrderedDict()
         # Timestamps de criação
         self._timestamps: Dict[str, float] = {}
         # Contadores
@@ -61,9 +62,7 @@ class CacheManager:
                 with open(cache_file, 'rb') as f:
                     result = pickle.load(f)
                 # Atualizar ordem LRU
-                if cache_key in self._access_order:
-                    self._access_order.remove(cache_key)
-                self._access_order.append(cache_key)
+                self._access_order.move_to_end(cache_key, last=True)
                 self._hits += 1
                 return result
             except Exception:
@@ -88,9 +87,8 @@ class CacheManager:
             pickle.dump(result, f)
 
         # Atualizar tracking
-        if cache_key in self._access_order:
-            self._access_order.remove(cache_key)
-        self._access_order.append(cache_key)
+        self._access_order[cache_key] = None
+        self._access_order.move_to_end(cache_key, last=True)
         self._timestamps[cache_key] = time.time()
 
         # Registrar no índice reverso
@@ -102,8 +100,7 @@ class CacheManager:
         cache_file = self.cache_dir / f"{cache_key}.pkl"
         cache_file.unlink(missing_ok=True)
         self._timestamps.pop(cache_key, None)
-        if cache_key in self._access_order:
-            self._access_order.remove(cache_key)
+        self._access_order.pop(cache_key, None)
         for index in (self._doc_index, self._plugin_index):
             empty_keys = []
             for idx_key, key_set in index.items():
@@ -117,7 +114,7 @@ class CacheManager:
         """Remove a entrada menos recentemente usada"""
         if not self._access_order:
             return
-        oldest_key = self._access_order[0]
+        oldest_key = next(iter(self._access_order))
         self._remove_entry(oldest_key)
         self._evictions += 1
 

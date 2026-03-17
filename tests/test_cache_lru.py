@@ -356,6 +356,6 @@ class TestCacheInvalidate:
     def test_evict_lru_empty_access_order(self, cache_dir):
         """_evict_lru() com _access_order vazio retorna sem fazer nada"""
         cm = CacheManager(cache_dir, max_size=3)
-        assert cm._access_order == []
+        assert len(cm._access_order) == 0
         cm._evict_lru()
         assert cm.stats()["evictions"] == 0
