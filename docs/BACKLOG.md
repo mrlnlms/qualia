@@ -7,6 +7,12 @@ Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesm
 1. [x] ~~Dividir `qualia/api/__init__.py` (694→111 linhas) — deps.py, schemas.py, routes/~~
 2. [x] ~~Quebrar `qualia/core/__init__.py` (902→47 linhas) — interfaces, models, base_plugins, resolver, cache, loader, engine. Re-exports no `__init__.py`~~
 
+## Infra do Engine (preparar para plugins pesados)
+
+3. [ ] **Integrar DependencyResolver no execute_plugin** — Hoje o engine faz resolução manual de deps (loop recursivo inline, sem detecção de ciclo — stack overflow silencioso). O `DependencyResolver` existe em `resolver.py` com ordenação topológica e detecção de ciclos, mas nunca é chamado. Refatorar `execute_plugin` para: (1) chamar `resolver.resolve([plugin_id])` antes de executar, (2) executar deps na ordem topológica retornada, (3) proteger contra ciclos com erro descritivo. Motivação: plugins futuros (LLM, BERTopic, spaCy) terão chains de deps complexas — a infra precisa estar pronta.
+
+4. [ ] **Simplificar `self.documents` no engine** — `add_document()` acumula Documents num dict que só cresce (memory leak lento). `get_document()` nunca é chamado por ninguém. Toda request cria um Document, passa pro `execute_plugin`, e nunca mais recupera. Opção: `add_document()` criar e retornar sem guardar, remover `get_document()`. Baixa prioridade — inofensivo pro uso local atual.
+
 ## Comportamento
 
 - [x] Pipeline fail-fast vs fail-soft — definir comportamento claro em falha de step
