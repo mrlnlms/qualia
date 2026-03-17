@@ -35,18 +35,25 @@ def analyze(document_path: str, plugin: str, config: str, param: tuple,
     if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list' para ver plugins disponíveis.")
-        return
-    
+        raise SystemExit(1)
+
     # Verificar se é analyzer
     plugin_meta = core.registry[plugin]
     if plugin_meta.type != PluginType.ANALYZER:
         console.print(f"[red]'{plugin}' não é um analyzer! Tipo: {plugin_meta.type.value}[/red]")
-        return
+        raise SystemExit(1)
     
     # Ler documento
     doc_path = Path(document_path)
     with console.status(f"[bold green]Lendo {doc_path.name}..."):
-        content = doc_path.read_text(encoding='utf-8')
+        try:
+            content = doc_path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            try:
+                content = doc_path.read_text(encoding='latin-1')
+            except UnicodeDecodeError:
+                console.print("[red]Erro: encoding não suportado. Use UTF-8 ou Latin-1.[/red]")
+                raise SystemExit(1)
         doc = core.add_document(doc_path.stem, content)
     
     # Preparar configuração

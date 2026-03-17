@@ -21,7 +21,13 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
     
     try:
         # Ler arquivo
-        content = file_path.read_text(encoding='utf-8')
+        try:
+            content = file_path.read_text(encoding='utf-8')
+        except UnicodeDecodeError:
+            try:
+                content = file_path.read_text(encoding='latin-1')
+            except UnicodeDecodeError:
+                return {"file": file_path.name, "status": "error", "error": "Encoding não suportado"}
         doc = core.add_document(file_path.stem, content)
         
         # Executar plugin
@@ -29,7 +35,9 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
         
         # Salvar se output_dir especificado
         if output_dir:
-            output_path = output_dir / f"{file_path.stem}_result.json"
+            # Incluir nome do diretório pai para evitar colisão de nomes
+            safe_name = f"{file_path.parent.name}_{file_path.stem}" if file_path.parent.name != "." else file_path.stem
+            output_path = output_dir / f"{safe_name}_result.json"
             output_path.write_text(json.dumps(result, indent=2))
         
         return {
@@ -73,7 +81,7 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
     # Verificar plugin
     if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
-        return
+        raise SystemExit(1)
     
     plugin_meta = core.registry[plugin]
     

@@ -55,7 +55,7 @@ def parse_params(param_list: tuple) -> Dict[str, Any]:
             try:
                 # Tenta como JSON para arrays, objetos, etc
                 params[key] = json.loads(value)
-            except:
+            except (json.JSONDecodeError, ValueError):
                 # Mantém como string
                 params[key] = value
                 
@@ -77,7 +77,11 @@ def display_result_pretty(plugin_name: str, result: Dict[str, Any]):
     if 'top_words' in result and result['top_words']:
         console.print("\n[bold]Palavras mais frequentes:[/bold]")
         for word, count in result['top_words'][:10]:
-            bar_length = int((count / result['top_words'][0][1]) * 30)
+            max_count = result['top_words'][0][1]
+            if max_count > 0:
+                bar_length = int((count / max_count) * 30)
+            else:
+                bar_length = 0
             bar = '█' * bar_length
             console.print(f"  {word:15} {bar} {count}")
     

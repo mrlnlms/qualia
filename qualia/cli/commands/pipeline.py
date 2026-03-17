@@ -69,7 +69,13 @@ def pipeline(document_path: str, config: str, output_dir: str):
         
         results = {}
         context = {}  # Context para compartilhar entre steps
-        
+
+        # Validar que todos os plugins existem antes de executar
+        for step in steps:
+            if step.plugin_id not in core.registry:
+                console.print(f"[red]Plugin '{step.plugin_id}' não encontrado![/red]")
+                raise SystemExit(1)
+
         for i, step in enumerate(steps):
             plugin_name = core.registry[step.plugin_id].name
             progress.update(
@@ -96,7 +102,7 @@ def pipeline(document_path: str, config: str, output_dir: str):
                             if output_dir:
                                 viz_output = output_path / f"{step.output_name or step.plugin_id}.png"
                             else:
-                                viz_output = Path(f"{step.output_name or step.plugin_id}.png")
+                                viz_output = Path(document_path).parent / f"{step.output_name or step.plugin_id}.png"
                             plugin_instance = core.get_plugin(step.plugin_id)
                             plugin_instance.render(data_for_viz, step.config or {}, viz_output)
                             results[step.output_name or step.plugin_id] = {"output": str(viz_output)}

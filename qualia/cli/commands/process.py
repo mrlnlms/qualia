@@ -25,16 +25,23 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
     # Verificar plugin
     if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
-        return
-    
+        raise SystemExit(1)
+
     plugin_meta = core.registry[plugin]
     if plugin_meta.type != PluginType.DOCUMENT:
         console.print(f"[red]'{plugin}' não é um processador de documentos![/red]")
-        return
+        raise SystemExit(1)
     
     # Ler documento
     doc_path = Path(document_path)
-    content = doc_path.read_text(encoding='utf-8')
+    try:
+        content = doc_path.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        try:
+            content = doc_path.read_text(encoding='latin-1')
+        except UnicodeDecodeError:
+            console.print("[red]Erro: encoding não suportado. Use UTF-8 ou Latin-1.[/red]")
+            raise SystemExit(1)
     doc = core.add_document(doc_path.stem, content)
     
     # Configuração

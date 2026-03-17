@@ -278,7 +278,7 @@ def list_configs():
                 pipeline_configs.append((f, data))
             else:
                 plugin_configs.append((f, data))
-        except:
+        except Exception:
             pass  # Ignorar arquivos inválidos
     
     # Mostrar configurações

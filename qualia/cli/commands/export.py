@@ -82,7 +82,7 @@ def export_to_excel(data: Dict[str, Any], output_path: Path):
                     try:
                         df = pd.DataFrame(sheet_data)
                         df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
-                    except:
+                    except Exception:
                         # Dados não tabulares - criar sheet com info
                         df = pd.DataFrame([{"data": str(sheet_data)}])
                         df.to_excel(writer, sheet_name=sheet_name[:31], index=False)
@@ -335,5 +335,3 @@ def export(input_file: str, format: str, output: str, pretty: bool):
         console.print(f"[red]Erro de dependência: {str(e)}[/red]")
     except Exception as e:
         console.print(f"[red]Erro ao exportar: {str(e)}[/red]")
-        import traceback
-        traceback.print_exc()
