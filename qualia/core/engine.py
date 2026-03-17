@@ -39,7 +39,6 @@ class QualiaCore:
         self.pipelines: Dict[str, PipelineConfig] = {}
         self.config_registry: Optional[ConfigurationRegistry] = None
 
-        # ADICIONE ESTA LINHA! Descobrir plugins na inicialização
         self.discover_plugins()
 
     def discover_plugins(self) -> Dict[str, PluginMetadata]:
@@ -65,86 +64,79 @@ class QualiaCore:
         return plugin
 
     def execute_plugin(self,
-                  plugin_id: str,
-                  document: Document,
-                  config: Dict[str, Any] = None,
-                  context: Dict[str, Any] = None) -> Dict[str, Any]:  # ADICIONAR context aqui
-                    """
-                    Executa um plugin sem saber o que ele faz
-                    Resolve dependências automaticamente
-                    """
-                    config = config or {}
+                       plugin_id: str,
+                       document: Document,
+                       config: Dict[str, Any] = None,
+                       context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Executa um plugin sem saber o que ele faz. Resolve dependências automaticamente."""
+        config = config or {}
 
-                    if plugin_id not in self.registry:
-                        raise ValueError(f"Plugin '{plugin_id}' não encontrado")
+        if plugin_id not in self.registry:
+            raise ValueError(f"Plugin '{plugin_id}' não encontrado")
 
-                    plugin = self.get_plugin(plugin_id)
-                    metadata = self.registry[plugin_id]
+        plugin = self.get_plugin(plugin_id)
+        metadata = self.registry[plugin_id]
 
-                    # Valida configuração
-                    valid, error = plugin.validate_config(config)
-                    if not valid:
-                        raise ValueError(f"Configuração inválida: {error}")
+        # Valida configuração
+        valid, error = plugin.validate_config(config)
+        if not valid:
+            raise ValueError(f"Configuração inválida: {error}")
 
-                    # Verifica cache
-                    cached = self.cache.get(document.id, plugin_id, config)
-                    if cached is not None:
-                        return cached
+        # Verifica cache
+        cached = self.cache.get(document.id, plugin_id, config)
+        if cached is not None:
+            return cached
 
-                    # Cria contexto de execução
-                    exec_context = ExecutionContext(document=document)
+        # Cria contexto de execução
+        exec_context = ExecutionContext(document=document)
 
-                    # Resolve dependências: requires pode ser plugin IDs ou field names
-                    # Mapeia campos requeridos para plugins que os fornecem
-                    if metadata.requires:
-                        for req in metadata.requires:
-                            if req in self.plugins:
-                                # É um plugin ID direto
-                                dep_result = self.execute_plugin(req, document, {})
-                                exec_context.add_result(req, dep_result)
-                            else:
-                                # É um field name — encontrar o plugin que o fornece
-                                for pid, pmeta in self.registry.items():
-                                    if req in getattr(pmeta, 'provides', []) and pid in self.plugins:
-                                        dep_result = self.execute_plugin(pid, document, {})
-                                        exec_context.add_result(pid, dep_result)
-                                        break
+        # Resolve dependências: requires pode ser plugin IDs ou field names
+        if metadata.requires:
+            for req in metadata.requires:
+                if req in self.plugins:
+                    dep_result = self.execute_plugin(req, document, {})
+                    exec_context.add_result(req, dep_result)
+                else:
+                    # É um field name — encontrar o plugin que o fornece
+                    for pid, pmeta in self.registry.items():
+                        if req in getattr(pmeta, 'provides', []) and pid in self.plugins:
+                            dep_result = self.execute_plugin(pid, document, {})
+                            exec_context.add_result(pid, dep_result)
+                            break
 
-                    # Executa o plugin baseado em seu tipo
-                    result = None
-                    dep_results = exec_context.get_dependency_results(
-                        [k for k in exec_context.results]
-                    )
+        # Executa o plugin baseado em seu tipo
+        result = None
+        dep_results = dict(exec_context.results)
 
-                    if metadata.type == PluginType.ANALYZER:
-                        result = plugin.analyze(document, config, dep_results)
-                    elif metadata.type == PluginType.FILTER:
-                        data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
-                        result = plugin.filter(data, config)
-                    elif metadata.type == PluginType.DOCUMENT:
-                        result = plugin.process(document, config, context or {})
-                    elif metadata.type == PluginType.VISUALIZER:
-                        # Monta dados combinados de todas as dependências
-                        data = {}
-                        for dep_result in dep_results.values():
-                            if isinstance(dep_result, dict):
-                                data.update(dep_result)
-                        output_path = Path(f"./output/{document.id}_{plugin_id}.png")
-                        render_result = plugin.render(data, config, output_path)
-                        # render retorna Path — envolver em dict para consistência
-                        if isinstance(render_result, Path):
-                            result = {"output_path": str(render_result), "plugin_id": plugin_id}
-                        else:
-                            result = render_result
-                    elif metadata.type == PluginType.COMPOSER:
-                        result = plugin.compose(dep_results, config)
+        if metadata.type == PluginType.ANALYZER:
+            result = plugin.analyze(document, config, dep_results)
+        elif metadata.type == PluginType.FILTER:
+            data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
+            result = plugin.filter(data, config)
+        elif metadata.type == PluginType.DOCUMENT:
+            result = plugin.process(document, config, context or {})
+        elif metadata.type == PluginType.VISUALIZER:
+            # Monta dados combinados de todas as dependências
+            data = {}
+            for dep_result in dep_results.values():
+                if isinstance(dep_result, dict):
+                    data.update(dep_result)
+            output_path = Path(f"./output/{document.id}_{plugin_id}.png")
+            render_result = plugin.render(data, config, output_path)
+            # render retorna Path — envolver em dict para consistência
+            if isinstance(render_result, Path):
+                result = {"output_path": str(render_result), "plugin_id": plugin_id}
+            else:
+                result = render_result
+        elif metadata.type == PluginType.COMPOSER:
+            result = plugin.compose(dep_results, config)
 
-                    # Armazena no cache e no documento
-                    if result is not None:
-                        self.cache.set(document.id, plugin_id, config, result)
-                        document.add_analysis(plugin_id, result)
+        # Armazena no cache e no documento
+        if result is not None:
+            self.cache.set(document.id, plugin_id, config, result)
+            document.add_analysis(plugin_id, result)
 
-                    return result or {}
+        return result or {}
 
     def execute_pipeline(self,
                         pipeline_config: PipelineConfig,
@@ -203,29 +195,3 @@ class QualiaCore:
     def get_config_registry(self) -> Optional[ConfigurationRegistry]:
         """Retorna a instância do ConfigurationRegistry"""
         return self.config_registry
-
-
-# ============================================================================
-# EXEMPLO DE USO (Teste do Core Vazio)
-# ============================================================================
-
-if __name__ == "__main__":
-    # Core inicia COMPLETAMENTE VAZIO
-    core = QualiaCore()
-
-    # Confirma que está vazio
-    print(f"Plugins no início: {len(core.plugins)}")  # 0
-    print(f"Registry no início: {len(core.registry)}")  # 0
-
-    # Descobre o que existe (se houver plugins instalados)
-    discovered = core.discover_plugins()
-    print(f"\nPlugins descobertos: {len(discovered)}")
-
-    # Lista o que encontrou (Core não sabe o que são!)
-    for plugin_id, meta in discovered.items():
-        print(f"  - {plugin_id}: {meta.type.value}")
-        print(f"    Fornece: {meta.provides}")
-        print(f"    Requer: {meta.requires}")
-
-    # Core funciona mesmo vazio!
-    print("\nCore está operacional, aguardando plugins...")
