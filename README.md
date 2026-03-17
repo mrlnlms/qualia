@@ -169,7 +169,7 @@ qualia/
 │       ├── monitor.py  # Dashboard de monitoramento em tempo real (SSE)
 │       └── webhooks.py # Endpoints de webhook
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
-├── tests/              # 610 testes (pytest, 84% coverage)
+├── tests/              # 659 testes (pytest, 87% coverage)
 ├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
 ├── ops/                # Scripts operacionais (backup, monitoramento)
 ├── tools/              # Utilitários (gerador de plugins)
@@ -197,7 +197,7 @@ qualia/
 - Cache com LRU e TTL (`GET /cache/stats` para monitorar)
 - Resolução automática de dependências entre plugins
 - Integração validada com CodeMarker (plugin Obsidian)
-- 615 testes (610 passando, 5 skipped), 84% coverage
+- 659 testes (87% coverage)
 
 **Limitações conhecidas:**
 - Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo

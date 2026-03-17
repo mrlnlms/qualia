@@ -6,12 +6,14 @@
 
 ### Cobertura de testes
 
-643 testes, 87% coverage. Todos os módulos-alvo acima de 90%.
+659 testes, 87% coverage. Todos os módulos atacáveis acima de 90%.
 
 Linhas residuais sem cobertura (não vale o esforço):
 - Abstract methods em interfaces.py e base_plugins.py (pass statements)
 - Dead code em models.py (get_analysis, add_variant — decisão deferida no roadmap)
-- Formatação de console em batch.py (output visual)
+- Prompts interativos complexos em config.py (pipeline creation wizard)
+- ImportError fallback e `__main__` entry points em api/__init__.py
+- Formatação de console em batch.py
 
 ---
 
@@ -53,7 +55,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - [x] Integrar DependencyResolver no execute_plugin (field-name→plugin-id, detecção de ciclos)
 - [x] Limpar dívidas técnicas (validate_config consistente, wizard stubs, TODOs)
 - [x] Pipeline fail-fast com RuntimeError descritivo
-- [x] Coverage de 42% → 84% (237→615 testes)
+- [x] Coverage de 42% → 87% (237→659 testes, todos módulos atacáveis acima de 90%)
 - [x] Remover código morto (run_api.py, módulos vazios, protection morta)
 - [x] Migrar setup.py → pyproject.toml
 - [x] Organizar docs (mortos → docs/morto/)

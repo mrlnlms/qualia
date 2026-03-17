@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (610 passando, 84% coverage)
+## Testes (659 passando, 87% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
