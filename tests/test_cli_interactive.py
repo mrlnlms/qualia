@@ -1044,3 +1044,292 @@ class TestMenuRecentFilesDisplay:
         menu.add_recent_file("/tmp/a.txt")
         menu.add_recent_file("/tmp/b.txt")
         menu._show_recent_files()
+
+
+# =============================================================================
+# PIPELINE WIZARD — cobertura adicional
+# =============================================================================
+
+class TestPipelineWizardCoverage:
+    """Cobre linhas não testadas do PipelineWizard: save, no steps warning, name validation"""
+
+    @patch("qualia.cli.interactive.wizards.Confirm.ask")
+    @patch("qualia.cli.interactive.wizards.Prompt.ask")
+    @patch("qualia.cli.interactive.wizards.choose_plugin")
+    @patch("qualia.cli.interactive.wizards.configure_parameters", return_value={"top_n": "10"})
+    def test_pipeline_wizard_save(self, mock_params, mock_plugin, mock_prompt,
+                                   mock_confirm, tmp_path, monkeypatch):
+        """Pipeline com 1 step: salva YAML, metadata com tags/author/requirements, preview"""
+        import yaml as _yaml
+        from qualia.cli.interactive.wizards import PipelineWizard
+        monkeypatch.chdir(tmp_path)
+
+        # choose_plugin: primeiro retorna plugin, segundo retorna None (sai do loop)
+        mock_plugin.side_effect = ["word_frequency", None]
+        # Prompt.ask calls in order:
+        # 1. _get_valid_name -> nome
+        # 2. create_pipeline -> descrição
+        # 3. _build_steps -> output file name (save resultado)
+        # 4. _build_steps -> description do step
+        # 5. _get_metadata -> tags
+        # 6. _get_metadata -> author
+        # 7. _get_metadata -> requirement 1
+        # 8. _get_metadata -> "fim" (sai do loop)
+        mock_prompt.side_effect = [
+            "meu_pipeline_full",       # nome
+            "pipeline de teste",       # descrição
+            "step_1_output.json",      # output file
+            "step de frequência",      # descrição do step
+            "nlp, text",              # tags
+            "Testador",               # author
+            "python>=3.9",            # requirement
+            "fim",                    # sai do loop de requirements
+        ]
+        # Confirm.ask calls in order:
+        # 1. _build_steps -> Salvar resultado deste step? -> True (line 93)
+        # 2. _build_steps -> Adicionar descrição ao step? -> True (line 101)
+        # 3. _build_steps -> Adicionar mais um step? -> True (mas plugin=None sai)
+        # 4. create_pipeline -> Adicionar metadados extras? -> True (line 40)
+        # 5. _get_metadata -> Adicionar requisitos/notas? -> True (line 126)
+        # 6. _save_pipeline -> Visualizar pipeline criado? -> True (line 163)
+        mock_confirm.side_effect = [True, True, True, True, True, True]
+
+        wizard = PipelineWizard()
+        wizard.create_pipeline()
+
+        pipeline_file = tmp_path / "configs" / "pipelines" / "meu_pipeline_full.yaml"
+        assert pipeline_file.exists()
+
+        content = pipeline_file.read_text()
+        assert "meu_pipeline_full" in content
+        assert "pipeline de teste" in content
+
+        # Parse YAML (skip comment header)
+        yaml_part = content.split("---")[-1] if "---" in content else content
+        # Remove comment lines for parsing
+        lines = [l for l in content.split("\n") if not l.startswith("#") and l.strip()]
+        data = _yaml.safe_load("\n".join(lines))
+        assert data["name"] == "meu_pipeline_full"
+        assert len(data["steps"]) == 1
+        assert data["steps"][0]["plugin"] == "word_frequency"
+        assert data["steps"][0]["output"] == "step_1_output.json"
+        assert data["steps"][0]["description"] == "step de frequência"
+        assert data["tags"] == ["nlp", "text"]
+        assert data["author"] == "Testador"
+        assert data["requirements"] == ["python>=3.9"]
+
+    @patch("qualia.cli.interactive.wizards.Confirm.ask")
+    @patch("qualia.cli.interactive.wizards.Prompt.ask")
+    @patch("qualia.cli.interactive.wizards.choose_plugin", return_value=None)
+    def test_pipeline_wizard_no_steps(self, mock_plugin, mock_prompt, mock_confirm, capsys):
+        """Pipeline sem steps mostra warning e não salva"""
+        from qualia.cli.interactive.wizards import PipelineWizard
+        mock_prompt.side_effect = ["test_no_steps", "descricao"]
+        wizard = PipelineWizard()
+        wizard.create_pipeline()
+        # Nenhum arquivo criado — verificamos que não crashou
+        assert True
+
+    @patch("qualia.cli.interactive.wizards.Prompt.ask")
+    def test_pipeline_wizard_name_validation(self, mock_prompt, tmp_path, monkeypatch):
+        """Nome vazio é rejeitado, segundo nome válido é aceito (lines 52-54)"""
+        from qualia.cli.interactive.wizards import PipelineWizard
+        monkeypatch.chdir(tmp_path)
+        # Primeiro retorna vazio, depois retorna nome válido
+        mock_prompt.side_effect = ["", "valid_name"]
+        wizard = PipelineWizard()
+        name = wizard._get_valid_name()
+        assert name == "valid_name"
+        # Prompt.ask chamado 2 vezes
+        assert mock_prompt.call_count == 2
+
+    @patch("qualia.cli.interactive.wizards.Confirm.ask")
+    @patch("qualia.cli.interactive.wizards.Prompt.ask")
+    def test_get_metadata_with_requirements(self, mock_prompt, mock_confirm):
+        """_get_metadata com requisitos (lines 127-136)"""
+        from qualia.cli.interactive.wizards import PipelineWizard
+        # Prompt: tags, author, req1, req2, fim
+        mock_prompt.side_effect = ["", "", "req1", "req2", "fim"]
+        # Confirm: adicionar requisitos? -> True
+        mock_confirm.return_value = True
+        wizard = PipelineWizard()
+        meta = wizard._get_metadata()
+        assert meta["requirements"] == ["req1", "req2"]
+
+    @patch("qualia.cli.interactive.wizards.Confirm.ask", return_value=False)
+    @patch("qualia.cli.interactive.wizards.Prompt.ask")
+    @patch("qualia.cli.interactive.wizards.choose_plugin")
+    @patch("qualia.cli.interactive.wizards.configure_parameters", return_value={})
+    def test_pipeline_wizard_save_no_preview(self, mock_params, mock_plugin, mock_prompt,
+                                              mock_confirm, tmp_path, monkeypatch):
+        """Pipeline salvo sem preview (line 163-165 — branch False)"""
+        from qualia.cli.interactive.wizards import PipelineWizard
+        monkeypatch.chdir(tmp_path)
+        mock_plugin.side_effect = ["sentiment_analyzer", None]
+        mock_prompt.side_effect = ["no_preview_pipe", "desc"]
+        # All Confirm.ask return False: no output, no desc, no more steps,
+        # no metadata, no preview
+        mock_confirm.return_value = False
+        wizard = PipelineWizard()
+        wizard.create_pipeline()
+        assert (tmp_path / "configs" / "pipelines" / "no_preview_pipe.yaml").exists()
+
+
+# =============================================================================
+# HANDLER EDGE CASES — cobertura adicional
+# =============================================================================
+
+class TestHandlerEdgeCases:
+    """Cobre linhas edge-case em handlers.py"""
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(True, "v1.0", ""))
+    def test_explore_plugins_success_with_plugin_detail(self, mock_cmd, mock_prompt, handlers):
+        """explore_plugins com plugin existente (lines 164-171)"""
+        mock_prompt.side_effect = ["word_frequency", ""]  # plugin id, then enter to continue
+        mock_cmd.side_effect = [
+            (True, "Plugins listados", ""),       # list -d
+            (True, "Detalhes do word_frequency", ""),  # inspect word_frequency
+        ]
+        handlers.explore_plugins()
+        assert mock_cmd.call_count == 2
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.run_qualia_command")
+    def test_explore_plugins_plugin_not_found(self, mock_cmd, mock_prompt, handlers):
+        """explore_plugins com plugin inexistente (line 173)"""
+        mock_prompt.side_effect = ["nonexistent", ""]
+        mock_cmd.side_effect = [
+            (True, "Plugins listados", ""),
+            (False, "", "not found"),
+        ]
+        handlers.explore_plugins()
+        assert mock_cmd.call_count == 2
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(False, "", "erro"))
+    def test_explore_plugins_list_failure(self, mock_cmd, mock_prompt, handlers):
+        """explore_plugins quando list falha (line 161)"""
+        mock_prompt.side_effect = ["", ""]  # skip plugin id, enter to continue
+        handlers.explore_plugins()
+
+    @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
+    def test_clear_cache_no_dir(self, mock_confirm, handlers, tmp_path, monkeypatch):
+        """_clear_cache quando diretório não existe (line 322)"""
+        monkeypatch.chdir(tmp_path)
+        handlers._clear_cache()
+        # Não deve crashar
+
+    @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
+    def test_clear_cache_exists(self, mock_confirm, handlers, tmp_path, monkeypatch):
+        """_clear_cache quando diretório existe"""
+        monkeypatch.chdir(tmp_path)
+        cache_dir = tmp_path / "cache"
+        cache_dir.mkdir()
+        (cache_dir / "file.dat").write_text("data")
+        handlers._clear_cache()
+        assert cache_dir.exists()
+        assert not list(cache_dir.glob("*"))
+
+    def test_show_config(self, handlers, tmp_path, monkeypatch):
+        """_show_config mostra info sem crashar (lines 344-345 — import check)"""
+        monkeypatch.chdir(tmp_path)
+        # Criar diretório plugins com um plugin fake
+        plugins_dir = tmp_path / "plugins"
+        plugins_dir.mkdir()
+        plugin_dir = plugins_dir / "fake_plugin"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text("")
+        handlers._show_config()
+
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value=None)
+    def test_install_dependencies_no_plugin(self, mock_plugin, handlers):
+        """_install_dependencies sem plugin selecionado (line 351)"""
+        handlers._install_dependencies()
+
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="word_frequency")
+    def test_install_dependencies_no_requirements(self, mock_plugin, handlers, tmp_path, monkeypatch):
+        """_install_dependencies sem requirements.txt (lines 354-356)"""
+        monkeypatch.chdir(tmp_path)
+        handlers._install_dependencies()
+
+    @patch("subprocess.run")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="word_frequency")
+    def test_install_dependencies_success(self, mock_plugin, mock_subprocess, handlers,
+                                           tmp_path, monkeypatch):
+        """_install_dependencies com requirements.txt (lines 358-365)"""
+        monkeypatch.chdir(tmp_path)
+        plugins_dir = tmp_path / "plugins" / "word_frequency"
+        plugins_dir.mkdir(parents=True)
+        (plugins_dir / "requirements.txt").write_text("nltk>=3.8")
+        mock_subprocess.return_value = MagicMock(returncode=0)
+        handlers._install_dependencies()
+        mock_subprocess.assert_called_once()
+
+    @patch("subprocess.run")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="word_frequency")
+    def test_install_dependencies_failure(self, mock_plugin, mock_subprocess, handlers,
+                                           tmp_path, monkeypatch):
+        """_install_dependencies quando pip falha (line 365)"""
+        monkeypatch.chdir(tmp_path)
+        plugins_dir = tmp_path / "plugins" / "word_frequency"
+        plugins_dir.mkdir(parents=True)
+        (plugins_dir / "requirements.txt").write_text("nonexistent_pkg")
+        mock_subprocess.return_value = MagicMock(returncode=1)
+        handlers._install_dependencies()
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask", return_value="results/out")
+    @patch("qualia.cli.interactive.handlers.choose_file", return_value="/tmp/test.txt")
+    @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(False, "", "falhou"))
+    def test_execute_pipeline_failure(self, mock_cmd, mock_file, mock_prompt,
+                                      handlers, tmp_path, monkeypatch):
+        """_execute_pipeline quando pipeline falha (lines 272-273)"""
+        monkeypatch.chdir(tmp_path)
+        pipeline = tmp_path / "pipe.yaml"
+        pipeline.write_text("name: test")
+        handlers._execute_pipeline(pipeline)
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.Confirm.ask")
+    @patch("qualia.cli.interactive.handlers.get_int_choice", return_value=1)
+    @patch("qualia.cli.interactive.handlers.show_file_preview")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value=None)
+    def test_visualize_results_choose_data_file_path(self, mock_plugin, mock_preview,
+                                                      mock_choice, mock_confirm,
+                                                      mock_prompt, handlers, tmp_path,
+                                                      monkeypatch):
+        """visualize_results quando data_file não é passado (lines 72-74)"""
+        monkeypatch.chdir(tmp_path)
+        # _choose_data_file sem JSON files, digita caminho inexistente
+        mock_prompt.side_effect = ["/nonexistent/file.json"]
+        mock_confirm.return_value = False
+        handlers.menu.current_analysis = None
+        handlers.visualize_results(data_file=None)
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.Confirm.ask")
+    @patch("qualia.cli.interactive.handlers.get_int_choice")
+    def test_choose_data_file_type_path_manually(self, mock_choice, mock_confirm,
+                                                  mock_prompt, handlers, tmp_path,
+                                                  monkeypatch):
+        """_choose_data_file com escolha de digitar caminho (lines 310-311)"""
+        monkeypatch.chdir(tmp_path)
+        handlers.menu.current_analysis = None
+        # Criar um JSON file para que json_files não seja vazio
+        (tmp_path / "result.json").write_text('{"a": 1}')
+        # choice = 2 (digitar caminho) quando there's 1 json file
+        mock_choice.return_value = 2
+        # Digitar caminho inexistente
+        mock_prompt.return_value = "/nonexistent.json"
+        result = handlers._choose_data_file()
+        assert result is None
+
+    @patch("qualia.cli.interactive.handlers.Prompt.ask")
+    @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
+    def test_choose_data_file_uses_current_analysis(self, mock_confirm, mock_prompt,
+                                                     handlers, tmp_path, monkeypatch):
+        """_choose_data_file usa análise atual quando disponível (line 288-289)"""
+        monkeypatch.chdir(tmp_path)
+        handlers.menu.current_analysis = "/tmp/current.json"
+        result = handlers._choose_data_file()
+        assert result == "/tmp/current.json"

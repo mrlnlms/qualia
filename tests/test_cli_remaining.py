@@ -1529,3 +1529,321 @@ class TestConfigCommandEdgeCases:
             assert "valid.yaml" in result.output
         finally:
             os.chdir(old_cwd)
+
+
+# =============================================================================
+# PROCESS COMMAND — edge cases
+# =============================================================================
+
+class TestProcessCommandEdgeCases:
+    """Cobre linhas não testadas do process.py: erro de execução e quality_report"""
+
+    def test_process_execution_error(self, tmp_path):
+        """process mostra erro e exit code 1 quando plugin levanta exceção (lines 93-95)"""
+        from qualia.cli.commands.process import process as process_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "doc.txt"
+        doc.write_text("Texto para processar")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.process.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.DOCUMENT
+            mock_plugin_meta.name = "Teams Cleaner"
+            mock_core.registry = {"teams_cleaner": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.side_effect = RuntimeError("Processamento explodiu")
+
+            result = runner.invoke(process_cmd, [
+                str(doc), "-p", "teams_cleaner",
+            ])
+
+            assert result.exit_code == 1
+            assert "Erro" in result.output
+            assert "Processamento explodiu" in result.output
+
+    def test_process_quality_report_with_issues(self, tmp_path):
+        """process exibe quality_report com issues (lines 76-78)"""
+        from qualia.cli.commands.process import process as process_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "doc.txt"
+        doc.write_text("Texto para processar")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.process.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.DOCUMENT
+            mock_plugin_meta.name = "Teams Cleaner"
+            mock_core.registry = {"teams_cleaner": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.return_value = {
+                "cleaned_document": "Texto limpo",
+                "original_length": 20,
+                "cleaned_length": 11,
+                "quality_report": {
+                    "quality_score": 85,
+                    "issues": ["Linhas duplicadas removidas", "Timestamps limpos"],
+                },
+            }
+
+            result = runner.invoke(process_cmd, [
+                str(doc), "-p", "teams_cleaner",
+            ])
+
+            assert result.exit_code == 0
+            assert "85" in result.output
+            assert "Linhas duplicadas removidas" in result.output
+            assert "Timestamps limpos" in result.output
+
+    def test_process_save_with_variants(self, tmp_path):
+        """process com --save-as salva documento e variantes (lines 81-91)"""
+        from qualia.cli.commands.process import process as process_cmd
+        from qualia.core import PluginType
+
+        doc = tmp_path / "doc.txt"
+        doc.write_text("Texto para processar")
+        save_path = tmp_path / "cleaned.txt"
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.process.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.DOCUMENT
+            mock_plugin_meta.name = "Teams Cleaner"
+            mock_core.registry = {"teams_cleaner": mock_plugin_meta}
+
+            mock_doc = MagicMock()
+            mock_core.add_document.return_value = mock_doc
+            mock_core.execute_plugin.return_value = {
+                "cleaned_document": "Texto limpo final",
+                "original_length": 20,
+                "cleaned_length": 17,
+                "document_variants": {
+                    "no_timestamps": "Texto sem timestamps",
+                },
+            }
+
+            result = runner.invoke(process_cmd, [
+                str(doc), "-p", "teams_cleaner",
+                "--save-as", str(save_path),
+            ])
+
+            assert result.exit_code == 0
+            assert save_path.exists()
+            assert save_path.read_text() == "Texto limpo final"
+            variant_path = tmp_path / "cleaned_no_timestamps.txt"
+            assert variant_path.exists()
+            assert variant_path.read_text() == "Texto sem timestamps"
+
+
+# =============================================================================
+# VISUALIZE COMMAND — edge cases
+# =============================================================================
+
+class TestVisualizeCommandEdgeCases:
+    """Cobre linhas não testadas do visualize.py: erros específicos e formato auto"""
+
+    def test_visualize_file_not_found_error(self, tmp_path):
+        """visualize com FileNotFoundError (lines 179-182)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.json"
+        data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            mock_instance = MagicMock()
+            mock_instance.render.side_effect = FileNotFoundError("font.ttf not found")
+            mock_core.get_plugin.return_value = mock_instance
+
+            result = runner.invoke(viz_cmd, [
+                str(data_file), "-p", "wordcloud_viz",
+                "-o", str(tmp_path / "out.png"),
+            ])
+
+            assert result.exit_code == 1
+            assert "arquivo não encontrado" in result.output or "font.ttf" in result.output
+
+    def test_visualize_value_error(self, tmp_path):
+        """visualize com ValueError (lines 183-186)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.json"
+        data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            mock_instance = MagicMock()
+            mock_instance.render.side_effect = ValueError("Invalid colormap name")
+            mock_core.get_plugin.return_value = mock_instance
+
+            result = runner.invoke(viz_cmd, [
+                str(data_file), "-p", "wordcloud_viz",
+                "-o", str(tmp_path / "out.png"),
+            ])
+
+            assert result.exit_code == 1
+            assert "Erro de valor" in result.output or "Invalid colormap" in result.output
+
+    def test_visualize_unsupported_data_format(self, tmp_path):
+        """visualize com formato de dados não suportado (lines 62-63)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.csv"
+        data_file.write_text("word,count\ngato,5")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            result = runner.invoke(viz_cmd, [
+                str(data_file), "-p", "wordcloud_viz",
+                "-o", str(tmp_path / "out.png"),
+            ])
+
+            assert "não suportado" in result.output
+
+    def test_visualize_config_read_error(self, tmp_path):
+        """visualize com config file inválido (lines 79-82)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.json"
+        data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
+
+        config_file = tmp_path / "bad_config.json"
+        config_file.write_text("{invalid json content")
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            result = runner.invoke(viz_cmd, [
+                str(data_file), "-p", "wordcloud_viz",
+                "-o", str(tmp_path / "out.png"),
+                "-c", str(config_file),
+            ])
+
+            assert "Erro ao ler configuração" in result.output
+
+    def test_visualize_explicit_format_no_output(self, tmp_path):
+        """visualize com -f png sem -o gera nome com extensão correta (line 100-103)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.json"
+        data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            mock_instance = MagicMock()
+            mock_instance.render.return_value = "freq_wordcloud_viz.png"
+            mock_core.get_plugin.return_value = mock_instance
+
+            import os
+            old_cwd = os.getcwd()
+            try:
+                os.chdir(tmp_path)
+                result = runner.invoke(viz_cmd, [
+                    str(data_file), "-p", "wordcloud_viz", "-f", "svg",
+                ])
+                assert "Saída não especificada" in result.output
+                assert "freq_wordcloud_viz.svg" in result.output
+            finally:
+                os.chdir(old_cwd)
+
+    def test_visualize_png_with_size_display(self, tmp_path):
+        """visualize mostra tamanho para formato png (lines 158-161, 164-171)"""
+        from qualia.cli.commands.visualize import visualize as viz_cmd
+        from qualia.core import PluginType
+
+        data_file = tmp_path / "freq.json"
+        data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
+
+        output = tmp_path / "cloud.png"
+
+        runner = CliRunner()
+        with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+
+            mock_plugin_meta = MagicMock()
+            mock_plugin_meta.type = PluginType.VISUALIZER
+            mock_plugin_meta.name = "Word Cloud"
+            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+
+            mock_instance = MagicMock()
+            mock_instance.render.return_value = str(output)
+            mock_core.get_plugin.return_value = mock_instance
+
+            # Create a fake PNG file with known size
+            output.write_bytes(b"\x89PNG" * 500)
+
+            # Mock PIL.Image.open to return a fake image with dimensions
+            mock_img = MagicMock()
+            mock_img.size = (800, 600)
+            mock_img.__enter__ = lambda s: s
+            mock_img.__exit__ = MagicMock(return_value=False)
+
+            with patch("PIL.Image.open", return_value=mock_img):
+                result = runner.invoke(viz_cmd, [
+                    str(data_file), "-p", "wordcloud_viz",
+                    "-o", str(output), "-f", "png",
+                ])
+
+            assert result.exit_code == 0
+            assert "Tamanho" in result.output or "KB" in result.output
+            assert "800x600" in result.output

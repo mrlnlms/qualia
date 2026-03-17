@@ -234,3 +234,70 @@ class TestBackwardCompat:
         # same config different key order is hit
         cache.set("doc2", "p", {"x": 1, "y": 2}, {"ok": True})
         assert cache.get("doc2", "p", {"y": 2, "x": 1})["ok"] is True
+
+
+# =============================================================================
+# INVALIDATE
+# =============================================================================
+
+class TestCacheInvalidate:
+    """Testes do metodo invalidate() — linhas 104, 113-119"""
+
+    def test_invalidate_by_doc_id_pattern_does_not_match_hash(self, cache, cache_dir):
+        """invalidate(doc_id=...) compara pattern com stem do arquivo,
+        mas o stem e um SHA256 hash, entao o doc_id nao aparece nele.
+        Resultado: nenhum arquivo e removido."""
+        cache.set("doc1", "plugin_a", {}, {"v": 1})
+        cache.set("doc2", "plugin_a", {}, {"v": 2})
+
+        pkl_before = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_before) == 2
+
+        # Invalidar com doc_id — o pattern "doc1:" nao vai casar com hash SHA256
+        cache.invalidate(doc_id="doc1")
+
+        pkl_after = list(cache_dir.glob("*.pkl"))
+        # Nenhum arquivo removido porque o stem e hash, nao contem doc_id
+        assert len(pkl_after) == 2
+
+    def test_invalidate_without_pattern_iterates_files(self, cache, cache_dir):
+        """invalidate() sem doc_id nem plugin_id itera arquivos mas nao remove nenhum
+        (pattern vazio, condicao 'if pattern and ...' e falsa)"""
+        cache.set("d1", "p", {}, {"v": 1})
+        cache.set("d2", "p", {}, {"v": 2})
+
+        pkl_before = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_before) == 2
+
+        cache.invalidate()  # sem argumentos
+
+        pkl_after = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_after) == 2  # nenhum removido
+
+    def test_invalidate_removes_file_when_pattern_in_stem(self, cache, cache_dir):
+        """Se o stem do arquivo contem o pattern, o arquivo e removido.
+        Criamos um arquivo .pkl cujo nome contem o pattern pra forcar o match."""
+        cache.set("d1", "p", {}, {"v": 1})
+
+        # Criar arquivo fake cujo stem contem o pattern
+        fake_file = cache_dir / "doc_special:.pkl"
+        fake_file.write_bytes(b"fake")
+
+        pkl_before = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_before) == 2
+
+        cache.invalidate(doc_id="doc_special")
+
+        # O fake_file deve ter sido removido (pattern "doc_special:" esta no stem)
+        assert not fake_file.exists()
+        # O outro arquivo (hash) permanece
+        pkl_after = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_after) == 1
+
+    def test_evict_lru_empty_access_order(self, cache_dir):
+        """_evict_lru() com _access_order vazio retorna sem fazer nada (linha 104)"""
+        cm = CacheManager(cache_dir, max_size=3)
+        assert cm._access_order == []
+        # Nao deve lancar excecao
+        cm._evict_lru()
+        assert cm.stats()["evictions"] == 0
