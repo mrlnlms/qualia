@@ -593,3 +593,67 @@ class TestModels:
 
         deps = ctx.get_dependency_results(["nonexistent"])
         assert deps == {}
+
+
+class TestInterfaces:
+    """Testes para PluginMetadata.get_dependencies (interfaces.py line 38)"""
+
+    def test_plugin_metadata_get_dependencies(self):
+        """get_dependencies retorna union de requires e can_use"""
+        meta = PluginMetadata(
+            id="test_dep",
+            type=PluginType.ANALYZER,
+            name="Test",
+            description="Test",
+            version="1.0",
+            requires=["a", "b"],
+            can_use=["c"],
+        )
+        deps = meta.get_dependencies()
+        assert deps == {"a", "b", "c"}
+
+    def test_plugin_metadata_get_dependencies_empty(self):
+        """get_dependencies com listas vazias retorna set vazio"""
+        meta = PluginMetadata(
+            id="test_empty",
+            type=PluginType.ANALYZER,
+            name="Test",
+            description="Test",
+            version="1.0",
+            requires=[],
+            can_use=[],
+        )
+        deps = meta.get_dependencies()
+        assert deps == set()
+
+
+class TestDocumentMethods:
+    """Testes para Document.get_analysis, add_variant, get_variant (models.py lines 30, 34, 38)"""
+
+    def test_get_analysis(self):
+        """add_analysis + get_analysis retorna resultado correto"""
+        doc = Document(id="doc_methods", content="texto")
+        doc.add_analysis("plugin_a", {"data": 1})
+        result = doc.get_analysis("plugin_a")
+        assert result == {"data": 1}
+
+    def test_get_analysis_missing(self):
+        """get_analysis para plugin inexistente retorna None"""
+        doc = Document(id="doc_missing", content="texto")
+        result = doc.get_analysis("nonexistent")
+        assert result is None
+
+    def test_add_and_get_variant(self):
+        """add_variant + get_variant retorna documento variante"""
+        doc = Document(id="doc_original", content="texto original")
+        variant = Document(id="doc_clean", content="texto limpo")
+        doc.add_variant("clean", variant)
+        retrieved = doc.get_variant("clean")
+        assert retrieved is variant
+        assert retrieved.content == "texto limpo"
+
+    def test_get_variant_missing(self):
+        """get_variant para nome inexistente retorna None"""
+        doc = Document(id="doc_no_variant", content="texto")
+        result = doc.get_variant("nonexistent")
+        assert result is None

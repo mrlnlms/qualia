@@ -805,3 +805,116 @@ class TestExportCommandExtended:
         assert result.exit_code == 0
         assert output.exists()
         assert output.stat().st_size > 0
+
+
+# =============================================================================
+# BATCH COMMAND — remaining uncovered lines
+# =============================================================================
+
+class TestBatchRemainingPaths:
+    """Cobre linhas restantes em batch.py: 42-43, 106, 112, 120, 159-161, 194"""
+
+    def test_batch_dry_run_more_than_10_files(self, runner, tmp_path):
+        """Line 106: '...e mais N arquivos' quando >10 arquivos no dry-run"""
+        # Criar 15 arquivos
+        for i in range(15):
+            (tmp_path / f"file_{i:02d}.txt").write_text(f"Conteúdo do arquivo {i}.")
+
+        pattern = str(tmp_path / "*.txt")
+        result = runner.invoke(cli, [
+            "batch", pattern, "-p", "word_frequency", "--dry-run",
+        ])
+        assert result.exit_code == 0
+        assert "e mais 5 arquivos" in result.output
+
+    def test_batch_with_config_yaml_file(self, runner, tmp_path):
+        """Line 112: load_config carrega config de arquivo YAML passado com --config"""
+        # Criar arquivos de texto
+        (tmp_path / "doc.txt").write_text("Texto para análise de frequência.")
+        # Criar config YAML
+        config_file = tmp_path / "my_config.yaml"
+        config_file.write_text("min_word_length: 4\nmax_words: 10\n")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "config_output"
+        result = runner.invoke(cli, [
+            "batch", pattern,
+            "-p", "word_frequency",
+            "-c", str(config_file),
+            "-o", str(output_dir),
+            "--continue-on-error",
+        ])
+        assert result.exit_code == 0
+
+    def test_batch_no_output_dir(self, runner, tmp_path):
+        """Line 120: output_path = None quando --output não é passado"""
+        (tmp_path / "no_output.txt").write_text("Texto sem diretório de saída.")
+        pattern = str(tmp_path / "*.txt")
+        result = runner.invoke(cli, [
+            "batch", pattern,
+            "-p", "word_frequency",
+            "--continue-on-error",
+        ])
+        assert result.exit_code == 0
+        assert "Sucesso" in result.output or "sucesso" in result.output.lower()
+
+    def test_batch_parallel_break_on_error(self, runner, tmp_path):
+        """Lines 159-161: break no modo paralelo quando continue_on_error=False"""
+        # Criar vários arquivos
+        for i in range(5):
+            (tmp_path / f"para_{i:02d}.txt").write_text(f"Arquivo paralelo {i}.")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "parallel_error"
+
+        with patch("qualia.cli.commands.batch.process_file") as mock_pf:
+            # Todos retornam erro para garantir que break é acionado
+            mock_pf.return_value = {
+                "file": "test.txt",
+                "status": "error",
+                "error": "Falha simulada"
+            }
+            result = runner.invoke(cli, [
+                "batch", pattern,
+                "-p", "word_frequency",
+                "-o", str(output_dir),
+                "-j", "2",
+                # SEM --continue-on-error → deve fazer break
+            ])
+            assert result.exit_code == 0
+            assert "Erro" in result.output or "erro" in result.output.lower()
+
+    def test_batch_process_file_exception(self, runner, tmp_path):
+        """Lines 42-43: exceção em process_file retorna dict com status error"""
+        from qualia.cli.commands.batch import process_file
+
+        bad_file = tmp_path / "nonexistent_for_process.txt"
+        # Arquivo não existe, read_text vai falhar
+        result = process_file(bad_file, "word_frequency", {}, None)
+        assert result["status"] == "error"
+        assert "error" in result
+        assert result["file"] == "nonexistent_for_process.txt"
+
+    def test_batch_many_errors_display(self, runner, tmp_path):
+        """Line 194: '...e mais N erros' quando >5 erros"""
+        # Criar 8 arquivos
+        for i in range(8):
+            (tmp_path / f"err_{i:02d}.txt").write_text(f"Arquivo {i}.")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "many_errors"
+
+        with patch("qualia.cli.commands.batch.process_file") as mock_pf:
+            mock_pf.return_value = {
+                "file": "test.txt",
+                "status": "error",
+                "error": "Erro simulado"
+            }
+            result = runner.invoke(cli, [
+                "batch", pattern,
+                "-p", "word_frequency",
+                "-o", str(output_dir),
+                "--continue-on-error",
+            ])
+            assert result.exit_code == 0
+            assert "e mais" in result.output and "erros" in result.output
