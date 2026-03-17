@@ -1,41 +1,36 @@
 # Backlog — Qualia Core
 
-Levantamento feito em 2026-03-17 a partir de análise técnica cruzada (Claude + Codex).
+Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesma sessão.
 
-## Governança do Repo
+## Refatoração (prioridade técnica)
 
-- [ ] Remover screenshots soltos da raiz (5 PNGs + `Qulaia screenshots/`)
+1. [ ] Quebrar `qualia/core/__init__.py` (902 linhas) — separar em contracts, models, loader, cache, executor, pipeline. Manter re-exports no `__init__.py` pra não quebrar imports
+2. [ ] Dividir `qualia/api/__init__.py` (694 linhas) — separar bootstrap, schemas e rotas
 
-## Refatoração
+## Comportamento
 
-- [ ] Quebrar `qualia/core/__init__.py` (902 linhas) — separar em contracts, models, loader, cache, executor, pipeline. Manter re-exports no `__init__.py`
-- [ ] Dividir `qualia/api/__init__.py` (694 linhas) — separar em app, schemas, routes, dependencies
+- [x] Pipeline fail-fast vs fail-soft — definir comportamento claro em falha de step
 
-## Cobertura de Testes (42% total)
+## Cobertura de Testes
 
-Core e config estão bem cobertos (82% e 98%). O problema está na CLI e em módulos sem teste nenhum.
+Sessão de 2026-03-17: de 237 testes (42%) para 610 testes (84%).
 
-### Cobertura critica (<25%)
+Módulos ainda abaixo de 90%:
+- `core/__init__.py` — 83% (interfaces abstratas + edge cases)
+- `api/__init__.py` — 91% (SPA fallback, import errors)
+- `commands/batch.py` — 80%
+- `commands/export.py` — 86%
+- `interactive/wizards.py` — 80%
+- `interactive/menu.py` — 83%
 
-- [ ] `cli/interactive/handlers.py` — 9% (305/336 linhas sem teste)
-- [ ] `cli/interactive/utils.py` — 12% (119/135)
-- [ ] `cli/commands/visualize.py` — 12% (106/121)
-- [ ] `cli/commands/inspect.py` — 16% (36/43)
-- [ ] `cli/interactive/wizards.py` — 18% (73/89)
-- [ ] `cli/commands/config.py` — 21% (131/166)
-- [ ] `cli/commands/process.py` — 22% (47/60)
-- [ ] `cli/interactive/__init__.py` — 23% (10/13)
+## Feito nesta sessão
 
-### Cobertura baixa (25-50%)
-
-- [ ] `cli/commands/watch.py` — 26% (68/92)
-- [ ] `cli/interactive/menu.py` — 31% (29/42)
-- [ ] `cli/formatters.py` — 37% (24/38)
-- [ ] `cli/commands/batch.py` — 38% (67/108)
-- [ ] `cli/interactive/tutorials.py` — 39% (20/33)
-- [ ] `cli/commands/export.py` — 45% (94/170)
-
-### Meta
-
-- [ ] Coverage geral de 42% para pelo menos 70%
-- [ ] CLI testável via `CliRunner` do Click — os 21 testes em `test_cli.py` provam que é viável
+- [x] Remover código morto (run_api.py, api/run.py, cli/commands.py)
+- [x] Remover módulos vazios (document_lab, para_meta, quali_metrics, visual_engine)
+- [x] Remover protection morta (auto_protection.py, protected_bases.py)
+- [x] Migrar setup.py → pyproject.toml
+- [x] Organizar docs (históricos → docs/morto/, ignorado pelo git)
+- [x] Adicionar coverage ao CI
+- [x] Alinhar Python 3.13 no Dockerfile + corrigir entrypoint
+- [x] Arquivar planos finalizados
+- [x] Coverage de 42% → 84% (373 testes novos)

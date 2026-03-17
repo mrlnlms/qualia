@@ -838,10 +838,10 @@ class QualiaCore:
                 results[output_name] = result
                 
             except Exception as e:
-                print(f"Erro ao executar {step.plugin_id}: {e}")
-                # Continua com próximo passo ou para?
-                # Decisão de design...
-        
+                raise RuntimeError(
+                    f"Pipeline falhou no step '{step.plugin_id}': {e}"
+                ) from e
+
         return results
     
     def add_document(self, doc_id: str, content: str, metadata: Dict[str, Any] = None) -> Document:
