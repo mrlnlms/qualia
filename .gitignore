@@ -26,6 +26,7 @@ build/
 cache/
 output/
 results/
+*.png
 /archive/
 docs/morto/
 data/

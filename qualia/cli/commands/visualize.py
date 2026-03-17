@@ -99,7 +99,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
         else:
             ext = format
             
-        output = f"{data_path.stem}_{plugin}.{ext}"
+        output = str(data_path.parent / f"{data_path.stem}_{plugin}.{ext}")
         console.print(f"[yellow]Saída não especificada. Usando: {output}[/yellow]")
     
     output_path = Path(output)
