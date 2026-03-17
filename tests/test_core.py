@@ -535,6 +535,113 @@ class TestBasePluginValidation:
         result = plugin._validate_config({"flag": 0})
         assert result["flag"] is False
 
+
+class TestProvidesValidation:
+    """Testes de validação do contrato de provides no engine"""
+
+    def test_provides_warning_on_missing_field(self, core, caplog):
+        """Engine emite warning se resultado não contém campo de provides"""
+        import logging
+
+        plugin = MagicMock()
+        plugin_meta = PluginMetadata(
+            id="incomplete_plugin",
+            type=PluginType.ANALYZER,
+            name="Incomplete",
+            description="Missing provides field",
+            version="1.0",
+            provides=["field_a", "field_b"],
+        )
+        plugin.meta.return_value = plugin_meta
+        plugin.validate_config.return_value = (True, None)
+        plugin.analyze.return_value = {"field_a": "ok"}  # field_b ausente
+
+        core.loader.loaded_plugins["incomplete_plugin"] = plugin
+        core.registry["incomplete_plugin"] = plugin_meta
+
+        doc = core.add_document("test", "texto")
+        with caplog.at_level(logging.WARNING, logger="qualia.core.engine"):
+            core.execute_plugin("incomplete_plugin", doc)
+
+        assert "field_b" in caplog.text
+        assert "incomplete_plugin" in caplog.text
+
+    def test_no_warning_when_provides_complete(self, core, caplog):
+        """Sem warning quando resultado contém todos os campos de provides"""
+        import logging
+
+        plugin = MagicMock()
+        plugin_meta = PluginMetadata(
+            id="complete_plugin",
+            type=PluginType.ANALYZER,
+            name="Complete",
+            description="All provides present",
+            version="1.0",
+            provides=["field_a", "field_b"],
+        )
+        plugin.meta.return_value = plugin_meta
+        plugin.validate_config.return_value = (True, None)
+        plugin.analyze.return_value = {"field_a": "ok", "field_b": "ok"}
+
+        core.loader.loaded_plugins["complete_plugin"] = plugin
+        core.registry["complete_plugin"] = plugin_meta
+
+        doc = core.add_document("test2", "texto")
+        with caplog.at_level(logging.WARNING, logger="qualia.core.engine"):
+            core.execute_plugin("complete_plugin", doc)
+
+        assert "provides" not in caplog.text
+
+    def test_visualizer_skips_provides_validation(self, core, temp_dir, caplog):
+        """Visualizers não disparam warning de provides (retornam Path, não dict)"""
+        import logging
+
+        viz = MagicMock()
+        viz_meta = PluginMetadata(
+            id="skip_viz",
+            type=PluginType.VISUALIZER,
+            name="SkipViz",
+            description="Test",
+            version="1.0",
+            provides=["should_not_warn"],
+        )
+        viz.meta.return_value = viz_meta
+        viz.validate_config.return_value = (True, None)
+        viz.render.return_value = temp_dir / "result.png"
+
+        core.loader.loaded_plugins["skip_viz"] = viz
+        core.registry["skip_viz"] = viz_meta
+
+        doc = core.add_document("viz_test", "texto")
+        with caplog.at_level(logging.WARNING, logger="qualia.core.engine"):
+            core.execute_plugin("skip_viz", doc)
+
+        assert "provides" not in caplog.text
+
+
+class TestProvidesContract:
+    """Teste paramétrico: cada analyzer/document plugin retorna os campos de provides"""
+
+    @pytest.mark.parametrize("plugin_id", [
+        "word_frequency",
+        "readability_analyzer",
+        "sentiment_analyzer",
+    ])
+    def test_analyzer_result_matches_provides(self, core, plugin_id):
+        """Resultado do plugin contém todos os campos declarados em provides"""
+        meta = core.registry[plugin_id]
+        doc = core.add_document(f"contract_{plugin_id}", "Este é um texto de teste para validação do contrato de provides. " * 5)
+        result = core.execute_plugin(plugin_id, doc)
+
+        for field in meta.provides:
+            assert field in result, f"Plugin '{plugin_id}' declara provides='{field}' mas não retorna no resultado"
+
+    def test_visualizer_provides_empty(self, core):
+        """Todos os visualizers devem ter provides=[]"""
+        for pid, meta in core.registry.items():
+            if meta.type == PluginType.VISUALIZER:
+                assert meta.provides == [], f"Visualizer '{pid}' não deveria ter provides (tem {meta.provides})"
+
     def test_visualizer_validate_data_missing_field(self):
         """_validate_data deve levantar ValueError se campo requerido estiver faltando"""
 

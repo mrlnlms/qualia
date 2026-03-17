@@ -253,3 +253,32 @@ class TestDependencyResolverFieldNames:
         resolver.build_graph()
         result = resolver.resolve(["consumer"])
         assert result == ["analyzer", "consumer"]
+
+
+class TestProvidesCollision:
+    """Testes de colisão de provides — dois plugins não podem fornecer o mesmo campo"""
+
+    def test_collision_raises_error(self, resolver):
+        """Dois plugins com mesmo provides levanta ValueError"""
+        resolver.add_plugin("plugin_a", make_meta("plugin_a", provides=["shared_field"]))
+        with pytest.raises(ValueError, match="Colisão de provides"):
+            resolver.add_plugin("plugin_b", make_meta("plugin_b", provides=["shared_field"]))
+
+    def test_no_collision_different_fields(self, resolver):
+        """Campos distintos não causam colisão"""
+        resolver.add_plugin("plugin_a", make_meta("plugin_a", provides=["field_a"]))
+        resolver.add_plugin("plugin_b", make_meta("plugin_b", provides=["field_b"]))
+        assert resolver.resolve_provider("field_a") == "plugin_a"
+        assert resolver.resolve_provider("field_b") == "plugin_b"
+
+    def test_collision_message_includes_both_plugins(self, resolver):
+        """Mensagem de erro inclui ambos os plugin IDs"""
+        resolver.add_plugin("first", make_meta("first", provides=["language"]))
+        with pytest.raises(ValueError, match="'first'.*'second'"):
+            resolver.add_plugin("second", make_meta("second", provides=["language"]))
+
+    def test_empty_provides_no_collision(self, resolver):
+        """Plugins sem provides nunca colidem"""
+        resolver.add_plugin("viz_a", make_meta("viz_a", provides=[]))
+        resolver.add_plugin("viz_b", make_meta("viz_b", provides=[]))
+        # Sem erro

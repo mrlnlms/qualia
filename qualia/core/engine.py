@@ -3,6 +3,7 @@
 QualiaCore — orquestrador principal, completamente agnóstico.
 """
 
+import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -12,6 +13,8 @@ from qualia.core.interfaces import IPlugin, PluginMetadata, PluginType
 from qualia.core.loader import PluginLoader
 from qualia.core.models import Document, ExecutionContext, PipelineConfig
 from qualia.core.resolver import DependencyResolver
+
+logger = logging.getLogger(__name__)
 
 
 class QualiaCore:
@@ -128,6 +131,16 @@ class QualiaCore:
                 result = render_result
         elif metadata.type == PluginType.COMPOSER:
             result = plugin.compose(dep_results, config)
+
+        # Valida contrato de provides (analyzers e documents)
+        if (result and isinstance(result, dict) and metadata.provides
+                and metadata.type in (PluginType.ANALYZER, PluginType.DOCUMENT)):
+            missing = [f for f in metadata.provides if f not in result]
+            if missing:
+                logger.warning(
+                    "Plugin '%s' declara provides=%s mas resultado não contém: %s",
+                    plugin_id, metadata.provides, missing,
+                )
 
         # Armazena no cache e no documento
         if result is not None:
