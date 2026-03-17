@@ -8,11 +8,14 @@ Motor de análise qualitativa. API REST local stateless — recebe texto/áudio/
 # Ativar venv
 source venv/bin/activate
 
-# Rodar API (NÃO usar run_api.py — está bugado)
+# Rodar API
 python -m uvicorn qualia.api:app --port 8000
 
 # Testes
 pytest tests/ -v
+
+# Testes com coverage
+pytest tests/ --cov=qualia --cov-report=term-missing
 
 # Frontend dev (porta 5173, proxy → 8000)
 make frontend-dev
@@ -80,6 +83,9 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 - **Load env:** `python-dotenv` com `load_dotenv()` no topo de `qualia/api/__init__.py`
 - **Frontend:** operações async sempre com loading/progress feedback visual
 - **README:** tom honesto e acessível, sem hype
+- **Pipeline:** fail-fast — se um step falha, pipeline para com RuntimeError descritivo
+- **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `transcription`, `dev`, `all`
+- **Docs mortos:** ficam em `docs/morto/` (ignorado pelo git), docs ativos em `docs/`
 
 ## Ecossistema
 
