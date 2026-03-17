@@ -6,7 +6,7 @@ Motor de análise qualitativa. API REST local stateless — recebe texto/áudio/
 
 ```bash
 # Ativar venv
-source venv/bin/activate
+source .venv/bin/activate
 
 # Rodar API
 python -m uvicorn qualia.api:app --port 8000
@@ -98,7 +98,7 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 
 - **Commits:** mensagens descritivas em português, sem Co-Authored-By
 - **API:** doc_id inclui hash do conteúdo (evita colisão de cache)
-- **Python:** venv em `./venv/`
+- **Python:** venv em `./.venv/`
 - **Secrets:** `.env` no `.gitignore`, `.env.example` commitado como template
 - **Load env:** `python-dotenv` com `load_dotenv()` no topo de `qualia/api/__init__.py`
 - **Frontend:** operações async sempre com loading/progress feedback visual

@@ -1,0 +1,37 @@
+{
+  "word_frequencies": {
+    "teste": 4,
+    "an\u00e1lise": 1,
+    "frequ\u00eancia": 1
+  },
+  "vocabulary_size": 3,
+  "top_words": [
+    [
+      "teste",
+      4
+    ],
+    [
+      "an\u00e1lise",
+      1
+    ],
+    [
+      "frequ\u00eancia",
+      1
+    ]
+  ],
+  "hapax_legomena": [
+    "an\u00e1lise",
+    "frequ\u00eancia"
+  ],
+  "total_words": 6,
+  "parameters_used": {
+    "min_word_length": 3,
+    "max_words": 100,
+    "case_sensitive": false,
+    "remove_stopwords": true,
+    "language": "portuguese",
+    "tokenization": "simple",
+    "by_segment": false,
+    "by_speaker": false
+  }
+}

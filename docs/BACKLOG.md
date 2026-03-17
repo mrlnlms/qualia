@@ -64,6 +64,10 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - [x] Dockerfile + docker-compose limpos
 - [x] Makefile corrigido
 - [x] Instalar pytest-timeout
+- [x] Renomear venv → .venv
+- [x] Eliminar requirements.txt (pyproject.toml fonte única)
+- [x] Deletar nginx.conf corrompido + service nginx
+- [x] Limpar root: mover ops/, scripts/, demos/, examples/, notebooks/ → docs/morto/
 
 ---
 

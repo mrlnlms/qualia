@@ -32,10 +32,9 @@ Funciona como um workbench pessoal: sobe a API, manda o conteúdo, recebe JSON. 
 ```bash
 git clone https://github.com/mrlnlms/qualia.git
 cd qualia
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install -e .
+python -m venv .venv
+source .venv/bin/activate
+pip install -e ".[all]"
 ```
 
 ### Configuração
@@ -173,10 +172,9 @@ qualia/
 ├── plugins/            # Plugins de análise (cada um em sua pasta)
 ├── tests/              # 726 testes (pytest, 90% coverage)
 ├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
-├── ops/                # Scripts operacionais (backup, monitoramento)
 ├── tools/              # Utilitários (gerador de plugins)
 ├── Dockerfile          # Build multi-stage (Python 3.13)
-└── docker-compose.yml  # API + nginx (opcional)
+└── docker-compose.yml  # API containerizada
 ```
 
 ## Stack
@@ -187,7 +185,7 @@ qualia/
 - **NLP:** TextBlob, NLTK, langdetect
 - **Transcrição:** Groq Whisper API
 - **Visualização:** Matplotlib, Plotly, WordCloud
-- **Infra:** Docker, nginx, SSE para monitoramento
+- **Infra:** Docker, SSE para monitoramento
 
 ## Status e limitações
 

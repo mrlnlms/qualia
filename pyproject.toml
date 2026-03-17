@@ -32,6 +32,7 @@ dependencies = [
     "nltk>=3.8",
     "numpy",
     "python-dotenv>=1.0.0",
+    "watchdog>=3.0.0",
 ]
 
 [project.optional-dependencies]
@@ -57,8 +58,10 @@ transcription = [
 ]
 dev = [
     "pytest>=7.0",
+    "pytest-cov>=4.0",
     "pytest-asyncio>=0.21.0",
     "httpx>=0.24.0",
+    "requests>=2.31.0",
     "black",
     "flake8",
     "mypy",

@@ -14,11 +14,10 @@ help: ## Mostra esta mensagem de ajuda
 # ==== INSTALAÇÃO ====
 
 install: ## Instala dependências do projeto
-	$(PYTHON) -m pip install -r requirements.txt
-	$(PYTHON) -m pip install -e .
+	$(PYTHON) -m pip install -e ".[all]"
 
-install-dev: install ## Instala dependências + ferramentas de dev
-	$(PYTHON) -m pip install pytest pytest-cov pytest-asyncio httpx
+install-dev: ## Instala dependências + ferramentas de dev
+	$(PYTHON) -m pip install -e ".[all,dev]"
 
 # ==== TESTES ====
 

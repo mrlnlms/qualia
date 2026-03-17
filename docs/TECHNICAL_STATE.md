@@ -167,7 +167,7 @@ Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__i
 
 GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Trigger: push e PR na main
-- Python 3.13, `pip install -r requirements.txt`, `pytest tests/ -v --cov=qualia`
+- Python 3.13, `pip install -e ".[all,dev]"`, `pytest tests/ -v --cov=qualia`
 - Verifica startup da API
 
 ## Refactors recentes
@@ -176,3 +176,12 @@ GitHub Actions ativo em `.github/workflows/tests.yml`:
 - `qualia/api/__init__.py` virou bootstrap fino; endpoints migrados para `qualia/api/routes/`.
 - `qualia/api/monitor.py` foi reduzido a métricas + SSE; dashboard extraído para `qualia/api/templates/monitor.html`.
 - `qualia/cli/interactive/handlers.py` virou fachada; lógica operacional extraída para `actions.py` e `services.py`.
+
+## Limpeza do repo (2026-03-17)
+
+- Renomeado `venv/` → `.venv/` (convenção moderna)
+- Eliminado `requirements.txt` — `pyproject.toml` é fonte única de dependências
+- CI, Dockerfile e Makefile atualizados pra usar `pip install -e ".[all,dev]"`
+- Deletado `nginx.conf` (conteúdo corrompido) e service nginx do docker-compose
+- Movido pra `docs/morto/`: ops/, scripts/, demos/, examples/, notebooks/, screenshots
+- Removido do root: `freq_result_wordcloud_viz.png`, `qualia_core.egg-info/`

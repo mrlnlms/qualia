@@ -13,11 +13,13 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /build
 
-# Copy requirements first (better caching)
-COPY requirements.txt .
+# Copy project files for install
+COPY pyproject.toml .
+COPY qualia/ qualia/
+COPY plugins/ plugins/
 
 # Install Python dependencies
-RUN pip install --no-cache-dir --user -r requirements.txt
+RUN pip install --no-cache-dir --user ".[all]"
 
 # Download NLTK data
 RUN python -c "import nltk; nltk.download('punkt'); nltk.download('stopwords')"
