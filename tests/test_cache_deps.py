@@ -2,7 +2,7 @@
 Testes do CacheManager e DependencyResolver
 
 Cobre cache hit/miss, corrupção, e resolução de dependências
-com detecção de ciclos.
+com detecção de ciclos e resolução de field names.
 """
 
 import pytest
@@ -101,14 +101,14 @@ class TestCacheManager:
 # DEPENDENCY RESOLVER
 # =============================================================================
 
-def make_meta(plugin_id, requires=None):
+def make_meta(plugin_id, requires=None, provides=None):
     return PluginMetadata(
         id=plugin_id,
         name=plugin_id,
         type=PluginType.ANALYZER,
         version="1.0",
         description="test",
-        provides=[],
+        provides=provides or [],
         requires=requires or [],
         parameters={}
     )
@@ -119,6 +119,7 @@ class TestDependencyResolver:
     def test_no_dependencies(self, resolver):
         resolver.add_plugin("a", make_meta("a"))
         resolver.add_plugin("b", make_meta("b"))
+        resolver.build_graph()
         result = resolver.resolve(["a", "b"])
         assert set(result) == {"a", "b"}
 
@@ -126,6 +127,7 @@ class TestDependencyResolver:
         resolver.add_plugin("a", make_meta("a"))
         resolver.add_plugin("b", make_meta("b", requires=["a"]))
         resolver.add_plugin("c", make_meta("c", requires=["b"]))
+        resolver.build_graph()
         result = resolver.resolve(["c"])
         # a deve vir antes de b, b antes de c
         assert result.index("a") < result.index("b")
@@ -134,6 +136,7 @@ class TestDependencyResolver:
     def test_cycle_detection(self, resolver):
         resolver.add_plugin("a", make_meta("a", requires=["b"]))
         resolver.add_plugin("b", make_meta("b", requires=["a"]))
+        resolver.build_graph()
         with pytest.raises(ValueError, match="circular"):
             resolver.resolve(["a"])
 
@@ -141,6 +144,7 @@ class TestDependencyResolver:
         resolver.add_plugin("a", make_meta("a"))
         resolver.add_plugin("b", make_meta("b", requires=["a"]))
         resolver.add_plugin("c", make_meta("c", requires=["b"]))
+        resolver.build_graph()
         # Pedir só c, mas a e b devem ser incluídos
         result = resolver.resolve(["c"])
         assert "a" in result
@@ -153,6 +157,7 @@ class TestDependencyResolver:
         resolver.add_plugin("b", make_meta("b", requires=["d"]))
         resolver.add_plugin("c", make_meta("c", requires=["d"]))
         resolver.add_plugin("a", make_meta("a", requires=["b", "c"]))
+        resolver.build_graph()
         result = resolver.resolve(["a"])
         # d deve vir antes de b e c, ambos antes de a
         assert result.index("d") < result.index("b")
@@ -162,9 +167,89 @@ class TestDependencyResolver:
 
     def test_single_plugin_no_deps(self, resolver):
         resolver.add_plugin("solo", make_meta("solo"))
+        resolver.build_graph()
         result = resolver.resolve(["solo"])
         assert result == ["solo"]
 
     def test_empty_resolve(self, resolver):
         result = resolver.resolve([])
         assert result == []
+
+
+class TestDependencyResolverFieldNames:
+    """Testes de resolução field-name → plugin-ID"""
+
+    def test_field_name_resolution(self, resolver):
+        """requires por field name resolve pro provider"""
+        resolver.add_plugin("provider", make_meta("provider", provides=["data_field"]))
+        resolver.add_plugin("consumer", make_meta("consumer", requires=["data_field"]))
+        resolver.build_graph()
+        result = resolver.resolve(["consumer"])
+        assert result == ["provider", "consumer"]
+
+    def test_multiple_fields_same_provider(self, resolver):
+        """Dois fields do mesmo provider = 1 dependência (sentiment_viz case)"""
+        resolver.add_plugin("sentiment", make_meta(
+            "sentiment", provides=["polarity", "subjectivity"]
+        ))
+        resolver.add_plugin("viz", make_meta(
+            "viz", requires=["polarity", "subjectivity"]
+        ))
+        resolver.build_graph()
+        result = resolver.resolve(["viz"])
+        assert result == ["sentiment", "viz"]
+        assert len(result) == 2  # sem duplicatas
+
+    def test_missing_field_skipped(self, resolver):
+        """Field sem provider é ignorado silenciosamente"""
+        resolver.add_plugin("p", make_meta("p", requires=["nonexistent_field"]))
+        resolver.build_graph()
+        result = resolver.resolve(["p"])
+        assert result == ["p"]
+
+    def test_resolve_provider(self, resolver):
+        """resolve_provider retorna plugin_id correto"""
+        resolver.add_plugin("wf", make_meta("wf", provides=["word_frequencies"]))
+        assert resolver.resolve_provider("word_frequencies") == "wf"
+        assert resolver.resolve_provider("nonexistent") is None
+
+    def test_real_plugin_graph(self, resolver):
+        """Simula grafo real do Qualia"""
+        resolver.add_plugin("word_frequency", make_meta(
+            "word_frequency", provides=["word_frequencies"]
+        ))
+        resolver.add_plugin("wordcloud_viz", make_meta(
+            "wordcloud_viz", requires=["word_frequencies"]
+        ))
+        resolver.add_plugin("sentiment_analyzer", make_meta(
+            "sentiment_analyzer", provides=["polarity", "subjectivity"]
+        ))
+        resolver.add_plugin("sentiment_viz", make_meta(
+            "sentiment_viz", requires=["polarity", "subjectivity"]
+        ))
+        resolver.build_graph()
+
+        result = resolver.resolve(["wordcloud_viz"])
+        assert result.index("word_frequency") < result.index("wordcloud_viz")
+
+        result = resolver.resolve(["sentiment_viz"])
+        assert result.index("sentiment_analyzer") < result.index("sentiment_viz")
+
+    def test_cycle_through_field_names(self, resolver):
+        """Ciclo detectado mesmo quando deps são field names"""
+        resolver.add_plugin("a", make_meta("a", provides=["field_a"], requires=["field_b"]))
+        resolver.add_plugin("b", make_meta("b", provides=["field_b"], requires=["field_a"]))
+        resolver.build_graph()
+        with pytest.raises(ValueError, match="circular"):
+            resolver.resolve(["a"])
+
+    def test_plugin_id_takes_precedence_over_field_name(self, resolver):
+        """Se req é plugin ID conhecido, usa direto (não busca no provides_map)"""
+        resolver.add_plugin("analyzer", make_meta(
+            "analyzer", provides=["analyzer_data"]
+        ))
+        # "analyzer" é tanto plugin ID quanto potencialmente um field name
+        resolver.add_plugin("consumer", make_meta("consumer", requires=["analyzer"]))
+        resolver.build_graph()
+        result = resolver.resolve(["consumer"])
+        assert result == ["analyzer", "consumer"]

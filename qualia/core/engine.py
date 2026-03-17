@@ -47,8 +47,11 @@ class QualiaCore:
         # plugins aponta pro mesmo dict do loader — lazy plugins aparecem quando instanciados
         self.plugins = self.loader.loaded_plugins
 
+        # Resolver fresco a cada discovery (evita estado stale)
+        self.resolver = DependencyResolver()
         for plugin_id, metadata in self.registry.items():
             self.resolver.add_plugin(plugin_id, metadata)
+        self.resolver.build_graph()
 
         # ConfigurationRegistry usa metadata (não precisa de instâncias)
         if self.registry:
@@ -90,19 +93,14 @@ class QualiaCore:
         # Cria contexto de execução
         exec_context = ExecutionContext(document=document)
 
-        # Resolve dependências: requires pode ser plugin IDs ou field names
+        # Resolve dependências via ordenação topológica
         if metadata.requires:
-            for req in metadata.requires:
-                if req in self.plugins:
-                    dep_result = self.execute_plugin(req, document, {})
-                    exec_context.add_result(req, dep_result)
-                else:
-                    # É um field name — encontrar o plugin que o fornece
-                    for pid, pmeta in self.registry.items():
-                        if req in getattr(pmeta, 'provides', []) and pid in self.plugins:
-                            dep_result = self.execute_plugin(pid, document, {})
-                            exec_context.add_result(pid, dep_result)
-                            break
+            execution_order = self.resolver.resolve([plugin_id])
+            for dep_id in execution_order:
+                if dep_id == plugin_id:
+                    continue
+                dep_result = self.execute_plugin(dep_id, document, {})
+                exec_context.add_result(dep_id, dep_result)
 
         # Executa o plugin baseado em seu tipo
         result = None

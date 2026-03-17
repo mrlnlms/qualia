@@ -1,29 +1,71 @@
 # qualia/core/resolver.py
 """
 Resolução de dependências entre plugins via ordenação topológica.
+
+Suporta dois tipos de dependência em `requires`:
+- Plugin IDs diretos (ex: "word_frequency")
+- Field names (ex: "word_frequencies") — resolvidos via provides_map
 """
 
-from typing import Dict, List, Set
+import logging
+from typing import Dict, List, Optional, Set
 
 from qualia.core.interfaces import PluginMetadata
 
+logger = logging.getLogger(__name__)
+
 
 class DependencyResolver:
-    """Resolve ordem de execução baseado em dependências"""
+    """Resolve ordem de execução baseado em dependências.
+
+    Uso em duas fases:
+    1. add_plugin() para cada plugin descoberto
+    2. build_graph() após todos registrados (resolve field names → plugin IDs)
+    """
 
     def __init__(self):
         self.graph: Dict[str, Set[str]] = {}
         self.metadata: Dict[str, PluginMetadata] = {}
+        self._provides_map: Dict[str, str] = {}  # field_name -> plugin_id
 
     def add_plugin(self, plugin_id: str, metadata: PluginMetadata) -> None:
-        """Adiciona plugin ao grafo de dependências"""
+        """Registra plugin e seus provides. Grafo construído em build_graph()."""
         self.metadata[plugin_id] = metadata
-        self.graph[plugin_id] = set(metadata.requires)
+
+        for field_name in metadata.provides:
+            if field_name in self._provides_map:
+                existing = self._provides_map[field_name]
+                logger.warning(
+                    f"Campo '{field_name}' já fornecido por '{existing}', "
+                    f"sobrescrito por '{plugin_id}'"
+                )
+            self._provides_map[field_name] = plugin_id
+
+    def build_graph(self) -> None:
+        """Resolve field-name requires para plugin-ID edges.
+
+        Deve ser chamado após todos os add_plugin(). Cada requires é resolvido:
+        - Se é um plugin ID conhecido → edge direta
+        - Se é um field name no provides_map → resolve pro provider
+        - Se desconhecido → ignorado silenciosamente
+        """
+        for plugin_id, metadata in self.metadata.items():
+            resolved_deps: Set[str] = set()
+            for req in metadata.requires:
+                if req in self.metadata:
+                    resolved_deps.add(req)
+                elif req in self._provides_map:
+                    resolved_deps.add(self._provides_map[req])
+            self.graph[plugin_id] = resolved_deps
+
+    def resolve_provider(self, field_name: str) -> Optional[str]:
+        """Retorna o plugin_id que provê um campo, ou None."""
+        return self._provides_map.get(field_name)
 
     def resolve(self, target_plugins: List[str]) -> List[str]:
         """
-        Resolve ordem de execução incluindo todas as dependências
-        Detecta ciclos e retorna ordem topológica
+        Resolve ordem de execução incluindo todas as dependências.
+        Detecta ciclos e retorna ordem topológica.
         """
         # Coleta todas as dependências transitivas
         all_plugins = set()
@@ -33,9 +75,8 @@ class DependencyResolver:
             plugin = to_process.pop()
             if plugin not in all_plugins:
                 all_plugins.add(plugin)
-                if plugin in self.metadata:
-                    deps = self.metadata[plugin].requires
-                    to_process.update(deps)
+                if plugin in self.graph:
+                    to_process.update(self.graph[plugin])
 
         # Ordena topologicamente
         visited = set()
