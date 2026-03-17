@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (726 passando, 90% coverage)
+## Testes (729 passando, 90% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -33,7 +33,7 @@
 | test_pragmatic.py | 18 | Contratos de plugin, pipeline, usage real |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_core.py | 16 | Discovery, documents, execution, cache básico |
-| test_cache_lru.py | 15 | LRU eviction, TTL expiration, stats, backward compat |
+| test_cache_lru.py | 19 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
 | test_cache_deps.py | 15 | CacheManager hit/miss, DependencyResolver ciclos |
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
@@ -93,7 +93,7 @@ qualia/core/
   base_plugins.py  # BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin
   engine.py        # QualiaCore — orquestrador principal
   loader.py        # PluginLoader (auto-descoberta eager/lazy)
-  cache.py         # CacheManager (LRU + TTL)
+  cache.py         # CacheManager (LRU + TTL + invalidação seletiva)
   resolver.py      # DependencyResolver (ordenação topológica)
   config.py        # ConfigurationRegistry (normalização, validação, calibração)
 ```
@@ -127,8 +127,8 @@ Startup (main thread):
 
 Request (worker thread via asyncio.to_thread):
   core.get_plugin(plugin_id)
-    → Se já instanciado: retorna do cache
-    → Se lazy: instancia agora, cacheia, retorna
+    → Se já instanciado: retorna do cache (lock-free)
+    → Se lazy: adquire lock, double-check, instancia, cacheia, retorna
   plugin.analyze(doc, config, context)
 ```
 
@@ -138,13 +138,21 @@ Startup medido (8 plugins): ~910ms
 
 ## Cache
 
-CacheManager com LRU e TTL (defaults: sem limite).
+CacheManager com LRU, TTL e invalidação seletiva (defaults: sem limite).
 
 ```python
 CacheManager(cache_dir, max_size=0, ttl=0)
 # max_size=0 → sem limite de entradas
 # ttl=0 → sem expiração
 # Ambos configuráveis por instância
+```
+
+Invalidação seletiva via índice reverso (`_doc_index`, `_plugin_index`):
+```python
+cache.invalidate(doc_id="doc1")              # remove tudo do documento
+cache.invalidate(plugin_id="word_frequency") # remove tudo do plugin
+cache.invalidate(doc_id="doc1", plugin_id="word_frequency")  # intersecção
+cache.clear()                                # limpa tudo
 ```
 
 Stats via `GET /cache/stats`:

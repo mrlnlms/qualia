@@ -59,7 +59,7 @@ async def analyze_file(
         text = content.decode('utf-8')
 
         doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
-        result = core.execute_plugin(plugin_id, doc, config_dict, context_dict)
+        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict, context_dict)
         await track(f"/analyze/{plugin_id}/file", plugin_id)
 
         return {

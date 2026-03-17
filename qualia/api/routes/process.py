@@ -18,7 +18,7 @@ async def process(plugin_id: str, request: ProcessRequest):
     core = get_core()
     try:
         doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
-        result = core.execute_plugin(plugin_id, doc, request.config)
+        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config)
 
         if isinstance(result, Document):
             result = result.content

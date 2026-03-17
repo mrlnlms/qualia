@@ -43,7 +43,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-726 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+729 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 

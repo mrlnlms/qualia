@@ -6,6 +6,7 @@ Auto-descoberta e carregamento de plugins com instanciação eager/lazy.
 import importlib.util
 import inspect
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Dict, Optional
@@ -35,6 +36,7 @@ class PluginLoader:
         self.plugins_dir = plugins_dir
         self.loaded_plugins: Dict[str, IPlugin] = {}
         self._plugin_classes: Dict[str, type] = {}
+        self._lock = threading.Lock()
 
     def discover(self) -> Dict[str, PluginMetadata]:
         """Descobre plugins e instancia apenas os que precisam de warm-up.
@@ -109,9 +111,14 @@ class PluginLoader:
         if plugin_id in self.loaded_plugins:
             return self.loaded_plugins[plugin_id]
 
-        if plugin_id in self._plugin_classes:
-            instance = self._plugin_classes[plugin_id]()
-            self.loaded_plugins[plugin_id] = instance
-            return instance
+        with self._lock:
+            # Double-check após adquirir lock
+            if plugin_id in self.loaded_plugins:
+                return self.loaded_plugins[plugin_id]
+
+            if plugin_id in self._plugin_classes:
+                instance = self._plugin_classes[plugin_id]()
+                self.loaded_plugins[plugin_id] = instance
+                return instance
 
         return None

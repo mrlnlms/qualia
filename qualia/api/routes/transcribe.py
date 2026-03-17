@@ -2,6 +2,7 @@
 
 import json
 import hashlib
+import asyncio
 import tempfile
 from pathlib import Path
 
@@ -58,7 +59,7 @@ async def transcribe(
         doc.metadata["original_filename"] = file.filename
         doc.metadata["file_size"] = len(content)
 
-        result = core.execute_plugin(plugin_id, doc, config_dict)
+        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
         await track(f"/transcribe/{plugin_id}", plugin_id)
 
         return {

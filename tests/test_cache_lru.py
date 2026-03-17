@@ -241,63 +241,73 @@ class TestBackwardCompat:
 # =============================================================================
 
 class TestCacheInvalidate:
-    """Testes do metodo invalidate() — linhas 104, 113-119"""
+    """Testes de invalidação seletiva por doc_id e/ou plugin_id."""
 
-    def test_invalidate_by_doc_id_pattern_does_not_match_hash(self, cache, cache_dir):
-        """invalidate(doc_id=...) compara pattern com stem do arquivo,
-        mas o stem e um SHA256 hash, entao o doc_id nao aparece nele.
-        Resultado: nenhum arquivo e removido."""
+    def test_invalidate_by_doc_id(self, cache, cache_dir):
+        """invalidate(doc_id=X) remove apenas entradas daquele documento"""
         cache.set("doc1", "plugin_a", {}, {"v": 1})
-        cache.set("doc2", "plugin_a", {}, {"v": 2})
+        cache.set("doc1", "plugin_b", {}, {"v": 2})
+        cache.set("doc2", "plugin_a", {}, {"v": 3})
 
-        pkl_before = list(cache_dir.glob("*.pkl"))
-        assert len(pkl_before) == 2
-
-        # Invalidar com doc_id — o pattern "doc1:" nao vai casar com hash SHA256
         cache.invalidate(doc_id="doc1")
 
-        pkl_after = list(cache_dir.glob("*.pkl"))
-        # Nenhum arquivo removido porque o stem e hash, nao contem doc_id
-        assert len(pkl_after) == 2
+        assert cache.get("doc1", "plugin_a", {}) is None
+        assert cache.get("doc1", "plugin_b", {}) is None
+        assert cache.get("doc2", "plugin_a", {})["v"] == 3
 
-    def test_invalidate_without_pattern_iterates_files(self, cache, cache_dir):
-        """invalidate() sem doc_id nem plugin_id itera arquivos mas nao remove nenhum
-        (pattern vazio, condicao 'if pattern and ...' e falsa)"""
+    def test_invalidate_by_plugin_id(self, cache, cache_dir):
+        """invalidate(plugin_id=X) remove apenas entradas daquele plugin"""
+        cache.set("doc1", "plugin_a", {}, {"v": 1})
+        cache.set("doc2", "plugin_a", {}, {"v": 2})
+        cache.set("doc1", "plugin_b", {}, {"v": 3})
+
+        cache.invalidate(plugin_id="plugin_a")
+
+        assert cache.get("doc1", "plugin_a", {}) is None
+        assert cache.get("doc2", "plugin_a", {}) is None
+        assert cache.get("doc1", "plugin_b", {})["v"] == 3
+
+    def test_invalidate_by_doc_and_plugin(self, cache, cache_dir):
+        """invalidate(doc_id=X, plugin_id=Y) remove apenas a intersecção"""
+        cache.set("doc1", "plugin_a", {}, {"v": 1})
+        cache.set("doc1", "plugin_a", {"x": 1}, {"v": 2})
+        cache.set("doc1", "plugin_b", {}, {"v": 3})
+        cache.set("doc2", "plugin_a", {}, {"v": 4})
+
+        cache.invalidate(doc_id="doc1", plugin_id="plugin_a")
+
+        assert cache.get("doc1", "plugin_a", {}) is None
+        assert cache.get("doc1", "plugin_a", {"x": 1}) is None
+        assert cache.get("doc1", "plugin_b", {})["v"] == 3
+        assert cache.get("doc2", "plugin_a", {})["v"] == 4
+
+    def test_invalidate_without_args_does_nothing(self, cache, cache_dir):
+        """invalidate() sem argumentos não remove nada"""
         cache.set("d1", "p", {}, {"v": 1})
-        cache.set("d2", "p", {}, {"v": 2})
+        cache.invalidate()
+        assert cache.get("d1", "p", {})["v"] == 1
 
-        pkl_before = list(cache_dir.glob("*.pkl"))
-        assert len(pkl_before) == 2
+    def test_invalidate_updates_stats_and_tracking(self, cache):
+        """invalidate() limpa access_order e timestamps das chaves removidas"""
+        cache.set("doc1", "p", {}, {"v": 1})
+        cache.set("doc2", "p", {}, {"v": 2})
+        assert cache.stats()["size"] == 2
 
-        cache.invalidate()  # sem argumentos
+        cache.invalidate(doc_id="doc1")
+        assert cache.stats()["size"] == 1
 
-        pkl_after = list(cache_dir.glob("*.pkl"))
-        assert len(pkl_after) == 2  # nenhum removido
+    def test_invalidate_removes_files_from_disk(self, cache, cache_dir):
+        """invalidate() remove os .pkl correspondentes do disco"""
+        cache.set("doc1", "p", {}, {"v": 1})
+        cache.set("doc2", "p", {}, {"v": 2})
+        assert len(list(cache_dir.glob("*.pkl"))) == 2
 
-    def test_invalidate_removes_file_when_pattern_in_stem(self, cache, cache_dir):
-        """Se o stem do arquivo contem o pattern, o arquivo e removido.
-        Criamos um arquivo .pkl cujo nome contem o pattern pra forcar o match."""
-        cache.set("d1", "p", {}, {"v": 1})
-
-        # Criar arquivo fake cujo stem contem o pattern
-        fake_file = cache_dir / "doc_special:.pkl"
-        fake_file.write_bytes(b"fake")
-
-        pkl_before = list(cache_dir.glob("*.pkl"))
-        assert len(pkl_before) == 2
-
-        cache.invalidate(doc_id="doc_special")
-
-        # O fake_file deve ter sido removido (pattern "doc_special:" esta no stem)
-        assert not fake_file.exists()
-        # O outro arquivo (hash) permanece
-        pkl_after = list(cache_dir.glob("*.pkl"))
-        assert len(pkl_after) == 1
+        cache.invalidate(doc_id="doc1")
+        assert len(list(cache_dir.glob("*.pkl"))) == 1
 
     def test_evict_lru_empty_access_order(self, cache_dir):
-        """_evict_lru() com _access_order vazio retorna sem fazer nada (linha 104)"""
+        """_evict_lru() com _access_order vazio retorna sem fazer nada"""
         cm = CacheManager(cache_dir, max_size=3)
         assert cm._access_order == []
-        # Nao deve lancar excecao
         cm._evict_lru()
         assert cm.stats()["evictions"] == 0

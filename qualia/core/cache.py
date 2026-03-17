@@ -33,6 +33,9 @@ class CacheManager:
         self._hits = 0
         self._misses = 0
         self._evictions = 0
+        # Índice reverso para invalidação seletiva
+        self._doc_index: Dict[str, set] = {}
+        self._plugin_index: Dict[str, set] = {}
 
     def _get_cache_key(self, doc_id: str, plugin_id: str, config: Dict[str, Any]) -> str:
         """Gera chave única para cache"""
@@ -98,25 +101,46 @@ class CacheManager:
         self._access_order.append(cache_key)
         self._timestamps[cache_key] = time.time()
 
+        # Registrar no índice reverso
+        self._doc_index.setdefault(doc_id, set()).add(cache_key)
+        self._plugin_index.setdefault(plugin_id, set()).add(cache_key)
+
+    def _remove_entry(self, cache_key: str) -> None:
+        """Remove uma entrada do cache (arquivo, tracking e índices)."""
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
+        cache_file.unlink(missing_ok=True)
+        self._timestamps.pop(cache_key, None)
+        if cache_key in self._access_order:
+            self._access_order.remove(cache_key)
+        for index in (self._doc_index, self._plugin_index):
+            for key_set in index.values():
+                key_set.discard(cache_key)
+
     def _evict_lru(self) -> None:
         """Remove a entrada menos recentemente usada"""
         if not self._access_order:
             return
-        oldest_key = self._access_order.pop(0)
-        cache_file = self.cache_dir / f"{oldest_key}.pkl"
-        cache_file.unlink(missing_ok=True)
-        self._timestamps.pop(oldest_key, None)
+        oldest_key = self._access_order[0]
+        self._remove_entry(oldest_key)
         self._evictions += 1
 
     def invalidate(self, doc_id: Optional[str] = None, plugin_id: Optional[str] = None) -> None:
-        """Invalida cache baseado em documento ou plugin"""
-        pattern = ""
-        if doc_id:
-            pattern = f"{doc_id}:"
-        # Implementação simplificada - em produção, indexar melhor
-        for cache_file in self.cache_dir.glob("*.pkl"):
-            if pattern and pattern in cache_file.stem:
-                cache_file.unlink()
+        """Invalida cache por documento, plugin, ou intersecção dos dois."""
+        if not doc_id and not plugin_id:
+            return
+
+        doc_keys = self._doc_index.get(doc_id, set()) if doc_id else None
+        plugin_keys = self._plugin_index.get(plugin_id, set()) if plugin_id else None
+
+        if doc_keys is not None and plugin_keys is not None:
+            keys_to_remove = doc_keys & plugin_keys
+        elif doc_keys is not None:
+            keys_to_remove = set(doc_keys)
+        else:
+            keys_to_remove = set(plugin_keys)
+
+        for cache_key in keys_to_remove:
+            self._remove_entry(cache_key)
 
     def clear(self) -> None:
         """Remove todas as entradas do cache"""
@@ -127,6 +151,8 @@ class CacheManager:
         self._hits = 0
         self._misses = 0
         self._evictions = 0
+        self._doc_index.clear()
+        self._plugin_index.clear()
 
     def stats(self) -> Dict[str, Any]:
         """Retorna estatísticas do cache"""
