@@ -69,11 +69,11 @@ qualia/api/
 | GET | /plugins | Lista plugins (filtro por tipo opcional) |
 | GET | /plugins/{id} | Info de plugin específico |
 | GET | /plugins/{id}/schema | Schema normalizado |
-| POST | /analyze/{id} | Análise de texto (valida config, 422 com erros) |
-| POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8, fallback latin-1) |
-| POST | /process/{id} | Processamento de documento |
+| POST | /analyze/{id} | Análise de texto (404 plugin, 422 config, 504 timeout 60s) |
+| POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 504 timeout 60s) |
+| POST | /process/{id} | Processamento de documento (404 plugin, 504 timeout 60s) |
 | POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 400 em falha de domínio) |
-| POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML) |
+| POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML, 504 timeout 60s) |
 | POST | /pipeline | Executa sequência de plugins (fail-fast) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
 | POST | /config/resolve | Resolve config com text_size |
@@ -168,8 +168,29 @@ Stats via `GET /cache/stats`:
 
 - **Analyzers/Documents:** declaram provides, engine valida com warning se resultado não contém os campos
 - **Visualizers:** `provides=[]` (retornam Path, engine envolve em `{"output_path": ...}`)
-- **Colisão:** dois plugins com mesmo campo em provides → `ValueError` no startup (fail-fast)
+- **Colisão de provides:** dois plugins com mesmo campo → `ValueError` no startup (fail-fast)
+- **Colisão de plugin ID:** dois plugins com mesmo id em meta() → `ValueError` no startup
 - **Resolver:** field names em `requires` são resolvidos automaticamente via `provides_map` → plugin ID
+- **Requires não satisfeitos:** warning no log se nenhum plugin fornece um campo requerido
+
+## Error handling
+
+API:
+- HTTPException com dict detail → `{"status": "error", "message": ..., "errors": [...]}` (desempacotado)
+- HTTPException com string detail → `{"status": "error", "message": "..."}`
+- Exception não tratada → 500 genérico (sem vazamento de detalhes internos, log completo server-side)
+- Plugin não encontrado → 404 em todas as rotas
+- Timeout → 504 após 60s em analyze, process e visualize
+
+CLI:
+- Sem bare except — todos os catches são tipados
+- UTF-8 com fallback latin-1 em todos os comandos de leitura de arquivo
+- Exit code 1 em todos os erros (não mais return silencioso)
+
+Plugins:
+- Import error no plugin → `logger.error` (não print)
+- Plugin dir sem IPlugin → `logger.warning`
+- Plugin retorna None → `logger.warning`, retorna `{}`
 
 ## Thread-safety
 

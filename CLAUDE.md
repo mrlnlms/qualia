@@ -87,8 +87,8 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 ## API endpoints principais
 
 - `GET /plugins` — lista plugins
-- `POST /analyze/{plugin_id}` — análise de texto (valida config, 422 com erros)
-- `POST /process/{plugin_id}` — processamento de documento
+- `POST /analyze/{plugin_id}` — análise de texto (404 plugin, 422 config, 504 timeout 60s)
+- `POST /process/{plugin_id}` — processamento de documento (404 plugin, 504 timeout 60s)
 - `POST /transcribe/{plugin_id}` — transcreve áudio/vídeo (multipart/form-data)
 - `POST /visualize/{plugin_id}` — gera visualização
 - `POST /pipeline` — executa sequência de plugins
