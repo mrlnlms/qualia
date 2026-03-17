@@ -4,8 +4,8 @@ Levantamento em 2026-03-17 (análise cruzada Claude + Codex), atualizado na mesm
 
 ## Refatoração (prioridade técnica)
 
-1. [ ] Quebrar `qualia/core/__init__.py` (902 linhas) — separar em contracts, models, loader, cache, executor, pipeline. Manter re-exports no `__init__.py` pra não quebrar imports
-2. [ ] Dividir `qualia/api/__init__.py` (694 linhas) — separar bootstrap, schemas e rotas
+1. [ ] Dividir `qualia/api/__init__.py` (694 linhas) — separar bootstrap, schemas e rotas. Manter `qualia.api:app` como contrato público
+2. [ ] Quebrar `qualia/core/__init__.py` (902 linhas) — separar em contracts, models, loader, cache, executor, pipeline. Manter re-exports no `__init__.py` pra não quebrar imports
 
 ## Comportamento
 
