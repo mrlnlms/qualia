@@ -81,6 +81,21 @@ qualia/api/
 | GET | /monitor/ | Dashboard HTML de monitoramento |
 | GET | /monitor/stream | SSE stream de métricas tempo real |
 
+## Core — Estrutura modular
+
+```
+qualia/core/
+  __init__.py      # Fachada de re-exports (~47 linhas)
+  interfaces.py    # PluginType, PluginMetadata, IPlugin, I*Plugin
+  models.py        # Document, ExecutionContext, PipelineStep, PipelineConfig
+  base_plugins.py  # BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin
+  engine.py        # QualiaCore — orquestrador principal
+  loader.py        # PluginLoader (auto-descoberta eager/lazy)
+  cache.py         # CacheManager (LRU + TTL)
+  resolver.py      # DependencyResolver (ordenação topológica)
+  config.py        # ConfigurationRegistry (normalização, validação, calibração)
+```
+
 ## Arquitetura de loading
 
 ```

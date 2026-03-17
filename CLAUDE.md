@@ -28,9 +28,16 @@ make frontend-build
 
 ```
 qualia/
-  core/           # Engine — descoberta de plugins, dependências, cache, execução
-    __init__.py   # QualiaCore — orquestrador principal
-    config.py     # ConfigurationRegistry (normalização, validação, calibração)
+  core/             # Engine — descoberta de plugins, dependências, cache, execução
+    __init__.py     # Fachada de re-exports (~47 linhas)
+    interfaces.py   # PluginType, PluginMetadata, IPlugin e variantes
+    models.py       # Document, ExecutionContext, PipelineStep, PipelineConfig
+    base_plugins.py # BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin
+    engine.py       # QualiaCore — orquestrador principal
+    loader.py       # PluginLoader (auto-descoberta eager/lazy)
+    cache.py        # CacheManager (LRU + TTL)
+    resolver.py     # DependencyResolver (ordenação topológica)
+    config.py       # ConfigurationRegistry (normalização, validação, calibração)
   cli/commands/   # 11 comandos Click (analyze, batch, export, watch, etc.)
   api/            # FastAPI — REST API
     __init__.py   # Bootstrap mínimo (~110 linhas): app, CORS, routers, SPA

@@ -151,8 +151,15 @@ Tipos de plugin disponíveis: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseV
 ```
 qualia/
 ├── qualia/
-│   ├── core/           # Engine — descoberta, dependências, cache, execução
-│   │   └── config.py   # ConfigurationRegistry (normalização, validação, calibração)
+│   ├── core/              # Engine — descoberta, dependências, cache, execução
+│   │   ├── interfaces.py  # Contratos (PluginType, IPlugin e variantes)
+│   │   ├── models.py      # Document, ExecutionContext, Pipeline
+│   │   ├── base_plugins.py # Base classes para plugins
+│   │   ├── engine.py      # QualiaCore (orquestrador)
+│   │   ├── loader.py      # Auto-descoberta de plugins (eager/lazy)
+│   │   ├── cache.py       # Cache LRU + TTL
+│   │   ├── resolver.py    # Resolução de dependências
+│   │   └── config.py      # ConfigurationRegistry (normalização, validação)
 │   ├── cli/            # Interface de terminal (Click + Rich)
 │   │   └── commands/   # 11 comandos (analyze, batch, export, watch, etc.)
 │   └── api/            # REST API (FastAPI)
