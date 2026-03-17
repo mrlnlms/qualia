@@ -63,7 +63,10 @@ class {class_name}(BaseAnalyzerPlugin):
             version="0.1.0",
             description="TODO: descreva o plugin",
 
-            # O que este analyzer fornece (campos no resultado)
+            # provides = campos que o dict de resultado DEVE conter.
+            # Contrato: o engine valida que o resultado contém estes campos.
+            # Outros plugins podem depender destes via requires=["campo"].
+            # Dois plugins NAO podem fornecer o mesmo campo (erro no startup).
             provides=[
                 "analysis_result",  # TODO: mude para seus campos reais
             ],
@@ -169,9 +172,8 @@ class {class_name}(BaseVisualizerPlugin):
                 "data_field",  # TODO: mude para o campo real
             ],
 
-            provides=[
-                "visualization_path",
-            ],
+            # Visualizers NAO declaram provides — retornam Path, nao dict.
+            # O engine envolve em {{"output_path": "...", "plugin_id": "..."}}.
 
             parameters={{
                 "width": {{
@@ -319,6 +321,10 @@ class {class_name}(BaseDocumentPlugin):
             version="0.1.0",
             description="TODO: descreva o plugin",
 
+            # provides = campos que o dict de resultado DEVE conter.
+            # Contrato: o engine valida que o resultado contém estes campos.
+            # Outros plugins podem depender destes via requires=["campo"].
+            # Dois plugins NAO podem fornecer o mesmo campo (erro no startup).
             provides=[
                 "cleaned_document",
                 "quality_report",
