@@ -70,9 +70,9 @@ qualia/api/
 | GET | /plugins/{id} | Info de plugin específico |
 | GET | /plugins/{id}/schema | Schema normalizado |
 | POST | /analyze/{id} | Análise de texto (valida config, 422 com erros) |
-| POST | /analyze/{id}/file | Análise de arquivo uploaded |
+| POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8, fallback latin-1) |
 | POST | /process/{id} | Processamento de documento |
-| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart) |
+| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 400 em falha de domínio) |
 | POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML) |
 | POST | /pipeline | Executa sequência de plugins (fail-fast) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
