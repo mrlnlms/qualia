@@ -1256,6 +1256,31 @@ class TestTranscribeEdgeCases:
         error_text = str(data.get("detail", data.get("message", "")))
         assert "indisponivel" in error_text.lower() or "503" in error_text
 
+    def test_transcribe_domain_error_returns_400(self, client):
+        """Plugin de transcrição retorna status=error → API retorna 400."""
+        with patch("qualia.api.routes.transcribe.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+            mock_core.registry = {
+                "transcription": MagicMock(type=MagicMock(value="document"))
+            }
+            mock_core.get_config_registry.return_value = None
+            mock_core.add_document.return_value = MagicMock()
+            mock_core.execute_plugin.return_value = {
+                "status": "error",
+                "error": "GROQ_API_KEY não configurada",
+            }
+
+            fake_audio = io.BytesIO(b"\x00" * 100)
+            response = client.post(
+                "/transcribe/transcription",
+                files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+                data={"config": "{}"},
+            )
+
+        assert response.status_code == 400
+        assert "GROQ_API_KEY" in response.json()["message"]
+
 
 # ============================================================================
 # Visualize edge cases — cobre linhas 64, 72-74
