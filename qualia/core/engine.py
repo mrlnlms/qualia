@@ -132,13 +132,8 @@ class QualiaCore:
             for dep_result in dep_results.values():
                 if isinstance(dep_result, dict):
                     data.update(dep_result)
-            output_path = Path(f"./output/{document.id}_{plugin_id}.png")
-            render_result = plugin.render(data, config, output_path)
-            # render retorna Path — envolver em dict para consistência
-            if isinstance(render_result, Path):
-                result = {"output_path": str(render_result), "plugin_id": plugin_id}
-            else:
-                result = render_result
+            result = plugin.render(data, config)
+            # result já é dict com "html" ou "data"+"encoding"+"format"
         elif metadata.type == PluginType.COMPOSER:
             result = plugin.compose(dep_results, config)
 
