@@ -136,26 +136,17 @@ if __name__ == "__main__":
 {plugin_title} - Visualizer plugin para Qualia Core
 
 Criado em: {date}
-
-Arquitetura de rendering:
-  - _render_impl(data, config) retorna um objeto de figura ou HTML string
-  - O BaseVisualizerPlugin._serialize() detecta o tipo via duck-typing e serializa
-  - O consumer escolhe o formato via output_format no config
-  - Formatos disponiveis sao detectados automaticamente baseado nas libs instaladas
-
-Tipos de retorno suportados:
-  - plotly.Figure  → HTML interativo (sempre) ou PNG/SVG (se kaleido instalado)
-  - matplotlib.Figure → HTML (img inline) ou PNG/SVG (nativo)
-  - str (HTML) → HTML direto (sem conversao pra imagem)
 """
 
-from typing import Dict, Any
+from typing import Dict, Any, Union
+from pathlib import Path
 from qualia.core import BaseVisualizerPlugin, PluginMetadata, PluginType
 
-# Escolha UMA lib de rendering e descomente:
-# import plotly.graph_objects as go       # RENDER_LIB = "plotly"
-# import matplotlib.pyplot as plt         # RENDER_LIB = "matplotlib"
-# (ou retorne HTML string puro)           # RENDER_LIB = "html"
+# Imports comuns para visualizers:
+# import matplotlib.pyplot as plt
+# import plotly.graph_objects as go
+# import plotly.express as px
+# from wordcloud import WordCloud
 
 
 class {class_name}(BaseVisualizerPlugin):
@@ -163,16 +154,9 @@ class {class_name}(BaseVisualizerPlugin):
     TODO: Descreva o que este visualizer faz.
 
     Exemplo de uso:
-        qualia visualize data.json -p {plugin_id}
-        qualia visualize data.json -p {plugin_id} -P theme=dark
+        qualia visualize data.json -p {plugin_id} -o output.png
+        qualia visualize data.json -p {plugin_id} -o dashboard.html -P theme=dark
     """
-
-    # Declare qual lib de rendering este plugin usa.
-    # Isso controla quais formatos de saida ficam disponiveis:
-    #   "plotly"     → html (sempre), png/svg (se kaleido instalado)
-    #   "matplotlib" → html, png, svg (todos nativos)
-    #   "html"       → apenas html
-    RENDER_LIB = "plotly"
 
     def meta(self) -> PluginMetadata:
         return PluginMetadata(
@@ -183,71 +167,106 @@ class {class_name}(BaseVisualizerPlugin):
             description="TODO: descreva o plugin",
 
             # Dados necessarios (campos que devem existir no input)
-            # O engine resolve dependencias automaticamente:
-            # se requires=["word_frequencies"], o engine roda word_frequency antes.
-            # Exemplos: ["word_frequencies"], ["polarity", "subjectivity"], ["clusters"]
+            # Exemplos: ["word_frequencies"], ["polarity", "subjectivity"]
             requires=[
                 "data_field",  # TODO: mude para o campo real
             ],
 
-            # Visualizers NAO declaram provides (retornam visualizacao, nao dados).
-            provides=[],
+            # Visualizers NAO declaram provides — retornam Path, nao dict.
+            # O engine envolve em {{"output_path": "...", "plugin_id": "..."}}.
 
             parameters={{
+                "width": {{
+                    "type": "integer",
+                    "default": 800,
+                    "description": "Largura em pixels"
+                }},
+                "height": {{
+                    "type": "integer",
+                    "default": 600,
+                    "description": "Altura em pixels"
+                }},
                 "theme": {{
-                    "type": "str",
+                    "type": "choice",
                     "options": ["light", "dark"],
-                    "default": "dark",
+                    "default": "light",
                     "description": "Tema visual"
                 }},
-                # output_format: gerado dinamicamente pelo BaseClass.
-                # Mostra apenas formatos que funcionam no ambiente atual.
-                "output_format": {{
-                    "type": "str",
-                    "default": "html",
-                    "options": self.get_supported_formats(self.RENDER_LIB),
-                    "description": "Formato de saida"
+                "format": {{
+                    "type": "choice",
+                    "options": ["png", "svg", "html"],
+                    "default": "png",
+                    "description": "Formato do arquivo de saida"
                 }},
             }}
         )
 
-    def _render_impl(self, data: Dict[str, Any], config: Dict[str, Any]):
+    def _render_impl(self, data: Dict[str, Any], config: Dict[str, Any],
+                     output_path: Path) -> Path:
         """
-        Gera a visualizacao e retorna o objeto de figura.
-
-        O BaseClass cuida da serializacao — voce so precisa retornar:
-          - plotly.Figure (se RENDER_LIB = "plotly")
-          - matplotlib.Figure (se RENDER_LIB = "matplotlib")
-          - str HTML (se RENDER_LIB = "html")
+        Implementacao da visualizacao.
 
         Args:
-            data: Dados para visualizar (vem de analyzers via requires)
-            config: Configuracoes validadas com defaults aplicados
+            data: Dados para visualizar (vem de analyzers ou JSON)
+            config: Configuracoes validadas (width, height, theme, etc)
+            output_path: Path onde salvar (diretorio ja criado pelo base class)
 
         Returns:
-            Objeto de figura nativo da lib escolhida
+            Path do arquivo gerado
         """
-        import plotly.graph_objects as go
-
-        theme = config.get('theme', 'dark')
-        template = 'plotly_dark' if theme == 'dark' else 'plotly_white'
+        width = config['width']
+        height = config['height']
+        theme = config['theme']
 
         required_data = data.get('data_field', {{}})
         if not required_data:
             raise ValueError("Dados necessarios nao encontrados: 'data_field'")
 
+        if config['format'] == 'html' or output_path.suffix == '.html':
+            self._render_interactive(required_data, config, output_path)
+        else:
+            self._render_static(required_data, config, output_path)
+
+        return output_path
+
+    def _render_static(self, data: Any, config: Dict[str, Any], output_path: Path):
+        """Renderizacao com matplotlib (PNG, SVG)"""
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(config['width']/100, config['height']/100))
+
+        if config['theme'] == 'dark':
+            plt.style.use('dark_background')
+
         # TODO: implemente sua visualizacao aqui
+        ax.set_title(f"{{self.meta().name}}")
+        ax.text(0.5, 0.5, "TODO: implementar", ha='center', va='center',
+                transform=ax.transAxes, fontsize=16)
+
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+
+    def _render_interactive(self, data: Any, config: Dict[str, Any], output_path: Path):
+        """Renderizacao com plotly (HTML interativo)"""
+        import plotly.graph_objects as go
+
         fig = go.Figure()
-        fig.add_trace(go.Bar(
-            x=list(required_data.keys()),
-            y=list(required_data.values()),
-        ))
+
+        # TODO: implemente sua visualizacao interativa aqui
+        fig.add_trace(go.Scatter(x=[1, 2, 3], y=[1, 2, 3], name='TODO'))
+
         fig.update_layout(
             title=self.meta().name,
-            template=template,
+            width=config['width'],
+            height=config['height'],
+            template='plotly_dark' if config['theme'] == 'dark' else 'plotly_white'
         )
 
-        return fig  # BaseClass serializa pro formato que o consumer pediu
+        if output_path.suffix == '.html':
+            fig.write_html(output_path)
+        else:
+            fig.write_image(output_path)
 
 
 if __name__ == "__main__":
@@ -258,15 +277,14 @@ if __name__ == "__main__":
     print(f"Plugin: {{meta.name}} v{{meta.version}}")
     print(f"Requer: {{meta.requires}}")
     print(f"Parametros: {{list(meta.parameters.keys())}}")
-    print(f"Formatos: {{meta.parameters.get('output_format', {{}}).get('options', [])}}")
 
     test_data = {{"data_field": {{"item1": 10, "item2": 20, "item3": 15}}}}
+    output = Path("test_visualization.html")
 
     print(f"\\nGerando visualizacao...")
     try:
-        result = viz.render(test_data, {{}})
-        has_html = "html" in result
-        print(f"Resultado: {{'html' if has_html else 'imagem'}} ({{len(str(result.get('html', result.get('data', ''))))}} chars)")
+        result = viz._render_impl(test_data, {{"width": 800, "height": 600, "theme": "light", "format": "html"}}, output)
+        print(f"Salvo em: {{result}}")
     except Exception as e:
         print(f"Erro: {{e}}")
 ''',
