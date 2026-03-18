@@ -68,7 +68,7 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 
 **Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_d3, frequency_chart_plotly, sentiment_viz_plotly.
 
-**Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Dois plugins não podem fornecer o mesmo campo (ValueError no startup). Visualizers não declaram provides (retornam Path, não dict).
+**Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Múltiplos plugins podem declarar o mesmo campo (ex: dois sentiment analyzers com `provides=["sentiment_score"]`) — o consumer escolhe qual rodar. Resolução automática de dependências só funciona quando há provider único; com múltiplos, o consumer deve escolher explicitamente via pipeline. Visualizers não declaram provides.
 
 **Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Template: `tools/create_plugin.py`.
 
@@ -106,7 +106,7 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 - **Frontend:** operações async sempre com loading/progress feedback visual
 - **README:** tom honesto e acessível, sem hype
 - **Pipeline:** fail-fast — se um step falha, pipeline para com RuntimeError descritivo
-- **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `transcription`, `dev`, `all`
+- **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `ml` (PyTorch, transformers, sentence-transformers), `transcription`, `dev`, `all`
 - **Docs mortos:** ficam em `docs/morto/` (ignorado pelo git), docs ativos em `docs/`
 
 ## Ecossistema
