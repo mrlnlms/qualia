@@ -1306,3 +1306,36 @@ class TestVisualizeEdgeCases:
         # FileResponse retorna 200 com o conteudo do arquivo
         assert response.status_code == 200
         assert b"PDF-fake-content" in response.content
+
+
+# ============================================================================
+# Config endpoints — registry None
+# ============================================================================
+
+class TestConfigEndpoints:
+    """Testes dos endpoints de config quando registry não está disponível."""
+
+    @pytest.fixture
+    def client(self):
+        return TestClient(app)
+
+    def test_plugin_schema_no_registry_returns_503(self, client):
+        """GET /plugins/{id}/schema sem registry retorna 503."""
+        with patch.object(get_core(), "get_config_registry", return_value=None):
+            response = client.get("/plugins/word_frequency/schema")
+        assert response.status_code == 503
+
+    def test_consolidated_no_registry_returns_503(self, client):
+        """GET /config/consolidated sem registry retorna 503."""
+        with patch.object(get_core(), "get_config_registry", return_value=None):
+            response = client.get("/config/consolidated")
+        assert response.status_code == 503
+
+    def test_resolve_no_registry_returns_503(self, client):
+        """POST /config/resolve sem registry retorna 503."""
+        with patch.object(get_core(), "get_config_registry", return_value=None):
+            response = client.post(
+                "/config/resolve",
+                json={"plugin_id": "word_frequency", "config": {}, "text_size": "medium"},
+            )
+        assert response.status_code == 503
