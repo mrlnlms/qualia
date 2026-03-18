@@ -66,7 +66,7 @@ Tipos: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
 
 O core descobre plugins automaticamente — basta criar pasta em `plugins/` com `__init__.py` que exporte a classe. Sem registro manual.
 
-**Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_viz, frequency_chart, sentiment_viz.
+**Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_d3, frequency_chart_plotly, sentiment_viz_plotly.
 
 **Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Dois plugins não podem fornecer o mesmo campo (ValueError no startup). Visualizers não declaram provides (retornam Path, não dict).
 

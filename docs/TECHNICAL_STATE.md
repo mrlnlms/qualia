@@ -11,9 +11,9 @@
 | readability_analyzer | Analyzer | Nenhuma (pure Python) | Lazy |
 | teams_cleaner | Document | Nenhuma (pure Python) | Lazy |
 | transcription | Document | Groq (guarded import) | Lazy |
-| wordcloud_viz | Visualizer | matplotlib, wordcloud (lazy dentro do render) | Lazy |
-| frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
-| sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
+| wordcloud_d3 | Visualizer | D3.js (HTML puro, sem deps Python) | Lazy |
+| frequency_chart_plotly | Visualizer | plotly (lazy dentro do render) | Lazy |
+| sentiment_viz_plotly | Visualizer | plotly (lazy dentro do render) | Lazy |
 
 ## Testes (772 passando, 90% coverage)
 

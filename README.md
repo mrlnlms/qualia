@@ -23,9 +23,9 @@ Funciona como um workbench pessoal: sobe a API, manda o conteúdo, recebe JSON. 
 | `readability_analyzer` | Analyzer | Calcula legibilidade do texto (score 0-100, nível de dificuldade) |
 | `teams_cleaner` | Document | Limpa transcrições do Teams/Zoom (remove timestamps, organiza speakers) |
 | `transcription` | Document | Transcreve áudio/vídeo via Groq Whisper API (mp3, mp4, opus, wav, etc.) |
-| `wordcloud_viz` | Visualizer | Gera nuvem de palavras (PNG, SVG ou HTML interativo) |
-| `frequency_chart` | Visualizer | Cria gráficos de frequência (barras, pizza, treemap) com Plotly |
-| `sentiment_viz` | Visualizer | Visualiza resultados de sentimento em dashboards |
+| `wordcloud_d3` | Visualizer | Nuvem de palavras interativa com D3.js |
+| `frequency_chart_plotly` | Visualizer | Gráficos de frequência (bar, horizontal, line, area) com Plotly |
+| `sentiment_viz_plotly` | Visualizer | Dashboards, gauges, timeline e distribuição de sentimento com Plotly |
 
 ## Como instalar
 
