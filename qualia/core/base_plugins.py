@@ -7,8 +7,7 @@ métodos de execução rodam em worker threads via asyncio.to_thread.
 Carregue modelos, corpora e recursos pesados no __init__.
 """
 
-from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Optional, Tuple
 
 from qualia.core.interfaces import IAnalyzerPlugin, IDocumentPlugin, IVisualizerPlugin
 from qualia.core.models import Document
@@ -73,93 +72,143 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
 class BaseVisualizerPlugin(IVisualizerPlugin):
     """Base class com funcionalidades comuns para visualizers.
 
-    Thread-safety: plugins são singletons. __init__ roda na main thread;
-    _render_impl roda em worker threads. Carregue recursos pesados no __init__.
+    Plugin author implementa _render_impl(data, config) retornando:
+    - plotly.Figure → BaseClass serializa pra HTML ou PNG/SVG
+    - matplotlib.Figure → BaseClass serializa pra HTML ou PNG/SVG
+    - str (HTML) → BaseClass envolve em dict
+
+    O formato de saída é controlado pelo consumer via output_format no config.
+    Formatos disponíveis são detectados dinamicamente baseado nas libs instaladas.
     """
 
-    def render(self, data: Dict[str, Any], config: Dict[str, Any],
-               output_path: Union[str, Path]) -> Union[str, Path]:
-        """Wrapper que valida e prepara antes de chamar _render_impl"""
-        # Configurar matplotlib headless antes de qualquer uso
-        try:
-            import matplotlib
-            matplotlib.use('Agg')
-        except ImportError:
-            pass  # Plugin pode não usar matplotlib
+    # Subclasse declara: "plotly", "matplotlib", ou "html"
+    RENDER_LIB = "html"
 
-        # Garantir que output_path é Path
-        output_path = self._ensure_path(output_path)
-
-        # Criar diretório se necessário
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Validar config
-        validated_config = self._validate_config(config)
-
-        # Validar que temos os dados necessários
+    def render(self, data, config):
+        """Valida, renderiza e serializa visualização."""
+        config = dict(config)  # cópia — não muta o dict do caller
+        output_format = config.pop("output_format", "html")
+        validated = self._validate_config(config)
         self._validate_data(data)
+        fig = self._render_impl(data, validated)
+        return self._serialize(fig, output_format)
 
-        # Chamar implementação real
-        return self._render_impl(data, validated_config, output_path)
+    def _render_impl(self, data, config):
+        """Plugin implementa: (data, config) → figure object ou HTML str."""
+        raise NotImplementedError("Subclasse deve implementar _render_impl()")
 
-    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Implementação concreta do validate_config"""
-        try:
-            # Tentar validar usando _validate_config
-            self._validate_config(config)
-            return True, None
-        except Exception as e:
-            return False, str(e)
+    def _serialize(self, fig, fmt):
+        """Detecta tipo da figura via duck-typing e serializa pro formato pedido."""
+        import base64 as b64_mod
+        import io
 
-    def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida e aplica defaults aos parâmetros"""
+        # HTML string pura
+        if isinstance(fig, str):
+            if fmt != "html":
+                raise ValueError(f"Plugin retorna HTML puro; formato '{fmt}' não suportado")
+            return {"html": fig}
+
+        # plotly.Figure (duck-typed via to_html)
+        if hasattr(fig, 'to_html'):
+            if fmt == "html":
+                return {"html": fig.to_html(include_plotlyjs="cdn", full_html=True)}
+            elif fmt in ("png", "svg"):
+                img_bytes = fig.to_image(format=fmt)
+                return {"data": b64_mod.b64encode(img_bytes).decode(), "encoding": "base64", "format": fmt}
+            else:
+                raise ValueError(f"Formato '{fmt}' não suportado para plotly.Figure")
+
+        # matplotlib.Figure (duck-typed via savefig)
+        if hasattr(fig, 'savefig'):
+            try:
+                if fmt == "html":
+                    return {"html": self._matplotlib_to_html(fig)}
+                elif fmt in ("png", "svg"):
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format=fmt, bbox_inches='tight', dpi=150)
+                    return {"data": b64_mod.b64encode(buf.getvalue()).decode(), "encoding": "base64", "format": fmt}
+                else:
+                    raise ValueError(f"Formato '{fmt}' não suportado para matplotlib.Figure")
+            finally:
+                import matplotlib.pyplot as plt
+                plt.close(fig)
+
+        raise TypeError(f"Tipo de figura não suportado: {type(fig).__name__}")
+
+    @staticmethod
+    def _matplotlib_to_html(fig):
+        """Converte matplotlib Figure → HTML com imagem base64 inline."""
+        import base64 as b64_mod
+        import io
+
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', bbox_inches='tight', dpi=150)
+        b64 = b64_mod.b64encode(buf.getvalue()).decode()
+        return (
+            '<html><body style="margin:0;display:flex;justify-content:center">'
+            f'<img src="data:image/png;base64,{b64}" style="max-width:100%">'
+            '</body></html>'
+        )
+
+    @staticmethod
+    def get_supported_formats(render_lib):
+        """Retorna formatos disponíveis baseado na lib e nas deps instaladas."""
+        import importlib.util
+
+        if render_lib == "html":
+            return ["html"]
+        elif render_lib == "matplotlib":
+            return ["html", "png", "svg"]
+        elif render_lib == "plotly":
+            formats = ["html"]
+            if importlib.util.find_spec("kaleido") is not None:
+                formats.extend(["png", "svg"])
+            return formats
+        return ["html"]
+
+    def _validate_config(self, config):
+        """Valida e converte tipos dos parâmetros."""
         meta = self.meta()
         validated = {}
-
-        # IMPORTANTE: Aplicar defaults de TODOS os parâmetros definidos no metadata!
         for param_name, param_spec in meta.parameters.items():
+            if param_name == "output_format":
+                continue  # já extraído no render()
             if param_name in config:
-                # Valor foi fornecido, usar ele
                 value = config[param_name]
-
-                # Converter tipos se necessário
-                if param_spec.get('type') == 'integer':
+                param_type = param_spec.get('type')
+                if param_type in ('integer', 'int'):
                     validated[param_name] = int(value)
-                elif param_spec.get('type') == 'float':
+                elif param_type == 'float':
                     validated[param_name] = float(value)
-                elif param_spec.get('type') == 'bool':
+                elif param_type in ('boolean', 'bool'):
                     if isinstance(value, str):
-                        validated[param_name] = value.lower() == 'true'
+                        validated[param_name] = value.lower() in ('true', '1', 'yes')
                     else:
                         validated[param_name] = bool(value)
                 else:
                     validated[param_name] = value
             else:
-                # CRUCIAL: Aplicar valor default se não fornecido!
-                if 'default' in param_spec:
-                    validated[param_name] = param_spec['default']
-
+                validated[param_name] = param_spec.get('default')
         return validated
 
-    def _ensure_path(self, path: Union[str, Path]) -> Path:
-        """Converte para Path se necessário"""
-        return Path(path) if not isinstance(path, Path) else path
+    def validate_config(self, config):
+        """Valida config e retorna (ok, error_msg)."""
+        try:
+            self._validate_config(config)
+            return True, None
+        except Exception as e:
+            return False, str(e)
 
-
-    def _validate_data(self, data: Dict[str, Any]):
-        """Valida que os dados têm os campos necessários"""
+    def _validate_data(self, data):
+        """Verifica que campos requeridos existem nos dados."""
         meta = self.meta()
         if meta.requires:
-            for required_field in meta.requires:
-                if required_field not in data:
+            for field in meta.requires:
+                if field not in data:
                     raise ValueError(
-                        f"Visualizador '{meta.id}' requer campo '{required_field}' nos dados"
+                        f"Visualizador '{meta.id}' requer campo '{field}' nos dados. "
+                        f"Campos disponíveis: {list(data.keys())}"
                     )
-
-    def _render_impl(self, data: Dict[str, Any], config: Dict[str, Any],
-                     output_path: Path) -> Path:
-        """Implementação real do visualizer - override este método"""
-        raise NotImplementedError("Subclasse deve implementar _render_impl()")
 
 
 class BaseDocumentPlugin(IDocumentPlugin):
