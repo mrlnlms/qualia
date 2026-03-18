@@ -2,11 +2,17 @@
 
 Workbench de análise local-first, extensível por plugins. Recebe texto, áudio ou vídeo via API REST, devolve JSON. Cada análise é um plugin independente e configurável — sentimento, frequência, clustering, transcrição, visualização.
 
-Plugin é qualquer biblioteca de análise adicionada ao engine. Existem três tipos: **documents** recebem texto e devolvem texto transformado (limpeza, transcrição), **analyzers** recebem texto e devolvem dados (frequência, sentimento, clusters), e **visualizers** recebem dados e devolvem gráficos. O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar.
+Plugin é qualquer biblioteca de análise adicionada ao engine. Existem três tipos:
+
+- **Documents** recebem texto e devolvem texto transformado — limpeza de transcrições, parsing de chat, normalização. Libs comuns: regex, BeautifulSoup, spaCy
+- **Analyzers** recebem texto e devolvem dados — frequência de palavras, sentimento, clustering, topic modeling, testes estatísticos. Libs comuns: NLTK, TextBlob, scikit-learn, sentence-transformers, scipy
+- **Visualizers** recebem dados e devolvem gráficos — barras, dashboards, redes, dendrogramas, heatmaps. Libs comuns: plotly, matplotlib, D3.js
+
+O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar.
 
 ## Por que
 
-As mesmas análises aparecem em todo projeto de pesquisa qualitativa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
+As mesmas análises aparecem em todo projeto de pesquisa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
 
 Cada plugin declara seus parâmetros e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo, qual threshold. Não é uma caixa preta — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
 
