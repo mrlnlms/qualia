@@ -1,13 +1,8 @@
-"""Endpoint de visualização."""
+"""Rota de visualização — plugin renderiza, BaseClass serializa."""
 
-import tempfile
-import base64
 import asyncio
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from starlette.background import BackgroundTask
-from fastapi.responses import FileResponse
 
 from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
 from qualia.api.schemas import VisualizeRequest
@@ -17,63 +12,31 @@ router = APIRouter()
 
 @router.post("/visualize/{plugin_id}")
 async def visualize(plugin_id: str, request: VisualizeRequest):
-    """Execute a visualizer plugin"""
+    """Gera visualização usando plugin especificado.
+
+    Retorna dict com "html" (string HTML) ou "data"+"encoding"+"format" (base64 imagem).
+    """
     core = get_core()
     require_plugin_type(core, plugin_id, "visualizer")
+    validate_plugin_config(core, plugin_id, request.config)
+
+    config = {**request.config, "output_format": request.output_format or "html"}
+    plugin = core.loader.get_plugin(plugin_id)
+
     try:
-        validate_plugin_config(core, plugin_id, request.config)
-
-        suffix = f".{request.output_format}"
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            output_path = Path(tmp.name)
-
-        plugin = core.loader.get_plugin(plugin_id)
-        if not plugin:
-            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
-
-        try:
-            await asyncio.wait_for(
-                asyncio.to_thread(plugin.render, request.data, request.config, output_path),
-                timeout=60.0
-            )
-        except asyncio.TimeoutError:
-            output_path.unlink(missing_ok=True)
-            raise HTTPException(status_code=504, detail="Visualization timed out after 60s")
-
-        await track(f"/visualize/{plugin_id}", plugin_id)
-
-        if request.output_format in ["png", "svg"]:
-            with open(output_path, "rb") as f:
-                content = base64.b64encode(f.read()).decode()
-            output_path.unlink()
-            return {
-                "status": "success",
-                "plugin_id": plugin_id,
-                "format": request.output_format,
-                "data": content,
-                "encoding": "base64"
-            }
-        elif request.output_format == "html":
-            with open(output_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            output_path.unlink()
-            return {
-                "status": "success",
-                "plugin_id": plugin_id,
-                "format": "html",
-                "data": content,
-                "encoding": "utf-8"
-            }
-        else:
-            return FileResponse(
-                output_path,
-                media_type=f"application/{request.output_format}",
-                filename=f"visualization.{request.output_format}",
-                background=BackgroundTask(lambda: output_path.unlink(missing_ok=True)),
-            )
-
+        result = await asyncio.wait_for(
+            asyncio.to_thread(plugin.render, request.data, config),
+            timeout=60.0,
+        )
+    except asyncio.TimeoutError:
+        await track(f"/visualize/{plugin_id}", plugin_id, "timeout")
+        raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
     except HTTPException:
         raise
     except Exception as e:
         await track(f"/visualize/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
+
+    await track(f"/visualize/{plugin_id}", plugin_id)
+
+    return {"status": "success", "plugin_id": plugin_id, **result}

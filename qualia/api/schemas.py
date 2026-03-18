@@ -19,7 +19,7 @@ class ProcessRequest(BaseModel):
 class VisualizeRequest(BaseModel):
     data: Dict[str, Any] = Field(..., description="Data to visualize (usually from analyzer output)")
     config: Dict[str, Any] = Field(default_factory=dict, description="Visualization configuration")
-    output_format: str = Field("png", description="Output format: png, svg, html")
+    output_format: str = Field("html", description="Output format: png, svg, html")
 
 
 class ConfigResolveRequest(BaseModel):
