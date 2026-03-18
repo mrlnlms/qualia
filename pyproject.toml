@@ -95,3 +95,9 @@ markers = [
 ]
 asyncio_mode = "auto"
 timeout = 30
+filterwarnings = [
+    "ignore:coroutine .* was never awaited:RuntimeWarning",
+    "ignore:setDaemon:DeprecationWarning",
+    "ignore:.*__array__.*copy keyword:DeprecationWarning",
+    "ignore::pytest.PytestUnraisableExceptionWarning",
+]
