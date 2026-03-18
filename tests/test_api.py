@@ -252,18 +252,14 @@ class TestDocumentEndpoints:
         """
         
         response = client.post(
-            "/analyze/teams_cleaner",
+            "/process/teams_cleaner",
             json={"text": teams_text, "config": {}}
         )
-        
+
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
-        
-        result = data["result"]
-        # Verificar campos que realmente existem
-        assert "cleaned_document" in result or "clean_text" in result
-        assert "metadata" in result
+        assert "processed_text" in data
 
 
 class TestErrorHandling:

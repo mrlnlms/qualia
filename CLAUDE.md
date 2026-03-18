@@ -49,7 +49,7 @@ qualia/
       utils.py      # Helpers (choose_plugin, configure_parameters)
   api/            # FastAPI — REST API
     __init__.py   # Bootstrap mínimo (~110 linhas): app, CORS, routers, SPA
-    deps.py       # Dependências compartilhadas (get_core, track, HAS_EXTENSIONS)
+    deps.py       # Dependências compartilhadas (get_core, track, validate_plugin_config, require_plugin_type)
     schemas.py    # Modelos Pydantic (request/response)
     routes/       # Endpoints por domínio (analyze, process, visualize, pipeline, etc.)
     monitor.py    # Métricas + SSE stream (~155 linhas)
@@ -57,7 +57,7 @@ qualia/
     webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core
-tests/            # pytest (700+ testes, 90% coverage)
+tests/            # pytest (750+ testes, 90% coverage)
 ```
 
 ## Plugins
@@ -87,11 +87,11 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 ## API endpoints principais
 
 - `GET /plugins` — lista plugins
-- `POST /analyze/{plugin_id}` — análise de texto (404 plugin, 422 config, 504 timeout 60s)
-- `POST /process/{plugin_id}` — processamento de documento (404 plugin, 504 timeout 60s)
-- `POST /transcribe/{plugin_id}` — transcreve áudio/vídeo (multipart/form-data)
-- `POST /visualize/{plugin_id}` — gera visualização
-- `POST /pipeline` — executa sequência de plugins
+- `POST /analyze/{plugin_id}` — análise de texto (404 plugin, 422 config/tipo, 504 timeout 60s)
+- `POST /process/{plugin_id}` — processamento de documento (404 plugin, 422 config/tipo, 504 timeout 60s)
+- `POST /transcribe/{plugin_id}` — transcreve áudio/vídeo (multipart, 422 config/tipo)
+- `POST /visualize/{plugin_id}` — gera visualização (422 config/tipo, 504 timeout 60s)
+- `POST /pipeline` — executa sequência de plugins (encadeia texto entre steps)
 - `GET /config/consolidated` — todos os schemas + rules
 - `GET /cache/stats` — estatísticas do cache (size, hits, misses, evictions)
 - `POST /webhook/custom` — webhook genérico (extrai texto, analisa)

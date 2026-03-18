@@ -1,6 +1,6 @@
 # Backlog — Qualia Core
 
-Última atualização: 2026-03-17
+Última atualização: 2026-03-18
 
 ## Pendente
 
@@ -43,11 +43,19 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-733 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+753 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
 ## Concluído
+
+### Sprint 2026-03-18 (análise Codex — 4 bugs corrigidos)
+
+- [x] `plugins_dir` relativo ao pacote, não ao cwd (engine.py)
+- [x] Pipeline encadeia `current_text` entre steps (pipeline.py)
+- [x] Validação de config centralizada em todas as rotas (deps.py → `validate_plugin_config()`)
+- [x] Checagem de tipo de plugin por rota (deps.py → `require_plugin_type()`)
+- [x] Testes atualizados e novos (753 passando)
 
 ### Sprint 2026-03-17 (saneamento)
 

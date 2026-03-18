@@ -8,7 +8,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 
-from qualia.api.deps import get_core, track
+from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
 from qualia.api.schemas import VisualizeRequest
 
 router = APIRouter()
@@ -18,7 +18,10 @@ router = APIRouter()
 async def visualize(plugin_id: str, request: VisualizeRequest):
     """Execute a visualizer plugin"""
     core = get_core()
+    require_plugin_type(core, plugin_id, "visualizer")
     try:
+        validate_plugin_config(core, plugin_id, request.config)
+
         suffix = f".{request.output_format}"
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             output_path = Path(tmp.name)

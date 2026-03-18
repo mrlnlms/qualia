@@ -23,6 +23,18 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from qualia.api import app
+from qualia.core.interfaces import PluginMetadata, PluginType
+
+
+def _mock_registry_entry(plugin_id, plugin_type_str):
+    """Cria PluginMetadata fake pra mockar core.registry."""
+    return PluginMetadata(
+        id=plugin_id,
+        type=PluginType(plugin_type_str),
+        name=plugin_id,
+        description="mock",
+        version="0.1.0",
+    )
 
 
 @pytest.fixture
@@ -187,6 +199,26 @@ class TestAnalyzeFile:
         )
         assert response.status_code == 404
 
+    def test_analyze_file_wrong_plugin_type_returns_422(self, client):
+        """Upload deve rejeitar plugin que nao e analyzer."""
+        file_data = io.BytesIO(b"qualquer texto")
+        response = client.post(
+            "/analyze/teams_cleaner/file",
+            files={"file": ("test.txt", file_data, "text/plain")},
+            data={"config": "{}", "context": "{}"},
+        )
+        assert response.status_code == 422
+
+    def test_analyze_file_invalid_config_returns_422(self, client):
+        """Upload deve validar config antes de executar plugin."""
+        file_data = io.BytesIO(b"palavra repetida repetida")
+        response = client.post(
+            "/analyze/word_frequency/file",
+            files={"file": ("test.txt", file_data, "text/plain")},
+            data={"config": json.dumps({"min_word_length": "nao_e_numero"}), "context": "{}"},
+        )
+        assert response.status_code == 422
+
 
 # ============================================================================
 # POST /process/{plugin_id} — processamento de documento
@@ -220,6 +252,22 @@ class TestProcessEndpoint:
             json={"text": "qualquer texto", "config": {}},
         )
         assert response.status_code == 404
+
+    def test_process_wrong_plugin_type_returns_422(self, client):
+        """Endpoint de process deve rejeitar analyzer."""
+        response = client.post(
+            "/process/word_frequency",
+            json={"text": "qualquer texto", "config": {}},
+        )
+        assert response.status_code == 422
+
+    def test_process_invalid_config_returns_422(self, client):
+        """Endpoint de process valida config antes de executar plugin."""
+        response = client.post(
+            "/process/teams_cleaner",
+            json={"text": "Ana: oi tudo bem", "config": {"min_utterance_length": "nao_e_numero"}},
+        )
+        assert response.status_code == 422
 
 
 # ============================================================================
@@ -291,6 +339,30 @@ class TestVisualizeEndpoint:
         )
         # 404 do plugin not found, ou 400 do exception handler
         assert response.status_code in [400, 404]
+
+    def test_visualize_wrong_plugin_type_returns_422(self, client, word_freq_result):
+        """Visualize deve rejeitar plugin que nao e visualizer."""
+        response = client.post(
+            "/visualize/teams_cleaner",
+            json={
+                "data": word_freq_result,
+                "config": {},
+                "output_format": "png",
+            },
+        )
+        assert response.status_code == 422
+
+    def test_visualize_invalid_config_returns_422(self, client, word_freq_result):
+        """Visualize deve validar config antes do render."""
+        response = client.post(
+            "/visualize/frequency_chart",
+            json={
+                "data": word_freq_result,
+                "config": {"max_words": "nao_e_numero"},
+                "output_format": "png",
+            },
+        )
+        assert response.status_code == 422
 
     def test_visualize_timeout(self, client, word_freq_result):
         """Timeout na visualizacao retorna 504"""
@@ -689,6 +761,50 @@ class TestPipelineWithFile:
         assert data["status"] == "success"
         assert data["steps_executed"] == 2
 
+    def test_pipeline_chains_cleaned_document_into_next_step(self, client):
+        """Pipeline deve encadear texto limpo para o analyzer seguinte."""
+        steps = json.dumps([
+            {"plugin_id": "teams_cleaner"},
+            {"plugin_id": "word_frequency"},
+        ])
+        teams_text = (
+            "[00:00:01] Teams System: joined the meeting\n"
+            "[00:00:02] Ana: palavra forte\n"
+            "[00:00:03] Ana: palavra forte\n"
+        )
+        response = client.post(
+            "/pipeline",
+            data={"text": teams_text, "steps": steps},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        word_freq = data["results"][1]["result"]["word_frequencies"]
+        assert "palavra" in word_freq
+        assert "joined" not in word_freq
+        assert "meeting" not in word_freq
+
+    def test_pipeline_file_step0_accepts_cleaned_document(self, client):
+        """Pipeline com arquivo deve encadear campos textuais alem de transcription."""
+        with patch("qualia.api.core.execute_plugin", side_effect=[
+            {"cleaned_document": "texto limpo final"},
+            {"word_frequencies": {"texto": 1, "limpo": 1, "final": 1}},
+        ]) as mock_execute:
+            fake_audio = io.BytesIO(b"\x00" * 100)
+            steps = json.dumps([
+                {"plugin_id": "transcription"},
+                {"plugin_id": "word_frequency"},
+            ])
+            response = client.post(
+                "/pipeline",
+                files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+                data={"steps": steps},
+            )
+
+        assert response.status_code == 200
+        second_doc = mock_execute.call_args_list[1].args[1]
+        assert second_doc.content == "texto limpo final"
+
     def test_pipeline_file_cleanup(self, client):
         """Arquivo temporario do pipeline e limpo apos execucao"""
         mock_result = {"transcription": "texto", "language": "pt", "duration": 1.0}
@@ -958,8 +1074,17 @@ class TestTranscribeEdgeCases:
             files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
             data={"config": config},
         )
-        # 422 se a validacao rejeita, ou 400 se o plugin rejeita
-        assert response.status_code in [400, 422]
+        assert response.status_code == 422
+
+    def test_transcribe_wrong_plugin_type_returns_422(self, client):
+        """Transcribe deve rejeitar plugin que nao e document."""
+        fake_audio = io.BytesIO(b"\x00" * 100)
+        response = client.post(
+            "/transcribe/word_frequency",
+            files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+            data={"config": "{}"},
+        )
+        assert response.status_code == 422
 
     def test_transcribe_http_exception_reraise(self, client):
         """HTTPException lancada dentro do try e relancada (linha 71)"""
@@ -970,6 +1095,9 @@ class TestTranscribeEdgeCases:
         ) as mock_get_core:
             mock_core = MagicMock()
             mock_get_core.return_value = mock_core
+            mock_core.registry = {
+                "transcription": _mock_registry_entry("transcription", "document"),
+            }
             mock_core.loader.get_plugin.return_value = MagicMock()
             mock_core.get_config_registry.return_value = None
             mock_core.add_document.return_value = MagicMock()
@@ -1016,6 +1144,9 @@ class TestVisualizeEdgeCases:
         ) as mock_get_core:
             mock_core = MagicMock()
             mock_get_core.return_value = mock_core
+            mock_core.registry = {
+                "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
+            }
             mock_plugin = MagicMock()
             mock_plugin.render.side_effect = ValueError("dados invalidos para render")
             mock_core.loader.get_plugin.return_value = mock_plugin
@@ -1042,6 +1173,9 @@ class TestVisualizeEdgeCases:
         ) as mock_get_core:
             mock_core = MagicMock()
             mock_get_core.return_value = mock_core
+            mock_core.registry = {
+                "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
+            }
             mock_plugin = MagicMock()
 
             def fake_render(data, config, output_path):

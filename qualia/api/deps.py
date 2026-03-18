@@ -1,6 +1,9 @@
 """Dependências compartilhadas entre módulos de rota."""
 
-from typing import Optional
+from typing import Dict, Optional
+
+from fastapi import HTTPException
+
 from qualia.core import QualiaCore
 
 _core: Optional[QualiaCore] = None
@@ -20,6 +23,31 @@ def get_core() -> QualiaCore:
 def set_extensions(available: bool):
     global HAS_EXTENSIONS
     HAS_EXTENSIONS = available
+
+
+def validate_plugin_config(core: QualiaCore, plugin_id: str, config: Dict) -> None:
+    """Valida config via registry. Levanta HTTPException 422 se inválida."""
+    registry = core.get_config_registry()
+    if registry and config:
+        valid, errors = registry.validate_config(plugin_id, config)
+        if not valid:
+            raise HTTPException(
+                status_code=422,
+                detail={"message": "Configuração inválida", "errors": errors},
+            )
+
+
+def require_plugin_type(core: QualiaCore, plugin_id: str, *expected_types: str) -> None:
+    """Verifica se o plugin é do tipo esperado. Levanta HTTPException 422 se incompatível."""
+    meta = core.registry.get(plugin_id)
+    if not meta:
+        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
+    if meta.type.value not in expected_types:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Plugin '{plugin_id}' é do tipo '{meta.type.value}', "
+                   f"esperado: {', '.join(expected_types)}",
+        )
 
 
 async def track(endpoint: str, plugin_id: str = None, error: str = None):

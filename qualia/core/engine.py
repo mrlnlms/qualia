@@ -26,8 +26,15 @@ class QualiaCore:
     """
 
     def __init__(self,
-                 plugins_dir: Path = Path("./plugins"),
-                 cache_dir: Path = Path("./cache")):
+                 plugins_dir: Path = None,
+                 cache_dir: Path = None):
+        # Resolve paths relativos ao pacote, não ao cwd
+        _project_root = Path(__file__).resolve().parent.parent.parent
+        if plugins_dir is None:
+            plugins_dir = _project_root / "plugins"
+        if cache_dir is None:
+            cache_dir = _project_root / "cache"
+
         # Core inicia COMPLETAMENTE VAZIO
         self.registry: Dict[str, PluginMetadata] = {}  # Vazio!
         self.plugins: Dict[str, IPlugin] = {}          # Vazio!

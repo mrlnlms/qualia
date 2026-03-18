@@ -9,9 +9,20 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from qualia.api.deps import get_core, track
+from qualia.api.deps import get_core, track, validate_plugin_config
 
 router = APIRouter()
+
+
+def _extract_text_result(result):
+    """Extrai texto encadeável de resultados de analyzer/document."""
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        for key in ("transcription", "cleaned_document", "processed_text"):
+            if key in result and isinstance(result[key], str):
+                return result[key]
+    return None
 
 
 @router.post("/pipeline")
@@ -56,6 +67,7 @@ async def execute_pipeline(
             step0 = steps_list[0]
             plugin_id = step0["plugin_id"]
             config_dict = step0.get("config", {})
+            validate_plugin_config(core, plugin_id, config_dict)
 
             suffix = Path(file.filename).suffix if file.filename else ""
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -74,10 +86,9 @@ async def execute_pipeline(
             result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
             all_results.append({"plugin_id": plugin_id, "result": result})
 
-            if isinstance(result, dict) and "transcription" in result:
-                current_text = result["transcription"]
-            elif isinstance(result, str):
-                current_text = result
+            next_text = _extract_text_result(result)
+            if next_text is not None:
+                current_text = next_text
 
             step_offset = 1
         elif not current_text:
@@ -100,14 +111,7 @@ async def execute_pipeline(
                 config_dict = {**config_dict}
                 output_format = config_dict.pop("format", "png")
 
-            registry = core.get_config_registry()
-            if registry and config_dict:
-                valid, errors = registry.validate_config(plugin_id, config_dict)
-                if not valid:
-                    raise HTTPException(
-                        status_code=422,
-                        detail={"message": f"Invalid config for {plugin_id}", "errors": errors},
-                    )
+            validate_plugin_config(core, plugin_id, config_dict)
 
             if plugin_type == "visualizer":
                 if last_result is None:
@@ -150,6 +154,10 @@ async def execute_pipeline(
                     current_text,
                 )
                 result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
+
+                next_text = _extract_text_result(result)
+                if next_text is not None:
+                    current_text = next_text
 
             all_results.append({"plugin_id": plugin_id, "result": result})
             last_result = result

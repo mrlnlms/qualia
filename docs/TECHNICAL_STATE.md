@@ -1,6 +1,6 @@
 # Qualia Core — Estado Técnico
 
-Última atualização: 2026-03-17
+Última atualização: 2026-03-18
 
 ## Plugins (8)
 
@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (700+ passando, 90% coverage)
+## Testes (750+ passando, 90% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -44,7 +44,7 @@
 ```
 qualia/api/
   __init__.py     # Bootstrap (~110 linhas): app, CORS, router mounting, SPA catch-all
-  deps.py         # get_core(), track(), HAS_EXTENSIONS
+  deps.py         # get_core(), track(), validate_plugin_config(), require_plugin_type()
   schemas.py      # 5 modelos Pydantic + plugin_to_info helper
   routes/
     health.py     # GET /, /api, /health, /cache/stats
@@ -69,12 +69,12 @@ qualia/api/
 | GET | /plugins | Lista plugins (filtro por tipo opcional) |
 | GET | /plugins/{id} | Info de plugin específico |
 | GET | /plugins/{id}/schema | Schema normalizado |
-| POST | /analyze/{id} | Análise de texto (404 plugin, 422 config, 504 timeout 60s) |
-| POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 504 timeout 60s) |
-| POST | /process/{id} | Processamento de documento (404 plugin, 504 timeout 60s) |
-| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 400 em falha de domínio) |
-| POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML, 504 timeout 60s) |
-| POST | /pipeline | Executa sequência de plugins (fail-fast) |
+| POST | /analyze/{id} | Análise de texto (404 plugin, 422 config/tipo, 504 timeout 60s) |
+| POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 422 config/tipo, 504 timeout 60s) |
+| POST | /process/{id} | Processamento de documento (404 plugin, 422 config/tipo, 504 timeout 60s) |
+| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 422 config/tipo, 400 falha domínio) |
+| POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML, 422 config/tipo, 504 timeout 60s) |
+| POST | /pipeline | Executa sequência de plugins (fail-fast, encadeia texto entre steps) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
 | POST | /config/resolve | Resolve config com text_size |
 | GET | /cache/stats | Estatísticas do cache (size, hits, misses, evictions) |
@@ -115,7 +115,8 @@ qualia/cli/interactive/
 
 ```
 Startup (main thread):
-  QualiaCore.__init__()
+  QualiaCore.__init__(plugins_dir=None, cache_dir=None)
+    → Resolve paths relativos ao pacote (não ao cwd)
     → PluginLoader.discover()
       → Para cada plugins/*/:
         1. exec_module() — importa módulo (stdlib + qualia.core, ~0ms)
@@ -180,7 +181,10 @@ API:
 - HTTPException com string detail → `{"status": "error", "message": "..."}`
 - Exception não tratada → 500 genérico (sem vazamento de detalhes internos, log completo server-side)
 - Plugin não encontrado → 404 em todas as rotas
+- Plugin tipo incompatível → 422 (e.g. analyzer em /process, document em /analyze)
+- Config inválida → 422 em todas as rotas (validação centralizada via `validate_plugin_config()`)
 - Timeout → 504 após 60s em analyze, process e visualize
+- Pipeline encadeia texto: `_extract_text_result()` propaga `transcription`, `cleaned_document`, `processed_text`
 
 CLI:
 - Sem bare except — todos os catches são tipados

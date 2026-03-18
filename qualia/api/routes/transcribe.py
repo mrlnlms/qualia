@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from qualia.api.deps import get_core, track
+from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
 
 router = APIRouter()
 
@@ -31,18 +31,9 @@ async def transcribe(
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
 
-    plugin = core.loader.get_plugin(plugin_id)
-    if not plugin:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
+    require_plugin_type(core, plugin_id, "document")
 
-    registry = core.get_config_registry()
-    if registry and config_dict:
-        valid, errors = registry.validate_config(plugin_id, config_dict)
-        if not valid:
-            raise HTTPException(
-                status_code=422,
-                detail={"message": "Configuração inválida", "errors": errors}
-            )
+    validate_plugin_config(core, plugin_id, config_dict)
 
     suffix = Path(file.filename).suffix if file.filename else ""
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:

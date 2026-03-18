@@ -6,7 +6,7 @@ import asyncio
 from fastapi import APIRouter, HTTPException
 
 from qualia.core import Document
-from qualia.api.deps import get_core, track
+from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
 from qualia.api.schemas import ProcessRequest
 
 router = APIRouter()
@@ -16,9 +16,10 @@ router = APIRouter()
 async def process(plugin_id: str, request: ProcessRequest):
     """Execute a document processor plugin"""
     core = get_core()
-    if plugin_id not in core.registry:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
+    require_plugin_type(core, plugin_id, "document")
     try:
+        validate_plugin_config(core, plugin_id, request.config)
+
         doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         try:
             result = await asyncio.wait_for(

@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from qualia.api.deps import get_core, track
+from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
 from qualia.api.schemas import AnalyzeRequest
 
 router = APIRouter()
@@ -16,17 +16,9 @@ router = APIRouter()
 async def analyze(plugin_id: str, request: AnalyzeRequest):
     """Execute an analyzer plugin on text"""
     core = get_core()
-    if plugin_id not in core.registry:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
+    require_plugin_type(core, plugin_id, "analyzer")
     try:
-        registry = core.get_config_registry()
-        if registry and request.config:
-            valid, errors = registry.validate_config(plugin_id, request.config)
-            if not valid:
-                raise HTTPException(
-                    status_code=422,
-                    detail={"message": "Configuração inválida", "errors": errors}
-                )
+        validate_plugin_config(core, plugin_id, request.config)
 
         doc = core.add_document(f"api_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         try:
@@ -60,11 +52,12 @@ async def analyze_file(
 ):
     """Execute an analyzer plugin on uploaded file"""
     core = get_core()
-    if plugin_id not in core.registry:
-        raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
+    require_plugin_type(core, plugin_id, "analyzer")
     try:
         config_dict = json.loads(config)
         context_dict = json.loads(context)
+
+        validate_plugin_config(core, plugin_id, config_dict)
 
         content = await file.read()
         encoding_used = "utf-8"
