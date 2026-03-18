@@ -5,6 +5,11 @@ Resolução de dependências entre plugins via ordenação topológica.
 Suporta dois tipos de dependência em `requires`:
 - Plugin IDs diretos (ex: "word_frequency")
 - Field names (ex: "word_frequencies") — resolvidos via provides_map
+
+Múltiplos plugins podem declarar o mesmo campo em `provides` (ex: dois
+sentiment analyzers ambos com provides=["sentiment_score"]). O consumer
+escolhe qual rodar explicitamente. A resolução automática só funciona
+quando há um único provider para o campo.
 """
 
 import logging
@@ -26,27 +31,29 @@ class DependencyResolver:
     def __init__(self):
         self.graph: Dict[str, Set[str]] = {}
         self.metadata: Dict[str, PluginMetadata] = {}
-        self._provides_map: Dict[str, str] = {}  # field_name -> plugin_id
+        self._provides_map: Dict[str, List[str]] = {}  # field_name -> [plugin_ids]
 
     def add_plugin(self, plugin_id: str, metadata: PluginMetadata) -> None:
         """Registra plugin e seus provides. Grafo construído em build_graph()."""
         self.metadata[plugin_id] = metadata
 
         for field_name in metadata.provides:
-            if field_name in self._provides_map:
-                existing = self._provides_map[field_name]
-                raise ValueError(
-                    f"Colisão de provides: campo '{field_name}' fornecido por "
-                    f"'{existing}' e '{plugin_id}'. Renomeie um deles."
+            if field_name not in self._provides_map:
+                self._provides_map[field_name] = []
+            self._provides_map[field_name].append(plugin_id)
+            if len(self._provides_map[field_name]) > 1:
+                logger.info(
+                    "Campo '%s' fornecido por múltiplos plugins: %s",
+                    field_name, self._provides_map[field_name],
                 )
-            self._provides_map[field_name] = plugin_id
 
     def build_graph(self) -> None:
         """Resolve field-name requires para plugin-ID edges.
 
         Deve ser chamado após todos os add_plugin(). Cada requires é resolvido:
         - Se é um plugin ID conhecido → edge direta
-        - Se é um field name no provides_map → resolve pro provider
+        - Se é um field name com provider único → resolve pro provider
+        - Se é um field name com múltiplos providers → warning (consumer deve escolher)
         - Se desconhecido → warning no log
         """
         for plugin_id, metadata in self.metadata.items():
@@ -55,7 +62,15 @@ class DependencyResolver:
                 if req in self.metadata:
                     resolved_deps.add(req)
                 elif req in self._provides_map:
-                    resolved_deps.add(self._provides_map[req])
+                    providers = self._provides_map[req]
+                    if len(providers) == 1:
+                        resolved_deps.add(providers[0])
+                    else:
+                        logger.warning(
+                            "Plugin '%s' requires '%s' que é provido por %s. "
+                            "Use o plugin ID diretamente no requires ou especifique no pipeline.",
+                            plugin_id, req, providers,
+                        )
                 else:
                     logger.warning(
                         "Plugin '%s' requires '%s' mas nenhum plugin fornece este campo",
@@ -64,8 +79,13 @@ class DependencyResolver:
             self.graph[plugin_id] = resolved_deps
 
     def resolve_provider(self, field_name: str) -> Optional[str]:
-        """Retorna o plugin_id que provê um campo, ou None."""
-        return self._provides_map.get(field_name)
+        """Retorna o plugin_id que provê um campo, ou None se ambíguo/inexistente."""
+        providers = self._provides_map.get(field_name, [])
+        return providers[0] if len(providers) == 1 else None
+
+    def list_providers(self, field_name: str) -> List[str]:
+        """Retorna todos os plugin_ids que provêm um campo."""
+        return self._provides_map.get(field_name, [])
 
     def resolve(self, target_plugins: List[str]) -> List[str]:
         """

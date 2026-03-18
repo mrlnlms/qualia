@@ -255,27 +255,52 @@ class TestDependencyResolverFieldNames:
         assert result == ["analyzer", "consumer"]
 
 
-class TestProvidesCollision:
-    """Testes de colisão de provides — dois plugins não podem fornecer o mesmo campo"""
+class TestMultipleProviders:
+    """Testes de múltiplos providers — plugins podem declarar o mesmo campo"""
 
-    def test_collision_raises_error(self, resolver):
-        """Dois plugins com mesmo provides levanta ValueError"""
+    def test_two_plugins_same_provides_coexist(self, resolver):
+        """Dois plugins com mesmo provides registram sem erro"""
         resolver.add_plugin("plugin_a", make_meta("plugin_a", provides=["shared_field"]))
-        with pytest.raises(ValueError, match="Colisão de provides"):
-            resolver.add_plugin("plugin_b", make_meta("plugin_b", provides=["shared_field"]))
+        resolver.add_plugin("plugin_b", make_meta("plugin_b", provides=["shared_field"]))
+        assert resolver.list_providers("shared_field") == ["plugin_a", "plugin_b"]
+
+    def test_three_plugins_same_provides(self, resolver):
+        """Três plugins com mesmo provides registram todos"""
+        resolver.add_plugin("a", make_meta("a", provides=["score"]))
+        resolver.add_plugin("b", make_meta("b", provides=["score"]))
+        resolver.add_plugin("c", make_meta("c", provides=["score"]))
+        assert resolver.list_providers("score") == ["a", "b", "c"]
 
     def test_no_collision_different_fields(self, resolver):
-        """Campos distintos não causam colisão"""
+        """Campos distintos — cada um com provider único"""
         resolver.add_plugin("plugin_a", make_meta("plugin_a", provides=["field_a"]))
         resolver.add_plugin("plugin_b", make_meta("plugin_b", provides=["field_b"]))
         assert resolver.resolve_provider("field_a") == "plugin_a"
         assert resolver.resolve_provider("field_b") == "plugin_b"
 
-    def test_collision_message_includes_both_plugins(self, resolver):
-        """Mensagem de erro inclui ambos os plugin IDs"""
+    def test_resolve_provider_ambiguous_returns_none(self, resolver):
+        """resolve_provider retorna None quando campo tem múltiplos providers"""
         resolver.add_plugin("first", make_meta("first", provides=["language"]))
-        with pytest.raises(ValueError, match="'first'.*'second'"):
-            resolver.add_plugin("second", make_meta("second", provides=["language"]))
+        resolver.add_plugin("second", make_meta("second", provides=["language"]))
+        assert resolver.resolve_provider("language") is None
+
+    def test_resolve_provider_unique_returns_id(self, resolver):
+        """resolve_provider retorna plugin_id quando campo tem provider único"""
+        resolver.add_plugin("only", make_meta("only", provides=["unique_field"]))
+        assert resolver.resolve_provider("unique_field") == "only"
+
+    def test_list_providers_empty(self, resolver):
+        """list_providers retorna lista vazia pra campo inexistente"""
+        assert resolver.list_providers("nonexistent") == []
+
+    def test_build_graph_ambiguous_skips_dep(self, resolver):
+        """build_graph não resolve dependência quando provider é ambíguo"""
+        resolver.add_plugin("provider_a", make_meta("provider_a", provides=["data"]))
+        resolver.add_plugin("provider_b", make_meta("provider_b", provides=["data"]))
+        resolver.add_plugin("consumer", make_meta("consumer", requires=["data"]))
+        resolver.build_graph()
+        # consumer não tem deps resolvidas (ambíguo)
+        assert resolver.graph["consumer"] == set()
 
     def test_empty_provides_no_collision(self, resolver):
         """Plugins sem provides nunca colidem"""
