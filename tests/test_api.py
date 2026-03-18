@@ -260,6 +260,9 @@ class TestDocumentEndpoints:
         data = response.json()
         assert data["status"] == "success"
         assert "processed_text" in data
+        result = data["processed_text"]
+        assert "cleaned_document" in result
+        assert "metadata" in result
 
 
 class TestErrorHandling:
