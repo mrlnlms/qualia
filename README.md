@@ -1,65 +1,50 @@
 # Qualia Core
 
-Framework para análise qualitativa de textos. Recebe textos, áudios e vídeos, e devolve análises + visualizações via API REST local.
+Workbench de análise local-first, extensível por plugins. Recebe texto, áudio ou vídeo via API REST, devolve JSON. Cada análise é um plugin independente e configurável — sentimento, frequência, clustering, transcrição, visualização.
 
-## O que é
+Plugin é qualquer biblioteca de análise adicionada ao engine. Existem três tipos:
 
-Qualia nasceu da necessidade de parar de reescrever os mesmos scripts de análise de texto em cada projeto. É um sistema de plugins onde cada análise é independente, reutilizável e se conecta com as outras automaticamente.
+- **Documents** recebem texto e devolvem texto transformado — limpeza de transcrições, parsing de chat, normalização. Libs comuns: regex, BeautifulSoup, spaCy
+- **Analyzers** recebem texto e devolvem dados — frequência de palavras, sentimento, clustering, topic modeling, testes estatísticos. Libs comuns: NLTK, TextBlob, scikit-learn, sentence-transformers, scipy
+- **Visualizers** recebem dados e devolvem gráficos — barras, dashboards, redes, dendrogramas, heatmaps. Libs comuns: plotly, matplotlib, D3.js
 
-O core é "burro" de propósito — ele não sabe o que é sentimento, frequência ou transcrição. Ele só descobre quais plugins existem, resolve dependências entre eles e executa. Toda a inteligência fica nos plugins.
+O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar. O projeto já vem com 8 plugins instalados (ver tabela abaixo). Não usa algum? Deleta a pasta e pronto.
 
-Funciona como um workbench pessoal: sobe a API, manda o conteúdo, recebe JSON. Quem interpreta o resultado é quem consome — seja um plugin do Obsidian, um script Python ou qualquer outra coisa.
+## Por que
 
-**Estágio atual:** Alpha (v0.1.0) — funcional para uso pessoal e experimentação.
+As mesmas análises aparecem em todo projeto de pesquisa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
 
-## O que funciona hoje
+Cada plugin declara seus parâmetros e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo, qual threshold. Não é uma caixa preta — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
 
-8 plugins implementados:
+## Plugins
 
 | Plugin | Tipo | O que faz |
 |--------|------|-----------|
-| `word_frequency` | Analyzer | Conta palavras, filtra stopwords, identifica termos principais |
-| `sentiment_analyzer` | Analyzer | Detecta sentimento do texto (positivo/negativo/neutro) via TextBlob |
-| `readability_analyzer` | Analyzer | Calcula legibilidade do texto (score 0-100, nível de dificuldade) |
-| `teams_cleaner` | Document | Limpa transcrições do Teams/Zoom (remove timestamps, organiza speakers) |
-| `transcription` | Document | Transcreve áudio/vídeo via Groq Whisper API (mp3, mp4, opus, wav, etc.) |
-| `wordcloud_d3` | Visualizer | Nuvem de palavras interativa com D3.js |
-| `frequency_chart_plotly` | Visualizer | Gráficos de frequência (bar, horizontal, line, area) com Plotly |
-| `sentiment_viz_plotly` | Visualizer | Dashboards, gauges, timeline e distribuição de sentimento com Plotly |
+| `word_frequency` | Analyzer | Frequência de palavras, stopwords, termos principais |
+| `sentiment_analyzer` | Analyzer | Sentimento do texto (positivo/negativo/neutro) via TextBlob |
+| `readability_analyzer` | Analyzer | Legibilidade (score 0-100, nível de dificuldade) |
+| `teams_cleaner` | Document | Limpa transcrições do Teams/Zoom (timestamps, speakers) |
+| `transcription` | Document | Transcreve áudio/vídeo via Groq Whisper (mp3, mp4, opus, wav) |
+| `wordcloud_d3` | Visualizer | Nuvem de palavras interativa (D3.js) |
+| `frequency_chart_plotly` | Visualizer | Gráficos de frequência (bar, line, area) com Plotly |
+| `sentiment_viz_plotly` | Visualizer | Dashboard, gauge, timeline e distribuição de sentimento |
 
-## Como instalar
+Novos plugins são descobertos automaticamente — basta criar uma pasta em `plugins/` com um `__init__.py`.
+
+Múltiplos plugins podem fazer o mesmo tipo de análise (ex: dois sentiment analyzers com abordagens diferentes). O consumer escolhe qual usar.
+
+## Quick Start
+
+Python 3.9+. Tudo roda local — sem conta, sem cloud.
 
 ```bash
 git clone https://github.com/mrlnlms/qualia.git
-cd qualia
-python -m venv .venv
-source .venv/bin/activate
+cd qualia && python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all]"
-```
-
-### Configuração
-
-Copie o template de variáveis de ambiente e configure:
-
-```bash
-cp .env.example .env
-```
-
-Para usar transcrição de áudio/vídeo, adicione sua chave da Groq no `.env`:
-```
-GROQ_API_KEY=sua_chave_aqui
-```
-Chave gratuita em: https://console.groq.com/keys
-
-## Como usar
-
-### API — interface principal
-
-```bash
 python -m uvicorn qualia.api:app --port 8000
 ```
 
-Abre http://localhost:8000/docs — interface Swagger onde você testa todos os endpoints pelo navegador.
+Swagger em http://localhost:8000/docs — interface onde você testa todos os endpoints pelo navegador.
 
 **Analisar texto:**
 ```bash
@@ -78,134 +63,116 @@ curl -X POST http://localhost:8000/transcribe/transcription \
 **Endpoints principais:**
 - `GET /plugins` — lista plugins disponíveis
 - `POST /analyze/{plugin_id}` — executa análise em texto
-- `POST /process/{plugin_id}` — processa documento (texto)
-- `POST /transcribe/{plugin_id}` — transcreve arquivo de áudio/vídeo
+- `POST /process/{plugin_id}` — processa documento
+- `POST /transcribe/{plugin_id}` — transcreve áudio/vídeo
 - `POST /visualize/{plugin_id}` — gera visualização
 - `POST /pipeline` — executa sequência de plugins
-- `GET /config/consolidated` — visão consolidada de todos os schemas (para consumers)
-- `GET /cache/stats` — estatísticas do cache (tamanho, hits, misses, evictions)
+- `GET /config/consolidated` — schemas de todos os plugins (para consumers)
 
-### CLI — linha de comando
+## CLI
 
 ```bash
-# Ver plugins disponíveis
-qualia list
-
-# Analisar um texto
-qualia analyze meu_texto.txt -p word_frequency
-
-# Limpar transcrição do Teams
-qualia process transcricao.txt -p teams_cleaner
-
-# Com parâmetros customizados
-qualia analyze texto.txt -p word_frequency -P min_word_length=4 -P language=portuguese
+qualia list                                          # plugins disponíveis
+qualia analyze texto.txt -p word_frequency           # analisar texto
+qualia analyze texto.txt -p sentiment_analyzer -P language=pt  # com parâmetros
+qualia process transcricao.txt -p teams_cleaner      # processar documento
+qualia visualize resultado.json -p frequency_chart_plotly  # gerar visualização
+qualia menu                                          # menu interativo (navegação por setas)
 ```
 
-### Menu interativo
+## Crie seu próprio plugin
+
+Gerar a estrutura:
+
 ```bash
-qualia menu
-```
-Navegação por setas, sem precisar decorar comandos.
-
-## Criar seu próprio plugin
-
-O diferencial do Qualia é que criar um plugin novo é simples. O sistema descobre sozinho.
-
-**1. Criar a pasta:**
-```bash
-mkdir plugins/meu_plugin
+python tools/create_plugin.py meu_analyzer analyzer
 ```
 
-**2. Criar `plugins/meu_plugin/__init__.py`:**
+Cria `plugins/meu_analyzer/__init__.py` com a estrutura completa — procure por `TODO` no código gerado. Tipos disponíveis: `analyzer`, `visualizer`, `document`.
+
+O plugin mínimo:
+
 ```python
 from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 
-class MeuPlugin(BaseAnalyzerPlugin):
+class MeuAnalyzer(BaseAnalyzerPlugin):
     def meta(self):
         return PluginMetadata(
-            id="meu_plugin",
-            name="Meu Plugin",
+            id="meu_analyzer",
+            name="Meu Analyzer",
             type=PluginType.ANALYZER,
             version="1.0.0",
-            description="Faz tal coisa",
-            provides=["resultado"],
+            description="Detecta padrões no texto",
+            provides=["patterns"],
             requires=[],
-            parameters={}
+            parameters={
+                "threshold": {"type": "float", "default": 0.5, "description": "Limiar de detecção"},
+                "language": {"type": "str", "default": "pt", "options": ["pt", "en", "es"]},
+            },
         )
 
     def _analyze_impl(self, document, config, context):
         text = document.content
+        threshold = config["threshold"]
         # sua lógica aqui
-        return {"resultado": "..."}
+        return {"patterns": [...]}
 ```
 
-**3. Pronto.** Na próxima vez que o Qualia iniciar, ele descobre o plugin sozinho. Aparece na CLI, na API e no menu sem configuração extra.
+Os parâmetros declarados em `parameters` aparecem automaticamente:
+- Na **API**: `GET /config/consolidated` retorna o schema completo. `POST /analyze/meu_analyzer` valida o config contra o schema
+- Na **CLI**: `qualia analyze texto.txt -p meu_analyzer -P threshold=0.8`
+- No **frontend**: formulário dinâmico gerado a partir do schema — dropdowns pra options, sliders pra ranges
 
-Tipos de plugin disponíveis: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
+Três tipos de plugin: `BaseAnalyzerPlugin` (texto → dados), `BaseDocumentPlugin` (texto → texto limpo), `BaseVisualizerPlugin` (dados → figura). Visualizers retornam o objeto de figura (plotly.Figure, matplotlib.Figure ou HTML) — o BaseClass serializa pro formato que o consumer pediu.
 
-**Thread-safety:** plugins são singletons compartilhados entre threads. Se o plugin usa modelos pesados (NLTK, sentence-transformers, spaCy), carregue no `__init__` — não no `_analyze_impl`. O template `tools/create_plugin.py` já inclui esse padrão.
+Se o plugin usa modelos pesados (transformers, spaCy), carregue no `__init__` — o método de análise roda em worker threads.
 
-## Estrutura do projeto
+## Instale só o que precisa
+
+```bash
+pip install -e "."                # core mínimo
+pip install -e ".[api]"           # + FastAPI, uvicorn
+pip install -e ".[nlp]"           # + TextBlob, NLTK, langdetect
+pip install -e ".[ml]"            # + PyTorch, transformers, sentence-transformers, scikit-learn, umap-learn
+pip install -e ".[viz]"           # + plotly, matplotlib, kaleido
+pip install -e ".[transcription]" # + Groq Whisper (requer GROQ_API_KEY no .env — chave gratuita em console.groq.com)
+pip install -e ".[all]"           # tudo acima
+```
+
+## Arquitetura
 
 ```
-qualia/
-├── qualia/
-│   ├── core/              # Engine — descoberta, dependências, cache, execução
-│   │   ├── interfaces.py  # Contratos (PluginType, IPlugin e variantes)
-│   │   ├── models.py      # Document, ExecutionContext, Pipeline
-│   │   ├── base_plugins.py # Base classes para plugins
-│   │   ├── engine.py      # QualiaCore (orquestrador)
-│   │   ├── loader.py      # Auto-descoberta de plugins (eager/lazy)
-│   │   ├── cache.py       # Cache LRU + TTL
-│   │   ├── resolver.py    # Resolução de dependências
-│   │   └── config.py      # ConfigurationRegistry (normalização, validação)
-│   ├── cli/            # Interface de terminal (Click + Rich)
-│   │   ├── commands/   # 11 comandos (analyze, batch, export, watch, etc.)
-│   │   └── interactive/ # Menu interativo (fachada, actions, services, wizards)
-│   └── api/            # REST API (FastAPI)
-│       ├── deps.py     # Dependências compartilhadas (core singleton, tracking)
-│       ├── schemas.py  # Modelos Pydantic (request/response)
-│       ├── routes/     # Endpoints por domínio (analyze, visualize, pipeline, etc.)
-│       ├── monitor.py  # Métricas + SSE em tempo real
-│       ├── templates/  # Templates HTML da API (ex: dashboard de monitoramento)
-│       └── webhooks.py # Endpoints de webhook
-├── plugins/            # Plugins de análise (cada um em sua pasta)
-├── tests/              # 770+ testes (pytest, 90% coverage)
-├── docs/              # Documentação ativa (TECHNICAL_STATE, DEPLOY, exemplos)
-├── tools/              # Utilitários (gerador de plugins)
-├── Dockerfile          # Build multi-stage (Python 3.13)
-└── docker-compose.yml  # API containerizada
+plugins/  →  core (discovery, deps, cache)  →  API REST  →  consumers
+                                               CLI
+                                               frontend
 ```
+
+O core é agnóstico de propósito — descobre plugins, resolve dependências entre eles (ordenação topológica), gerencia cache, e executa. Ele não sabe o que é sentimento, frequência ou transcrição. Toda a inteligência fica nos plugins.
+
+Consumers (scripts, notebooks, plugins do Obsidian, frontend web) escolhem quais plugins rodar e interpretam os resultados. O Qualia processa — quem dá significado é quem consome.
 
 ## Stack
 
 - **Core:** Python 3.9+
-- **CLI:** Click, Rich
 - **API:** FastAPI, Uvicorn, Pydantic
+- **CLI:** Click, Rich
 - **NLP:** TextBlob, NLTK, langdetect
+- **ML:** PyTorch, transformers, sentence-transformers (extra `[ml]`)
+- **Visualização:** Plotly, D3.js, Matplotlib
 - **Transcrição:** Groq Whisper API
-- **Visualização:** Matplotlib, Plotly, WordCloud
-- **Infra:** Docker, SSE para monitoramento
+- **Frontend:** Svelte 5, Vite
+- **Infra:** Docker, SSE para monitoramento, GitHub Actions CI
 
-## Status e limitações
+## Ecossistema Qualia
 
-**Funciona:**
-- Todos os 8 plugins executam corretamente
-- API REST stateless com Swagger autodocumentado
-- API e core modularizados por domínio/responsabilidade
-- Transcrição de áudio/vídeo via Groq Whisper (testado com mp4)
-- ConfigurationRegistry com validação, calibração por tamanho de texto e visão consolidada
-- Cache com LRU e TTL (`GET /cache/stats` para monitorar)
-- Resolução automática de dependências entre plugins (topológica, com detecção de ciclos)
-- Menu interativo modularizado em fachada + actions + services
-- Integração validada com CodeMarker (plugin Obsidian)
-- 770+ testes (90% coverage)
+Qualia Core é o motor. Outros projetos consomem a API:
 
-**Limitações conhecidas:**
-- Transcrição depende de API externa (Groq) e tem limite de 25MB por arquivo
+- **[qualia-coding](https://github.com/mrlnlms/qualia-coding)** — plugin Obsidian pra codificação qualitativa cross-media
 
-**CI:** GitHub Actions roda `pytest tests/` automaticamente no push/PR.
+## Status
 
-## Licença
+776 testes (90% coverage), 8 plugins, API REST + CLI + frontend web (Svelte, dark theme). CI via GitHub Actions.
 
-MIT — use como quiser.
+**Estágio atual:** Alpha (v0.1.0) — funcional para uso pessoal e experimentação.
+
+MIT
