@@ -1,16 +1,12 @@
 # Qualia
 
-API REST local para análise qualitativa. Recebe texto, áudio ou vídeo, devolve JSON. Extensível por plugins.
+Hub de análise qualitativa local-first, extensível por plugins. Recebe texto, áudio ou vídeo via API REST, devolve JSON. Cada análise é um plugin independente e configurável — sentimento, frequência, clustering, transcrição, visualização.
 
 ## Por que
 
-Qualia nasceu de um problema prático: análises que funcionam mas ficam presas dentro do projeto onde foram feitas. Uma análise de sentimento escrita pra um TCC, um script de clustering feito pra pesquisa de VoC, uma comparação de embeddings montada pra um projeto de WhatsApp — cada um funciona no seu contexto, mas na hora de usar em outro lugar, é copiar arquivo, adaptar paths, instalar dependências de novo.
+As mesmas análises aparecem em todo projeto de pesquisa qualitativa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
 
-Com o tempo, o padrão ficou claro: as análises são as mesmas, os dados é que mudam. Frequência de palavras, sentimento, topic modeling, transcrição — não precisavam morar dentro de cada projeto. Precisavam de um lugar só, acessível por qualquer ferramenta, sem mandar dados pra fora.
-
-Qualia é esse lugar. Cada análise vira um plugin independente. O engine descobre, resolve dependências, executa. A API expõe tudo. Qualquer projeto consome — um script Python, um plugin do Obsidian, um notebook, o frontend web.
-
-Cada plugin declara seus parâmetros (tipo, default, range, opções) e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo de embedding, qual threshold. Não é uma caixa preta com resultado fixo — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
+Cada plugin declara seus parâmetros e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo, qual threshold. Não é uma caixa preta — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
 
 ## Plugins
 
