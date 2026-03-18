@@ -362,6 +362,21 @@ class TestProcessEndpoint:
             )
         assert response.status_code == 400
 
+    def test_process_document_result_extracts_content(self, client):
+        """Quando plugin retorna Document, API extrai .content."""
+        from qualia.core.models import Document
+
+        doc_result = Document(id="test_doc", content="texto limpo extraído", metadata={})
+        with patch.object(get_core(), "execute_plugin", return_value=doc_result):
+            response = client.post(
+                "/process/teams_cleaner",
+                json={"text": "[00:00:01] Ana: olá", "config": {}},
+            )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["processed_text"] == "texto limpo extraído"
+
 
 # ============================================================================
 # POST /visualize/{plugin_id} — geracao de visualizacao
