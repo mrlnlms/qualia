@@ -1,2 +1,0 @@
-matplotlib>=3.5.0
-wordcloud>=1.9.0
