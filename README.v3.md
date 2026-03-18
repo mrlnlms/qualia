@@ -1,4 +1,4 @@
-# Qualia
+# Qualia Core
 
 Workbench de análise local-first, extensível por plugins. Recebe texto, áudio ou vídeo via API REST, devolve JSON. Cada análise é um plugin independente e configurável — sentimento, frequência, clustering, transcrição, visualização.
 
@@ -8,7 +8,7 @@ Plugin é qualquer biblioteca de análise adicionada ao engine. Existem três ti
 - **Analyzers** recebem texto e devolvem dados — frequência de palavras, sentimento, clustering, topic modeling, testes estatísticos. Libs comuns: NLTK, TextBlob, scikit-learn, sentence-transformers, scipy
 - **Visualizers** recebem dados e devolvem gráficos — barras, dashboards, redes, dendrogramas, heatmaps. Libs comuns: plotly, matplotlib, D3.js
 
-O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar.
+O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar. O projeto já vem com 8 plugins instalados (ver tabela abaixo). Não usa algum? Deleta a pasta e pronto.
 
 ## Por que
 
@@ -163,9 +163,11 @@ Consumers (scripts, notebooks, plugins do Obsidian, frontend web) escolhem quais
 - **Frontend:** Svelte 5, Vite
 - **Infra:** Docker, SSE para monitoramento, GitHub Actions CI
 
-## Ecossistema
+## Ecossistema Qualia
 
-O [qualia-coding](https://github.com/mrlnlms/qualia-coding) é um plugin do Obsidian que consome a API do Qualia pra codificação qualitativa cross-media. Envia texto do vault, recebe análise, renderiza resultados dentro do Obsidian.
+Qualia Core é o motor. Outros projetos consomem a API:
+
+- **[qualia-coding](https://github.com/mrlnlms/qualia-coding)** — plugin Obsidian pra codificação qualitativa cross-media
 
 ## Status
 
