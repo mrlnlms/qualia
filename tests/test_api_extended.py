@@ -150,6 +150,26 @@ class TestAnalyzeConfigValidation:
         # O importante e cobrir o branch de validacao
         assert response.status_code in [200, 400, 422]
 
+    def test_analyze_timeout_returns_504(self, client):
+        """Timeout na analise retorna 504."""
+        import asyncio as _asyncio
+
+        with patch("qualia.api.routes.analyze.asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+            response = client.post(
+                "/analyze/word_frequency",
+                json={"text": "qualquer texto", "config": {}},
+            )
+        assert response.status_code == 504
+
+    def test_analyze_generic_exception_returns_400(self, client):
+        """Excecao generica no plugin retorna 400."""
+        with patch.object(get_core(), "execute_plugin", side_effect=RuntimeError("plugin crash")):
+            response = client.post(
+                "/analyze/word_frequency",
+                json={"text": "texto", "config": {}},
+            )
+        assert response.status_code == 400
+
 
 # ============================================================================
 # POST /analyze/{plugin_id}/file — upload de arquivo para analise
@@ -200,6 +220,34 @@ class TestAnalyzeFile:
         )
         assert response.status_code == 404
 
+    def test_analyze_file_utf8_no_warning(self, client):
+        """Upload UTF-8 válido não deve incluir encoding_warning"""
+        file_data = io.BytesIO("texto em português com acentuação".encode('utf-8'))
+        response = client.post(
+            "/analyze/word_frequency/file",
+            files={"file": ("test.txt", file_data, "text/plain")},
+            data={"config": "{}", "context": "{}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "encoding_warning" not in data
+
+    def test_analyze_file_latin1_fallback_with_warning(self, client):
+        """Upload não-UTF-8 deve funcionar com fallback latin-1 e incluir encoding_warning"""
+        # Byte 0xe9 é 'é' em latin-1 mas inválido como UTF-8 isolado
+        file_data = io.BytesIO(b"texto com caf\xe9 e a\xe7\xe3o")
+        response = client.post(
+            "/analyze/word_frequency/file",
+            files={"file": ("test.txt", file_data, "text/plain")},
+            data={"config": "{}", "context": "{}"},
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "encoding_warning" in data
+        assert "latin-1" in data["encoding_warning"]
+        assert data["status"] == "success"
+        assert "result" in data
+
     def test_analyze_file_wrong_plugin_type_returns_422(self, client):
         """Upload deve rejeitar plugin que nao e analyzer."""
         file_data = io.BytesIO(b"qualquer texto")
@@ -219,6 +267,30 @@ class TestAnalyzeFile:
             data={"config": json.dumps({"min_word_length": "nao_e_numero"}), "context": "{}"},
         )
         assert response.status_code == 422
+
+    def test_analyze_file_timeout_returns_504(self, client):
+        """Timeout no upload retorna 504."""
+        import asyncio as _asyncio
+
+        with patch("qualia.api.routes.analyze.asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+            file_data = io.BytesIO(b"texto qualquer")
+            response = client.post(
+                "/analyze/word_frequency/file",
+                files={"file": ("test.txt", file_data, "text/plain")},
+                data={"config": "{}", "context": "{}"},
+            )
+        assert response.status_code == 504
+
+    def test_analyze_file_generic_exception_returns_400(self, client):
+        """Excecao generica via file upload retorna 400."""
+        with patch.object(get_core(), "execute_plugin", side_effect=RuntimeError("file crash")):
+            file_data = io.BytesIO(b"texto qualquer")
+            response = client.post(
+                "/analyze/word_frequency/file",
+                files={"file": ("test.txt", file_data, "text/plain")},
+                data={"config": "{}", "context": "{}"},
+            )
+        assert response.status_code == 400
 
 
 # ============================================================================
@@ -269,6 +341,26 @@ class TestProcessEndpoint:
             json={"text": "Ana: oi tudo bem", "config": {"min_utterance_length": "nao_e_numero"}},
         )
         assert response.status_code == 422
+
+    def test_process_timeout_returns_504(self, client):
+        """Timeout no processamento retorna 504."""
+        import asyncio as _asyncio
+
+        with patch("qualia.api.routes.process.asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+            response = client.post(
+                "/process/teams_cleaner",
+                json={"text": "[00:00:01] Ana: oi", "config": {}},
+            )
+        assert response.status_code == 504
+
+    def test_process_generic_exception_returns_400(self, client):
+        """Excecao generica no processamento retorna 400."""
+        with patch.object(get_core(), "execute_plugin", side_effect=RuntimeError("process crash")):
+            response = client.post(
+                "/process/teams_cleaner",
+                json={"text": "[00:00:01] Ana: oi", "config": {}},
+            )
+        assert response.status_code == 400
 
 
 # ============================================================================
