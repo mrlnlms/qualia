@@ -557,6 +557,37 @@ class TestPipelineEndpoint:
         )
         assert response.status_code == 400
 
+    def test_pipeline_timeout_mid_step_returns_504(self, client):
+        """Timeout num step do pipeline retorna 504."""
+        import asyncio as _asyncio
+
+        with patch("qualia.api.routes.pipeline.asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+            response = client.post(
+                "/pipeline",
+                data={
+                    "text": "texto qualquer para pipeline",
+                    "steps": json.dumps([{"plugin_id": "word_frequency", "config": {}}]),
+                },
+            )
+        assert response.status_code == 504
+
+    def test_pipeline_non_text_result_keeps_current_text(self, client):
+        """Plugin que retorna dict sem campos de texto não altera current_text."""
+        response = client.post(
+            "/pipeline",
+            data={
+                "text": "texto original para dois steps",
+                "steps": json.dumps([
+                    {"plugin_id": "word_frequency", "config": {}},
+                    {"plugin_id": "readability_analyzer", "config": {}},
+                ]),
+            },
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert len(data["results"]) == 2
+
 
 # ============================================================================
 # POST /config/resolve — resolucao de config com text_size
