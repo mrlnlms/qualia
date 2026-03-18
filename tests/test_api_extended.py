@@ -23,6 +23,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 from qualia.api import app
+from qualia.api.deps import get_core
 from qualia.core.interfaces import PluginMetadata, PluginType
 
 
@@ -561,7 +562,7 @@ class TestTranscribeEndpoint:
         }
 
         # Mock do execute_plugin para evitar chamada real ao Groq
-        with patch("qualia.api.core.execute_plugin", return_value=mock_result):
+        with patch.object(get_core(), "execute_plugin", return_value=mock_result):
             fake_audio = io.BytesIO(b"\x00" * 100)
             response = client.post(
                 "/transcribe/transcription",
@@ -622,7 +623,7 @@ class TestTranscribeEndpoint:
             saved_paths.append(str(self))
             original_unlink(self, *args, **kwargs)
 
-        with patch("qualia.api.core.execute_plugin", return_value=mock_result):
+        with patch.object(get_core(), "execute_plugin", return_value=mock_result):
             with patch.object(Path, "unlink", track_unlink):
                 fake_audio = io.BytesIO(b"\x00" * 100)
                 client.post(
@@ -737,7 +738,7 @@ class TestPipelineWithFile:
             "duration": 5.0,
         }
 
-        with patch("qualia.api.core.execute_plugin", side_effect=[
+        with patch.object(get_core(), "execute_plugin", side_effect=[
             mock_result,  # primeiro step (transcription)
             {  # segundo step (word_frequency) — mock tambem
                 "word_frequencies": {"palavra": 1, "repetida": 2, "tres": 3},
@@ -786,7 +787,7 @@ class TestPipelineWithFile:
 
     def test_pipeline_file_step0_accepts_cleaned_document(self, client):
         """Pipeline com arquivo deve encadear campos textuais alem de transcription."""
-        with patch("qualia.api.core.execute_plugin", side_effect=[
+        with patch.object(get_core(), "execute_plugin", side_effect=[
             {"cleaned_document": "texto limpo final"},
             {"word_frequencies": {"texto": 1, "limpo": 1, "final": 1}},
         ]) as mock_execute:
@@ -809,7 +810,7 @@ class TestPipelineWithFile:
         """Arquivo temporario do pipeline e limpo apos execucao"""
         mock_result = {"transcription": "texto", "language": "pt", "duration": 1.0}
 
-        with patch("qualia.api.core.execute_plugin", return_value=mock_result):
+        with patch.object(get_core(), "execute_plugin", return_value=mock_result):
             fake_audio = io.BytesIO(b"\x00" * 100)
             steps = json.dumps([{"plugin_id": "transcription"}])
             response = client.post(
@@ -820,6 +821,21 @@ class TestPipelineWithFile:
 
         # Nao deve ter arquivo temporario pendente
         assert response.status_code == 200
+
+    def test_pipeline_file_with_non_document_step0_returns_422(self, client):
+        """Arquivo com step[0] nao-document deve dar erro descritivo, nao generico."""
+        fake_audio = io.BytesIO(b"\x00" * 100)
+        steps = json.dumps([{"plugin_id": "word_frequency"}])
+        response = client.post(
+            "/pipeline",
+            files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+            data={"steps": steps},
+        )
+        assert response.status_code == 422
+        data = response.json()
+        error_text = data.get("detail", data.get("message", ""))
+        assert "document" in error_text.lower()
+        assert "word_frequency" in error_text
 
 
 # ============================================================================
@@ -1147,6 +1163,7 @@ class TestVisualizeEdgeCases:
             mock_core.registry = {
                 "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
             }
+            mock_core.get_config_registry.return_value = None
             mock_plugin = MagicMock()
             mock_plugin.render.side_effect = ValueError("dados invalidos para render")
             mock_core.loader.get_plugin.return_value = mock_plugin
@@ -1176,6 +1193,7 @@ class TestVisualizeEdgeCases:
             mock_core.registry = {
                 "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
             }
+            mock_core.get_config_registry.return_value = None
             mock_plugin = MagicMock()
 
             def fake_render(data, config, output_path):

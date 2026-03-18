@@ -15,7 +15,16 @@ router = APIRouter()
 
 
 def _extract_text_result(result):
-    """Extrai texto encadeável de resultados de analyzer/document."""
+    """Extrai texto encadeável de resultados de analyzer/document.
+
+    Prioridade (primeiro encontrado vence):
+      1. transcription — plugins de transcrição (e.g. transcription)
+      2. cleaned_document — plugins de limpeza (e.g. teams_cleaner)
+      3. processed_text — plugins de processamento genérico
+
+    Se um plugin retornar múltiplos desses campos, apenas o de maior
+    prioridade será usado para encadear ao próximo step.
+    """
     if isinstance(result, str):
         return result
     if isinstance(result, dict):
@@ -91,6 +100,13 @@ async def execute_pipeline(
                 current_text = next_text
 
             step_offset = 1
+        elif file and not first_is_document:
+            plugin_type = first_meta.type.value if first_meta else "desconhecido"
+            raise HTTPException(
+                status_code=422,
+                detail=f"Arquivo enviado mas primeiro step '{first_plugin_id}' é '{plugin_type}', "
+                       f"não 'document'. Para processar arquivos, o primeiro step deve ser um plugin document.",
+            )
         elif not current_text:
             raise HTTPException(status_code=422, detail="Pipeline requires text or file input")
 

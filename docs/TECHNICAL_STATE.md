@@ -184,7 +184,8 @@ API:
 - Plugin tipo incompatível → 422 (e.g. analyzer em /process, document em /analyze)
 - Config inválida → 422 em todas as rotas (validação centralizada via `validate_plugin_config()`)
 - Timeout → 504 após 60s em analyze, process e visualize
-- Pipeline encadeia texto: `_extract_text_result()` propaga `transcription`, `cleaned_document`, `processed_text`
+- Pipeline encadeia texto: `_extract_text_result()` propaga `transcription` > `cleaned_document` > `processed_text` (prioridade documentada)
+- Pipeline com file + step[0] não-document → 422 descritivo (não mais erro genérico)
 
 CLI:
 - Sem bare except — todos os catches são tipados

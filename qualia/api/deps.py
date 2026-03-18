@@ -28,8 +28,8 @@ def set_extensions(available: bool):
 def validate_plugin_config(core: QualiaCore, plugin_id: str, config: Dict) -> None:
     """Valida config via registry. Levanta HTTPException 422 se inválida."""
     registry = core.get_config_registry()
-    if registry and config:
-        valid, errors = registry.validate_config(plugin_id, config)
+    if registry is not None:
+        valid, errors = registry.validate_config(plugin_id, config or {})
         if not valid:
             raise HTTPException(
                 status_code=422,
