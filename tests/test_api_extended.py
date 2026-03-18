@@ -1410,3 +1410,23 @@ class TestConfigEndpoints:
                 json={"plugin_id": "word_frequency", "config": {}, "text_size": "medium"},
             )
         assert response.status_code == 503
+
+
+# ============================================================================
+# Health / Root endpoints
+# ============================================================================
+
+class TestHealthEndpoints:
+    """Testes de health e root."""
+
+    @pytest.fixture
+    def client(self):
+        return TestClient(app)
+
+    def test_root_without_frontend_returns_api_info(self, client):
+        """GET / sem frontend dist retorna info da API."""
+        with patch("qualia.api.routes.health._has_frontend", False):
+            response = client.get("/")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["name"] == "Qualia Core API"
