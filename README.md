@@ -14,6 +14,8 @@ O engine descobre plugins automaticamente — adicionar é criar uma pasta, remo
 
 As mesmas análises aparecem em todo projeto de pesquisa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
 
+O trabalho do pesquisador é, no fundo, transformar dados — texto vira código, código vira frequência, frequência vira cluster, cluster vira perfil narrativo. Cada passo é uma decisão interpretativa. Qualia torna essas transformações explícitas, configuráveis e reutilizáveis.
+
 Cada plugin declara seus parâmetros e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo, qual threshold. Não é uma caixa preta — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
 
 ## Plugins
