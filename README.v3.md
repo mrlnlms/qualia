@@ -2,6 +2,8 @@
 
 Hub de análise qualitativa local-first, extensível por plugins. Recebe texto, áudio ou vídeo via API REST, devolve JSON. Cada análise é um plugin independente e configurável — sentimento, frequência, clustering, transcrição, visualização.
 
+Plugin é qualquer biblioteca de análise adicionada ao engine. Existem três tipos: **documents** recebem texto e devolvem texto transformado (limpeza, transcrição), **analyzers** recebem texto e devolvem dados (frequência, sentimento, clusters), e **visualizers** recebem dados e devolvem gráficos. O engine descobre plugins automaticamente — adicionar é criar uma pasta, remover é deletar.
+
 ## Por que
 
 As mesmas análises aparecem em todo projeto de pesquisa qualitativa, mas sempre reimplementadas do zero. Qualia centraliza: instala o plugin uma vez, qualquer projeto consome via API. Os dados não saem da máquina.
