@@ -4,7 +4,18 @@
 
 ## Pendente
 
-_(sem itens no momento)_
+### Higiene de código (análise Codex — 2026-03-18)
+
+- [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
+- [ ] **Arquivo .wrong sobrando** — `plugins/sentiment_analyzer/__init__.py.wrong` é resíduo de transição. Deletar.
+- [ ] **print() em fallback de plugins** — `word_frequency/__init__.py:225` usa `print()` pra fallback de spaCy ao invés de `logger.warning()`. Revisar todos os plugins e trocar prints por logging.
+- [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
+- [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
+
+### Consolidação pós-refactor
+
+- [ ] **Coverage do pipeline.py** — Linhas 29, 100-101 (branch visualizer e timeout no loop) ainda sem cobertura. Pendente da rodada de coverage.
+- [ ] **base_plugins.py coverage** — Branches de type conversion (float/bool) em BaseAnalyzerPlugin e BaseDocumentPlugin sem cobertura (linhas 54, 56-59, 70, 87-88, 129, 162, 192, 194, 197, 201). São edge cases de config com tipos específicos.
 
 ---
 
@@ -12,24 +23,20 @@ _(sem itens no momento)_
 
 ### Plugins (próxima fronteira)
 
-A infra está pronta (DependencyResolver com ordenação topológica, cache LRU/TTL, loading eager/lazy, base classes thread-safe). Próximos plugins candidatos:
+A infra está pronta: DependencyResolver com ordenação topológica, cache LRU/TTL, loading eager/lazy, base classes thread-safe, múltiplos plugins com mesmo `provides` coexistem, extra `[ml]` disponível. Catálogo completo de candidatos em `docs/ECOSYSTEM_MAP.md`.
 
-- **NLP pesado** — spaCy (NER, POS tagging), sentence-transformers (embeddings)
-- **Topic modeling** — BERTopic, LDA
-- **LLM** — integração com APIs de LLM pra análise semântica
-- **Clustering** — agrupamento de documentos por similaridade
-
-Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_impl()`. Core descobre automaticamente.
+Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_impl()` (ou `_render_impl()` pra visualizers). Core descobre automaticamente. Template: `python tools/create_plugin.py nome tipo`.
 
 ### Frontend
 
-- Página de Workflow (pipeline builder visual)
+- Página de Workflow (pipeline builder visual) — quando plugins pesados chegarem, o Workflow é onde o pesquisador monta as transformações
 - Sessões de análise (múltiplos plugins no mesmo documento, resultados acumulando)
 
 ### Ecossistema
 
-- **CodeMarker** — evoluir PoC pra integração completa (hoje só word_frequency)
+- **qualia-coding** — evoluir PoC pra integração completa (hoje só word_frequency)
 - **Consumers** — DeepVoC e Observatório consumindo Qualia via API
+- **qualia-gsheets** — DataLab (sidebar Google Sheets pra preparação de dados)
 
 ---
 
@@ -43,11 +50,41 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-772 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+776 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
 ## Concluído
+
+### Sprint 2026-03-18 (sessão completa — coverage, refactor, ecossistema, identidade)
+
+**Coverage gaps fechados:**
+- [x] Testes de timeout 504, exception 400, encoding UTF-8/latin-1 nos endpoints
+- [x] Config endpoints retornam 503 quando registry indisponível
+- [x] Pipeline timeout mid-step, encadeamento não-texto
+- [x] Transcribe domain error → 400
+- [x] Process Document → content extraction
+- [x] Health root sem frontend → API info
+- [x] Engine dependency cycle + None result
+- [x] Fix __main__.py quebrado + filtros de warnings
+
+**Visualizer rendering refactor:**
+- [x] BaseVisualizerPlugin._serialize() — duck-typing (plotly.Figure, matplotlib.Figure, HTML str)
+- [x] Plugins renomeados: wordcloud_d3, frequency_chart_plotly, sentiment_viz_plotly
+- [x] Rota /visualize simplificada (sem temp files, sem FileResponse)
+- [x] Frontend default PNG → HTML
+- [x] Template create_plugin.py atualizado
+- [x] 13 arquivos de teste atualizados
+
+**Ecosystem readiness:**
+- [x] ECOSYSTEM_MAP.md — 5 projetos, ~30 plugins candidatos
+- [x] Provides relaxado — múltiplos plugins com mesmo campo coexistem
+- [x] Extra [ml] adicionado (PyTorch, transformers, sentence-transformers)
+
+**Identidade:**
+- [x] Repo renomeado qualia → qualia-core
+- [x] README v3 — workbench local-first, conceito de transformação de dados
+- [x] 776 testes passando
 
 ### Sprint 2026-03-18 (code review completo — 11 bugs corrigidos)
 
