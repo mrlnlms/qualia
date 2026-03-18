@@ -68,7 +68,7 @@ export async function executePipeline(steps, { text, file } = {}) {
   return request('/pipeline', { method: 'POST', body: form });
 }
 
-export function visualize(pluginId, data, config = {}, outputFormat = 'png') {
+export function visualize(pluginId, data, config = {}, outputFormat = 'html') {
   return request(`/visualize/${pluginId}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

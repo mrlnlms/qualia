@@ -10,7 +10,7 @@
   function detectType(r) {
     if (!r) return 'empty';
     if (r.encoding === 'base64') return 'image';
-    if (r.format === 'html') return 'html';
+    if (r.html) return 'html';
     return 'json';
   }
 </script>
@@ -18,7 +18,7 @@
 {#if resultType === 'image'}
   <ImageResult data={result.data} format={result.format} />
 {:else if resultType === 'html'}
-  <HtmlResult html={result.data} />
+  <HtmlResult html={result.html} />
 {:else if resultType === 'json'}
   <JsonResult data={result.result || result} />
 {:else}
