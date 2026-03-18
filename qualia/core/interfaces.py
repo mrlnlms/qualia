@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 
 class PluginType(Enum):
@@ -77,7 +77,7 @@ class IVisualizerPlugin(IPlugin):
     """Renderiza dados em visualizações"""
 
     @abstractmethod
-    def render(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> str:
+    def render(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Union[str, Path]:
         """Renderiza visualização e retorna caminho do arquivo gerado"""
         pass
 
@@ -86,8 +86,8 @@ class IDocumentPlugin(IPlugin):
     """Processa e prepara documentos"""
 
     @abstractmethod
-    def process(self, raw_content: str, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Processa conteúdo bruto e retorna documento estruturado"""
+    def process(self, document: Any, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
+        """Processa documento com configuração e contexto"""
         pass
 
 

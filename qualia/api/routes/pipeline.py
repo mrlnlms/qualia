@@ -92,7 +92,13 @@ async def execute_pipeline(
             doc.metadata["original_filename"] = file.filename
             doc.metadata["file_size"] = len(content)
 
-            result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
+            try:
+                result = await asyncio.wait_for(
+                    asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict),
+                    timeout=60.0,
+                )
+            except asyncio.TimeoutError:
+                raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
             all_results.append({"plugin_id": plugin_id, "result": result})
 
             next_text = _extract_text_result(result)
@@ -169,7 +175,13 @@ async def execute_pipeline(
                     f"api_pipeline_{plugin_id}_{hashlib.md5(current_text.encode()).hexdigest()[:8]}",
                     current_text,
                 )
-                result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
+                try:
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict),
+                        timeout=60.0,
+                    )
+                except asyncio.TimeoutError:
+                    raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
 
                 next_text = _extract_text_result(result)
                 if next_text is not None:

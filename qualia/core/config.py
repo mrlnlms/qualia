@@ -8,8 +8,10 @@ Responsabilidades:
 - Fornecer visão consolidada para consumers (ex: CodeMarker)
 """
 
+import logging
 from typing import Dict, Any, List, Optional, Tuple
 
+logger = logging.getLogger(__name__)
 
 # Mapa de normalização de tipos
 _TYPE_NORMALIZE = {
@@ -181,7 +183,8 @@ class ConfigurationRegistry:
 
         expected_types = type_map.get(expected)
         if expected_types is None:
-            return None  # tipo desconhecido, aceita
+            logger.warning("Tipo desconhecido '%s' para parâmetro '%s'", expected, key)
+            return None  # aceita mas avisa
 
         # bool é subclasse de int em Python — tratar separadamente
         if expected == "int" and isinstance(value, bool):

@@ -40,13 +40,25 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
             return False, str(e)
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Valida e aplica defaults aos parâmetros"""
+        """Valida e aplica defaults aos parâmetros, com conversão de tipos."""
         meta = self.meta()
         validated = {}
 
         for param_name, param_spec in meta.parameters.items():
             if param_name in config:
-                validated[param_name] = config[param_name]
+                value = config[param_name]
+                param_type = param_spec.get('type')
+                if param_type in ('integer', 'int'):
+                    validated[param_name] = int(value)
+                elif param_type == 'float':
+                    validated[param_name] = float(value)
+                elif param_type in ('boolean', 'bool'):
+                    if isinstance(value, str):
+                        validated[param_name] = value.lower() in ('true', '1', 'yes')
+                    else:
+                        validated[param_name] = bool(value)
+                else:
+                    validated[param_name] = value
             else:
                 validated[param_name] = param_spec.get('default')
 
@@ -168,13 +180,25 @@ class BaseDocumentPlugin(IDocumentPlugin):
             return False, str(e)
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Reutiliza lógica de validação"""
+        """Valida e aplica defaults aos parâmetros, com conversão de tipos."""
         meta = self.meta()
         validated = {}
 
         for param_name, param_spec in meta.parameters.items():
             if param_name in config:
-                validated[param_name] = config[param_name]
+                value = config[param_name]
+                param_type = param_spec.get('type')
+                if param_type in ('integer', 'int'):
+                    validated[param_name] = int(value)
+                elif param_type == 'float':
+                    validated[param_name] = float(value)
+                elif param_type in ('boolean', 'bool'):
+                    if isinstance(value, str):
+                        validated[param_name] = value.lower() in ('true', '1', 'yes')
+                    else:
+                        validated[param_name] = bool(value)
+                else:
+                    validated[param_name] = value
             else:
                 validated[param_name] = param_spec.get('default')
 

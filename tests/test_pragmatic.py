@@ -62,20 +62,17 @@ class TestCoreBasics:
     
     def test_plugin_dependencies_work(self, core):
         """Plugins que dependem de outros conseguem acessar dados"""
-        doc = core.add_document("test", "Texto para análise")
-        
+        doc = core.add_document("test", "Texto para análise de sentimento positivo")
+
         # sentiment_viz depende de sentiment_analyzer
-        # Não testamos estrutura, só que executa sem erro
-        try:
-            # Mock para não criar arquivo
-            from unittest.mock import patch
-            with patch('matplotlib.pyplot.savefig'):
-                core.execute_plugin("sentiment_viz", doc)
-            # Se chegou aqui, dependências funcionaram
-            assert True
-        except Exception as e:
-            # Se falhou, deve ser por outro motivo, não dependências
-            assert "não encontrado" not in str(e).lower()
+        # execute_plugin deve resolver a dependência automaticamente
+        from unittest.mock import patch
+        with patch('matplotlib.pyplot.savefig'):
+            result = core.execute_plugin("sentiment_viz", doc)
+
+        # Deve retornar resultado do visualizer (dict com output_path)
+        assert isinstance(result, dict)
+        assert "output_path" in result
 
 
 class TestAPIBasics:

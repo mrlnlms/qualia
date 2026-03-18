@@ -15,7 +15,7 @@
 | frequency_chart | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (750+ passando, 90% coverage)
+## Testes (756 passando, 90% coverage)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -186,6 +186,11 @@ API:
 - Timeout → 504 após 60s em analyze, process e visualize
 - Pipeline encadeia texto: `_extract_text_result()` propaga `transcription` > `cleaned_document` > `processed_text` (prioridade documentada)
 - Pipeline com file + step[0] não-document → 422 descritivo (não mais erro genérico)
+- Pipeline timeout 60s em todos os paths (step 0, loop analyzer/document, loop visualizer)
+- FileResponse cleanup via BackgroundTask (previne temp file leak)
+- Interfaces alinhadas com implementação (IDocumentPlugin.process, IVisualizerPlugin.render)
+- Type conversion em BaseAnalyzerPlugin e BaseDocumentPlugin (consistente com BaseVisualizer)
+- DependencyResolver ValueError tratado com mensagem descritiva
 
 CLI:
 - Sem bare except — todos os catches são tipados

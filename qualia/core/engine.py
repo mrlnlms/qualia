@@ -105,7 +105,10 @@ class QualiaCore:
 
         # Resolve dependências via ordenação topológica
         if metadata.requires:
-            execution_order = self.resolver.resolve([plugin_id])
+            try:
+                execution_order = self.resolver.resolve([plugin_id])
+            except ValueError as e:
+                raise ValueError(f"Erro de dependência para '{plugin_id}': {e}")
             for dep_id in execution_order:
                 if dep_id == plugin_id:
                     continue

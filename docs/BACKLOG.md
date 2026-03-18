@@ -43,19 +43,29 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-753 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+756 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
 ## Concluído
 
-### Sprint 2026-03-18 (análise Codex — 4 bugs corrigidos)
+### Sprint 2026-03-18 (code review completo — 11 bugs corrigidos)
 
+**Análise Codex (4 bugs):**
 - [x] `plugins_dir` relativo ao pacote, não ao cwd (engine.py)
 - [x] Pipeline encadeia `current_text` entre steps (pipeline.py)
 - [x] Validação de config centralizada em todas as rotas (deps.py → `validate_plugin_config()`)
 - [x] Checagem de tipo de plugin por rota (deps.py → `require_plugin_type()`)
-- [x] Testes atualizados e novos (753 passando)
+
+**Code review interno (7 bugs):**
+- [x] Interfaces alinhadas: IDocumentPlugin.process e IVisualizerPlugin.render (interfaces.py)
+- [x] FileResponse temp file leak corrigido via BackgroundTask (visualize.py)
+- [x] Timeout 60s em todos os paths do pipeline (pipeline.py)
+- [x] DependencyResolver ValueError tratado no execute_plugin (engine.py)
+- [x] Type conversion em BaseAnalyzerPlugin e BaseDocumentPlugin (base_plugins.py)
+- [x] ConfigRegistry warning para tipo desconhecido (config.py)
+- [x] Test always-passing corrigido (test_pragmatic.py)
+- [x] 756 testes passando
 
 ### Sprint 2026-03-17 (saneamento)
 

@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
+from starlette.background import BackgroundTask
 from fastapi.responses import FileResponse
 
 from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
@@ -67,7 +68,8 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
             return FileResponse(
                 output_path,
                 media_type=f"application/{request.output_format}",
-                filename=f"visualization.{request.output_format}"
+                filename=f"visualization.{request.output_format}",
+                background=BackgroundTask(lambda: output_path.unlink(missing_ok=True)),
             )
 
     except HTTPException:
