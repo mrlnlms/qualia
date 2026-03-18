@@ -6,8 +6,7 @@ Contratos do Qualia Core — interfaces que todo plugin deve implementar.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 
 class PluginType(Enum):
@@ -77,8 +76,11 @@ class IVisualizerPlugin(IPlugin):
     """Renderiza dados em visualizações"""
 
     @abstractmethod
-    def render(self, data: Dict[str, Any], config: Dict[str, Any], output_path: Path) -> Union[str, Path]:
-        """Renderiza visualização e retorna caminho do arquivo gerado"""
+    def render(self, data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
+        """Renderiza visualização e retorna dict serializado.
+
+        Retorno: {"html": str} ou {"data": str, "encoding": "base64", "format": str}
+        """
         pass
 
 
