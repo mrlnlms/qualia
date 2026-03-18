@@ -43,7 +43,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-756 testes, 90% coverage. Todos os módulos de produção acima de 90%. Linhas residuais são abstract methods, entry points, e exemplos.
+772 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
@@ -65,7 +65,7 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - [x] Type conversion em BaseAnalyzerPlugin e BaseDocumentPlugin (base_plugins.py)
 - [x] ConfigRegistry warning para tipo desconhecido (config.py)
 - [x] Test always-passing corrigido (test_pragmatic.py)
-- [x] 756 testes passando
+- [x] 772 testes passando
 
 ### Sprint 2026-03-17 (saneamento)
 
