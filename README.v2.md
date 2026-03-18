@@ -1,12 +1,16 @@
 # Qualia
 
-API REST local para análise qualitativa de textos, áudios e vídeos. Extensível por plugins — instala o que precisa, roda na sua máquina, consome de qualquer ferramenta.
+API REST local para análise qualitativa. Recebe texto, áudio ou vídeo, devolve JSON. Extensível por plugins.
 
 ## Por que
 
-Pesquisador que trabalha com dados qualitativos hoje escolhe entre: software proprietário fechado (NVivo, ATLAS.ti), scripts Python que reescreve a cada projeto, ou APIs cloud que exigem mandar dados sensíveis pra fora.
+Qualia nasceu de um problema prático: análises que funcionam mas ficam presas dentro do projeto onde foram feitas. Uma análise de sentimento escrita pra um TCC, um script de clustering feito pra pesquisa de VoC, uma comparação de embeddings montada pra um projeto de WhatsApp — cada um funciona no seu contexto, mas na hora de usar em outro lugar, é copiar arquivo, adaptar paths, instalar dependências de novo.
 
-Qualia é a alternativa local-first. Sobe uma API, manda texto, recebe JSON. Cada análise é um plugin independente — sentiment analysis, word frequency, topic modeling, transcrição de áudio. Plugins se conectam entre si via dependências automáticas. O resultado é consumido por qualquer coisa: script Python, plugin do Obsidian, notebook, frontend web.
+Com o tempo, o padrão ficou claro: as análises são as mesmas, os dados é que mudam. Frequência de palavras, sentimento, topic modeling, transcrição — não precisavam morar dentro de cada projeto. Precisavam de um lugar só, acessível por qualquer ferramenta, sem mandar dados pra fora.
+
+Qualia é esse lugar. Cada análise vira um plugin independente. O engine descobre, resolve dependências, executa. A API expõe tudo. Qualquer projeto consome — um script Python, um plugin do Obsidian, um notebook, o frontend web.
+
+Cada plugin declara seus parâmetros (tipo, default, range, opções) e o engine expõe automaticamente — na API, na CLI e no frontend. Quem consome escolhe: quantos clusters, qual modelo de embedding, qual threshold. Não é uma caixa preta com resultado fixo — é uma ferramenta configurável que o pesquisador adapta pro seu contexto.
 
 ## Plugins
 
@@ -62,6 +66,8 @@ Gerar a estrutura:
 ```bash
 python tools/create_plugin.py meu_analyzer analyzer
 ```
+
+Cria `plugins/meu_analyzer/__init__.py` com a estrutura completa — procure por `TODO` no código gerado. Tipos disponíveis: `analyzer`, `visualizer`, `document`.
 
 O plugin mínimo:
 
