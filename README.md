@@ -40,7 +40,7 @@ Múltiplos plugins podem fazer o mesmo tipo de análise (ex: dois sentiment anal
 Python 3.9+. Tudo roda local — sem conta, sem cloud.
 
 ```bash
-git clone https://github.com/mrlnlms/qualia.git
+git clone https://github.com/mrlnlms/qualia-core.git
 cd qualia && python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all]"
 python -m uvicorn qualia.api:app --port 8000
@@ -173,7 +173,7 @@ Qualia Core é o motor. Outros projetos consomem a API:
 
 ## Status
 
-776 testes (90% coverage), 8 plugins, API REST + CLI + frontend web (Svelte, dark theme). CI via GitHub Actions.
+API REST + CLI + frontend web (Svelte, dark theme). CI via GitHub Actions com coverage.
 
 **Estágio atual:** Alpha (v0.1.0) — funcional para uso pessoal e experimentação.
 
