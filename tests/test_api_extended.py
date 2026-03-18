@@ -385,10 +385,10 @@ class TestProcessEndpoint:
 class TestVisualizeEndpoint:
     """Testa endpoint de visualizacao"""
 
-    def test_visualize_frequency_chart_png(self, client, word_freq_result):
+    def test_visualize_frequency_chart_plotly_png(self, client, word_freq_result):
         """Gera grafico de frequencia em PNG"""
         response = client.post(
-            "/visualize/frequency_chart",
+            "/visualize/frequency_chart_plotly",
             json={
                 "data": word_freq_result,
                 "config": {},
@@ -404,10 +404,10 @@ class TestVisualizeEndpoint:
         decoded = base64.b64decode(data["data"])
         assert len(decoded) > 0
 
-    def test_visualize_frequency_chart_svg(self, client, word_freq_result):
+    def test_visualize_frequency_chart_plotly_svg(self, client, word_freq_result):
         """Gera grafico de frequencia em SVG"""
         response = client.post(
-            "/visualize/frequency_chart",
+            "/visualize/frequency_chart_plotly",
             json={
                 "data": word_freq_result,
                 "config": {},
@@ -419,21 +419,21 @@ class TestVisualizeEndpoint:
         assert data["format"] == "svg"
         assert data["encoding"] == "base64"
 
-    def test_visualize_frequency_chart_html(self, client, word_freq_result):
+    def test_visualize_frequency_chart_plotly_html(self, client, word_freq_result):
         """Gera grafico de frequencia em HTML"""
         response = client.post(
-            "/visualize/frequency_chart",
+            "/visualize/frequency_chart_plotly",
             json={
                 "data": word_freq_result,
                 "config": {},
                 "output_format": "html",
             },
         )
-        # HTML pode nao ser suportado pelo plugin — aceitar 200 ou 400
-        if response.status_code == 200:
-            data = response.json()
-            assert data["format"] == "html"
-            assert data["encoding"] == "utf-8"
+        # HTML e o formato padrao dos novos plugins
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert "html" in data
 
     def test_visualize_invalid_plugin(self, client, word_freq_result):
         """Plugin inexistente retorna 404"""
@@ -463,7 +463,7 @@ class TestVisualizeEndpoint:
     def test_visualize_invalid_config_returns_422(self, client, word_freq_result):
         """Visualize deve validar config antes do render."""
         response = client.post(
-            "/visualize/frequency_chart",
+            "/visualize/frequency_chart_plotly",
             json={
                 "data": word_freq_result,
                 "config": {"max_words": "nao_e_numero"},
@@ -478,7 +478,7 @@ class TestVisualizeEndpoint:
 
         with patch("qualia.api.routes.visualize.asyncio.wait_for", side_effect=asyncio.TimeoutError):
             response = client.post(
-                "/visualize/frequency_chart",
+                "/visualize/frequency_chart_plotly",
                 json={
                     "data": word_freq_result,
                     "config": {},
@@ -516,10 +516,10 @@ class TestPipelineEndpoint:
         assert response.status_code in [200, 422]
 
     def test_pipeline_analyzer_then_visualizer(self, client):
-        """Pipeline: word_frequency -> frequency_chart"""
+        """Pipeline: word_frequency -> frequency_chart_plotly"""
         steps = json.dumps([
             {"plugin_id": "word_frequency"},
-            {"plugin_id": "frequency_chart", "config": {"format": "png"}},
+            {"plugin_id": "frequency_chart_plotly", "config": {"format": "png"}},
         ])
         text = "palavra repetida repetida tres tres tres quatro quatro quatro quatro"
         response = client.post(
@@ -530,9 +530,9 @@ class TestPipelineEndpoint:
         data = response.json()
         assert data["status"] == "success"
         assert data["steps_executed"] == 2
-        # Segundo resultado deve ter dados base64
+        # Segundo resultado deve ser dict do render (html ou base64)
         viz_result = data["results"][1]["result"]
-        assert viz_result["encoding"] == "base64"
+        assert "html" in viz_result or "data" in viz_result
 
     def test_pipeline_invalid_config_422(self, client):
         """Pipeline com config invalida num step retorna 422"""
@@ -552,7 +552,7 @@ class TestPipelineEndpoint:
     def test_pipeline_visualizer_without_previous_step(self, client):
         """Visualizer como primeiro step sem resultado anterior retorna 422"""
         steps = json.dumps([
-            {"plugin_id": "frequency_chart"},
+            {"plugin_id": "frequency_chart_plotly"},
         ])
         response = client.post(
             "/pipeline",
@@ -1084,53 +1084,29 @@ class TestPipelineEdgeCases:
         assert "plugin explodiu" in str(error_text)
 
     def test_pipeline_html_output_format(self, client):
-        """Pipeline com visualizer em formato html (linhas 135-140)"""
+        """Pipeline com visualizer em formato html"""
         steps = json.dumps([
             {"plugin_id": "word_frequency"},
-            {"plugin_id": "frequency_chart", "config": {"format": "html"}},
+            {"plugin_id": "frequency_chart_plotly", "config": {"format": "html"}},
         ])
         text = "palavra repetida repetida tres tres tres quatro quatro quatro quatro"
 
-        # Mock o render do visualizer para gerar um HTML
-        original_render = None
-
-        def fake_render(data, config, output_path):
-            output_path.write_text("<html><body>chart</body></html>", encoding="utf-8")
-
-        with patch("qualia.api.routes.pipeline.asyncio.to_thread") as mock_to_thread:
-            import asyncio
-
-            async def run_sync(func, *args):
-                # Para o execute_plugin, rodar de verdade
-                # Para o render, usar fake
-                if hasattr(func, '__self__') or (hasattr(func, '__name__') and func.__name__ == 'render'):
-                    fake_render(*args)
-                    return None
-                return func(*args)
-
-            # Nao da pra mockar facilmente to_thread pra ambos os steps.
-            # Melhor usar o pipeline real e mockar so o render do plugin.
-            pass
-
-        # Abordagem: executar o pipeline real, que ja funciona para analyzer+visualizer
-        # O frequency_chart pode nao suportar HTML, entao mockar o render
         response = client.post(
             "/pipeline",
             data={"text": text, "steps": steps},
         )
         # Se o plugin nao suporta html, pode retornar 400; se suporta, 200
-        # O importante e exercitar o branch de format html
         if response.status_code == 200:
             data = response.json()
             viz_result = data["results"][1]["result"]
-            # Pode ser html ou base64 dependendo do plugin
-            assert viz_result["format"] in ["html", "png"]
+            # Novo formato: dict com "html" key ou "data"+"encoding"+"format"
+            assert "html" in viz_result or "data" in viz_result
 
     def test_pipeline_unknown_output_format(self, client):
         """Pipeline com formato desconhecido cai no else (linhas 141-144)"""
         steps = json.dumps([
             {"plugin_id": "word_frequency"},
-            {"plugin_id": "frequency_chart", "config": {"format": "pdf"}},
+            {"plugin_id": "frequency_chart_plotly", "config": {"format": "pdf"}},
         ])
         text = "palavra repetida repetida tres tres tres quatro quatro quatro quatro"
         response = client.post(
@@ -1324,7 +1300,7 @@ class TestVisualizeEdgeCases:
             mock_core = MagicMock()
             mock_get_core.return_value = mock_core
             mock_core.registry = {
-                "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
+                "frequency_chart_plotly": _mock_registry_entry("frequency_chart_plotly", "visualizer"),
             }
             mock_core.get_config_registry.return_value = None
             mock_plugin = MagicMock()
@@ -1332,7 +1308,7 @@ class TestVisualizeEdgeCases:
             mock_core.loader.get_plugin.return_value = mock_plugin
 
             response = client.post(
-                "/visualize/frequency_chart",
+                "/visualize/frequency_chart_plotly",
                 json={
                     "data": {"word_frequencies": {"a": 1}},
                     "config": {},
@@ -1345,28 +1321,24 @@ class TestVisualizeEdgeCases:
         error_text = str(data.get("detail", data.get("message", "")))
         assert "dados invalidos" in error_text.lower()
 
-    def test_visualize_other_format_returns_file(self, client):
-        """Formato nao png/svg/html cai no else e retorna FileResponse (linha 64)"""
-        # Mockar o plugin pra gerar um arquivo qualquer
+    def test_visualize_other_format_returns_dict(self, client):
+        """Formato qualquer retorna dict do render (sem FileResponse)"""
         with patch(
             "qualia.api.routes.visualize.get_core"
         ) as mock_get_core:
             mock_core = MagicMock()
             mock_get_core.return_value = mock_core
             mock_core.registry = {
-                "frequency_chart": _mock_registry_entry("frequency_chart", "visualizer"),
+                "frequency_chart_plotly": _mock_registry_entry("frequency_chart_plotly", "visualizer"),
             }
             mock_core.get_config_registry.return_value = None
             mock_plugin = MagicMock()
 
-            def fake_render(data, config, output_path):
-                output_path.write_bytes(b"%PDF-fake-content")
-
-            mock_plugin.render.side_effect = fake_render
+            mock_plugin.render.return_value = {"data": "AAAA", "encoding": "base64", "format": "pdf"}
             mock_core.loader.get_plugin.return_value = mock_plugin
 
             response = client.post(
-                "/visualize/frequency_chart",
+                "/visualize/frequency_chart_plotly",
                 json={
                     "data": {"word_frequencies": {"a": 1}},
                     "config": {},
@@ -1374,9 +1346,10 @@ class TestVisualizeEdgeCases:
                 },
             )
 
-        # FileResponse retorna 200 com o conteudo do arquivo
         assert response.status_code == 200
-        assert b"PDF-fake-content" in response.content
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["format"] == "pdf"
 
 
 # ============================================================================

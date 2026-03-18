@@ -3,7 +3,6 @@
 import json
 import hashlib
 import tempfile
-import base64
 import asyncio
 from pathlib import Path
 
@@ -141,35 +140,14 @@ async def execute_pipeline(
                         status_code=422,
                         detail=f"Visualizer '{plugin_id}' requires a previous step's result as data",
                     )
-                viz_config = {**config_dict}
-                suffix = f".{output_format}"
-                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                    viz_path = Path(tmp.name)
+                viz_config = {**config_dict, "output_format": output_format}
                 try:
-                    await asyncio.wait_for(
-                        asyncio.to_thread(plugin.render, last_result, viz_config, viz_path),
+                    result = await asyncio.wait_for(
+                        asyncio.to_thread(plugin.render, last_result, viz_config),
                         timeout=60.0,
                     )
-                    if output_format in ("png", "svg"):
-                        with open(viz_path, "rb") as f:
-                            viz_data = base64.b64encode(f.read()).decode()
-                        result = {
-                            "format": output_format,
-                            "data": viz_data,
-                            "encoding": "base64",
-                        }
-                    elif output_format == "html":
-                        result = {
-                            "format": "html",
-                            "data": viz_path.read_text(encoding="utf-8"),
-                            "encoding": "utf-8",
-                        }
-                    else:
-                        with open(viz_path, "rb") as f:
-                            viz_data = base64.b64encode(f.read()).decode()
-                        result = {"format": output_format, "data": viz_data, "encoding": "base64"}
-                finally:
-                    viz_path.unlink(missing_ok=True)
+                except asyncio.TimeoutError:
+                    raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
             else:
                 doc = core.add_document(
                     f"api_pipeline_{plugin_id}_{hashlib.md5(current_text.encode()).hexdigest()[:8]}",

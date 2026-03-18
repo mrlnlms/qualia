@@ -59,7 +59,7 @@ class TestQualiaCore:
         
         expected_plugins = {
             'word_frequency', 'sentiment_analyzer', 'teams_cleaner',
-            'wordcloud_viz', 'frequency_chart', 'sentiment_viz',
+            'wordcloud_d3', 'frequency_chart_plotly', 'sentiment_viz_plotly',
             'readability_analyzer', 'transcription'
         }
         
@@ -342,7 +342,7 @@ class TestEngineEdgeCases:
         assert result == {"consumed": True}
 
     def test_execute_plugin_visualizer(self, core, temp_dir):
-        """Visualizer cujo render retorna Path deve devolver dict com output_path"""
+        """Visualizer cujo render retorna dict com html ou base64"""
         viz = MagicMock()
         viz_meta = PluginMetadata(
             id="test_viz",
@@ -353,8 +353,7 @@ class TestEngineEdgeCases:
         )
         viz.meta.return_value = viz_meta
         viz.validate_config.return_value = (True, None)
-        output = temp_dir / "result.png"
-        viz.render.return_value = output
+        viz.render.return_value = {"html": "<html><body>chart</body></html>"}
 
         core.loader.loaded_plugins["test_viz"] = viz
         core.registry["test_viz"] = viz_meta
@@ -362,8 +361,8 @@ class TestEngineEdgeCases:
         doc = core.add_document("viz_test", "texto")
         result = core.execute_plugin("test_viz", doc)
 
-        assert "output_path" in result
-        assert str(output) == result["output_path"]
+        assert "html" in result
+        assert "<html>" in result["html"]
 
     def test_execute_pipeline_step_failure(self, core):
         """Pipeline deve levantar RuntimeError quando um step falha"""

@@ -275,7 +275,7 @@ class TestPipelineAdvanced:
         config = {
             "name": "viz_first",
             "steps": [
-                {"plugin": "wordcloud_viz", "config": {}},
+                {"plugin": "wordcloud_d3", "config": {}},
             ],
         }
         config_file = tmp_path / "viz_first.yaml"
@@ -294,7 +294,7 @@ class TestPipelineAdvanced:
             "name": "full_pipeline",
             "steps": [
                 {"plugin": "word_frequency", "config": {"min_word_length": 2}},
-                {"plugin": "wordcloud_viz", "config": {}, "output_name": "cloud"},
+                {"plugin": "wordcloud_d3", "config": {}, "output_name": "cloud"},
             ],
         }
         config_file = tmp_path / "full.yaml"

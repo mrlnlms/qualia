@@ -76,12 +76,12 @@ class TestListCommand:
         assert result.exit_code == 0
         assert "word_frequency" in result.output
         # Visualizers não devem aparecer
-        assert "wordcloud_viz" not in result.output
+        assert "wordcloud_d3" not in result.output
 
     def test_list_filter_visualizer(self, runner):
         result = runner.invoke(cli, ["list", "--type", "visualizer"])
         assert result.exit_code == 0
-        assert "wordcloud_viz" in result.output
+        assert "wordcloud_d3" in result.output
         assert "word_frequency" not in result.output
 
     def test_list_detailed(self, runner):
@@ -107,7 +107,7 @@ class TestAnalyzeCommand:
         assert "não encontrado" in result.output or "not found" in result.output.lower()
 
     def test_analyze_wrong_type(self, runner, text_file):
-        result = runner.invoke(cli, ["analyze", str(text_file), "-p", "wordcloud_viz"])
+        result = runner.invoke(cli, ["analyze", str(text_file), "-p", "wordcloud_d3"])
         assert "não é um analyzer" in result.output or "Tipo" in result.output
 
     def test_analyze_json_format(self, runner, text_file):
@@ -283,9 +283,9 @@ class TestInspectCommand:
 
     def test_inspect_visualizer_plugin(self, runner):
         """Inspeciona plugin visualizer"""
-        result = runner.invoke(cli, ["inspect", "wordcloud_viz"])
+        result = runner.invoke(cli, ["inspect", "wordcloud_d3"])
         assert result.exit_code == 0
-        assert "wordcloud_viz" in result.output
+        assert "wordcloud_d3" in result.output
 
     def test_inspect_shows_parameters(self, runner):
         """Inspect deve mostrar parâmetros do plugin"""
@@ -357,7 +357,7 @@ class TestProcessCommand:
 
     def test_process_wrong_type_visualizer(self, runner, simple_doc):
         """Usar visualizer como processador deve dar erro"""
-        result = runner.invoke(cli, ["process", str(simple_doc), "-p", "wordcloud_viz"])
+        result = runner.invoke(cli, ["process", str(simple_doc), "-p", "wordcloud_d3"])
         assert "não é um processador" in result.output
 
     def test_process_nonexistent_file(self, runner):

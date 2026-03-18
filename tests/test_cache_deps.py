@@ -188,7 +188,7 @@ class TestDependencyResolverFieldNames:
         assert result == ["provider", "consumer"]
 
     def test_multiple_fields_same_provider(self, resolver):
-        """Dois fields do mesmo provider = 1 dependência (sentiment_viz case)"""
+        """Dois fields do mesmo provider = 1 dependência (sentiment_viz_plotly case)"""
         resolver.add_plugin("sentiment", make_meta(
             "sentiment", provides=["polarity", "subjectivity"]
         ))
@@ -218,22 +218,22 @@ class TestDependencyResolverFieldNames:
         resolver.add_plugin("word_frequency", make_meta(
             "word_frequency", provides=["word_frequencies"]
         ))
-        resolver.add_plugin("wordcloud_viz", make_meta(
-            "wordcloud_viz", requires=["word_frequencies"]
+        resolver.add_plugin("wordcloud_d3", make_meta(
+            "wordcloud_d3", requires=["word_frequencies"]
         ))
         resolver.add_plugin("sentiment_analyzer", make_meta(
             "sentiment_analyzer", provides=["polarity", "subjectivity"]
         ))
-        resolver.add_plugin("sentiment_viz", make_meta(
-            "sentiment_viz", requires=["polarity", "subjectivity"]
+        resolver.add_plugin("sentiment_viz_plotly", make_meta(
+            "sentiment_viz_plotly", requires=["polarity", "subjectivity"]
         ))
         resolver.build_graph()
 
-        result = resolver.resolve(["wordcloud_viz"])
-        assert result.index("word_frequency") < result.index("wordcloud_viz")
+        result = resolver.resolve(["wordcloud_d3"])
+        assert result.index("word_frequency") < result.index("wordcloud_d3")
 
-        result = resolver.resolve(["sentiment_viz"])
-        assert result.index("sentiment_analyzer") < result.index("sentiment_viz")
+        result = resolver.resolve(["sentiment_viz_plotly"])
+        assert result.index("sentiment_analyzer") < result.index("sentiment_viz_plotly")
 
     def test_cycle_through_field_names(self, resolver):
         """Ciclo detectado mesmo quando deps são field names"""

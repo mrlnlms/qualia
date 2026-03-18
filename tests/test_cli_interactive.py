@@ -85,20 +85,20 @@ class TestParsePluginList:
             "┃ ID              ┃ Tipo     ┃ Nome                ┃\n"
             "┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩\n"
             "│ word_frequency  │ analyzer │ Word Frequency      │\n"
-            "│ wordcloud_viz   │ visualizer│ Word Cloud          │\n"
+            "│ wordcloud_d3   │ visualizer│ Word Cloud          │\n"
             "└─────────────────┴──────────┴─────────────────────┘\n"
         )
         plugins = parse_plugin_list(output)
         assert len(plugins) == 2
         ids = [p[0] for p in plugins]
         assert "word_frequency" in ids
-        assert "wordcloud_viz" in ids
+        assert "wordcloud_d3" in ids
 
     def test_parse_filter_by_type(self):
         from qualia.cli.interactive.utils import parse_plugin_list
         output = (
             "│ word_frequency  │ analyzer │ Word Frequency      │\n"
-            "│ wordcloud_viz   │ visualizer│ Word Cloud          │\n"
+            "│ wordcloud_d3   │ visualizer│ Word Cloud          │\n"
         )
         plugins = parse_plugin_list(output, "analyzer")
         assert len(plugins) == 1
@@ -306,7 +306,7 @@ class TestVisualizeResults:
     @patch("qualia.cli.interactive.handlers.Prompt.ask")
     @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=False)
     @patch("qualia.cli.interactive.handlers.configure_parameters", return_value={})
-    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_viz")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_d3")
     @patch("qualia.cli.interactive.handlers.show_file_preview")
     @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(True, "ok", ""))
     def test_with_data_file(self, mock_cmd, mock_preview, mock_plugin,
@@ -325,7 +325,7 @@ class TestVisualizeResults:
     @patch("qualia.cli.interactive.handlers.Prompt.ask")
     @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=False)
     @patch("qualia.cli.interactive.handlers.configure_parameters", return_value={})
-    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_viz")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_d3")
     @patch("qualia.cli.interactive.handlers.show_file_preview")
     @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(False, "", "erro viz"))
     def test_visualization_failure(self, mock_cmd, mock_preview, mock_plugin,
@@ -722,7 +722,7 @@ class TestExecuteVisualization:
     @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(True, "viz ok", ""))
     def test_success(self, mock_cmd, mock_confirm, handlers, tmp_path):
         output = str(tmp_path / "chart.png")
-        handlers._execute_visualization("/tmp/data.json", "wordcloud_viz",
+        handlers._execute_visualization("/tmp/data.json", "wordcloud_d3",
                                         output, {"colormap": "viridis"})
         args = mock_cmd.call_args[0][0]
         assert "visualize" in args
@@ -732,7 +732,7 @@ class TestExecuteVisualization:
     @patch("qualia.cli.interactive.handlers.run_qualia_command", return_value=(False, "", "erro"))
     def test_failure(self, mock_cmd, handlers, tmp_path):
         output = str(tmp_path / "chart.png")
-        handlers._execute_visualization("/tmp/data.json", "wordcloud_viz", output, {})
+        handlers._execute_visualization("/tmp/data.json", "wordcloud_d3", output, {})
 
 
 class TestExecutePipeline:
@@ -1349,7 +1349,7 @@ class TestHandlerRemainingPaths:
 
     @patch("qualia.cli.interactive.handlers.Prompt.ask", return_value="")
     @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
-    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_viz")
+    @patch("qualia.cli.interactive.handlers.choose_plugin", return_value="wordcloud_d3")
     @patch("qualia.cli.interactive.handlers.show_file_preview")
     @patch("qualia.cli.interactive.handlers.configure_parameters", return_value={})
     @patch("qualia.cli.interactive.handlers.run_qualia_command",
@@ -1370,7 +1370,7 @@ class TestHandlerRemainingPaths:
         with patch.object(handlers, "_open_file") as mock_open:
             # Simular que output_path existe (criado durante execução)
             output_file.write_text("fake png")
-            handlers._execute_visualization(str(data_file), "wordcloud_viz",
+            handlers._execute_visualization(str(data_file), "wordcloud_d3",
                                              str(output_file), {})
             mock_open.assert_called_once_with(str(output_file))
 

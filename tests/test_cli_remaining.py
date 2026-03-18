@@ -156,7 +156,7 @@ class TestListVisualizersCommand:
         """list-visualizers deve mostrar tabela de visualizadores"""
         result = runner.invoke(cli, ["list-visualizers"])
         assert result.exit_code == 0
-        assert "wordcloud_viz" in result.output
+        assert "wordcloud_d3" in result.output
 
     def test_list_visualizers_shows_accepts_column(self, runner):
         """Tabela deve ter coluna Aceita e Formatos"""
@@ -191,7 +191,7 @@ class TestListCommandGaps:
         """List detalhado filtrando visualizers"""
         result = runner.invoke(cli, ["list", "--type", "visualizer", "--detailed"])
         assert result.exit_code == 0
-        assert "wordcloud_viz" in result.output
+        assert "wordcloud_d3" in result.output
 
     def test_list_detailed_shows_descriptions(self, runner):
         """Modo detailed deve mostrar descrições dos plugins"""
@@ -818,7 +818,7 @@ class TestVisualizeCommand:
         bad_file = tmp_path / "data.xml"
         bad_file.write_text("<data>hello</data>")
         result = runner.invoke(cli, [
-            "visualize", str(bad_file), "-p", "wordcloud_viz",
+            "visualize", str(bad_file), "-p", "wordcloud_d3",
         ])
         assert "não suportado" in result.output or result.exit_code != 0
 
@@ -826,23 +826,13 @@ class TestVisualizeCommand:
         """Formato auto detecta .png pela extensão do output"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
 
         output = tmp_path / "cloud.png"
-        # Criar PNG mínimo válido (1x1 pixel)
-        import struct, zlib
-        png_header = b'\x89PNG\r\n\x1a\n'
-        ihdr_data = struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0)
-        ihdr_crc = zlib.crc32(b'IHDR' + ihdr_data) & 0xffffffff
-        ihdr = struct.pack('>I', 13) + b'IHDR' + ihdr_data + struct.pack('>I', ihdr_crc)
-        raw = zlib.compress(b'\x00\x00\x00\x00')
-        idat_crc = zlib.crc32(b'IDAT' + raw) & 0xffffffff
-        idat = struct.pack('>I', len(raw)) + b'IDAT' + raw + struct.pack('>I', idat_crc)
-        iend_crc = zlib.crc32(b'IEND') & 0xffffffff
-        iend = struct.pack('>I', 0) + b'IEND' + struct.pack('>I', iend_crc)
-        output.write_bytes(png_header + ihdr + idat + iend)
+        fake_png = b'\x89PNG\r\n\x1a\nfake'
 
         runner = CliRunner()
         with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
@@ -852,27 +842,32 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(fake_png).decode(),
+                "encoding": "base64",
+                "format": "png",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(output),
             ])
 
             assert result.exit_code == 0
-            # Deve ter passado format=png nos params
+            # Deve ter passado output_format=png nos params
             call_args = mock_instance.render.call_args
             params = call_args[0][1]
-            assert params.get("format") == "png"
+            assert params.get("output_format") == "png"
 
     def test_visualize_auto_format_svg(self, tmp_path):
         """Formato auto detecta .svg pela extensão"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
@@ -887,23 +882,25 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(b"<svg></svg>").decode(),
+                "encoding": "base64",
+                "format": "svg",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
-            output.write_bytes(b"<svg></svg>")
-
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(output),
             ])
 
             assert result.exit_code == 0
             call_args = mock_instance.render.call_args
             params = call_args[0][1]
-            assert params.get("format") == "svg"
+            assert params.get("output_format") == "svg"
 
     def test_visualize_auto_format_html(self, tmp_path):
         """Formato auto detecta .html pela extensão"""
@@ -923,26 +920,27 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Frequency Chart"
-            mock_core.registry = {"frequency_chart": mock_plugin_meta}
+            mock_core.registry = {"frequency_chart_plotly": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {"html": "<html><body>chart</body></html>"}
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "frequency_chart",
+                str(data_file), "-p", "frequency_chart_plotly",
                 "-o", str(output),
             ])
 
             assert result.exit_code == 0
             call_args = mock_instance.render.call_args
             params = call_args[0][1]
-            assert params.get("format") == "html"
+            assert params.get("output_format") == "html"
 
     def test_visualize_auto_format_pdf(self, tmp_path):
         """Formato auto detecta .pdf pela extensão"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
@@ -957,33 +955,37 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(b"%PDF-1.4 fake").decode(),
+                "encoding": "base64",
+                "format": "pdf",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
-            output.write_bytes(b"%PDF-1.4 fake")
-
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(output),
             ])
 
             assert result.exit_code == 0
             call_args = mock_instance.render.call_args
             params = call_args[0][1]
-            assert params.get("format") == "pdf"
+            assert params.get("output_format") == "pdf"
 
     def test_visualize_file_size_display(self, tmp_path):
         """Após sucesso com formato imagem, mostra tamanho do arquivo"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
 
         output = tmp_path / "cloud.svg"
+        svg_content = b"<svg>x</svg>" * 200
 
         runner = CliRunner()
         with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
@@ -993,17 +995,18 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(svg_content).decode(),
+                "encoding": "base64",
+                "format": "svg",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
-            # Criar arquivo SVG com tamanho conhecido
-            output.write_bytes(b"<svg>x</svg>" * 200)
-
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(output),
             ])
 
@@ -1028,14 +1031,14 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Frequency Chart"
-            mock_core.registry = {"frequency_chart": mock_plugin_meta}
+            mock_core.registry = {"frequency_chart_plotly": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {"html": "<html><body>chart</body></html>"}
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "frequency_chart",
+                str(data_file), "-p", "frequency_chart_plotly",
                 "-o", str(output), "-f", "html",
             ])
 
@@ -1058,14 +1061,14 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
             mock_instance.render.side_effect = RuntimeError("Plugin requires word_frequencies field")
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1088,14 +1091,14 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
             mock_instance.render.side_effect = RuntimeError("Unsupported format type")
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1106,6 +1109,7 @@ class TestVisualizeCommand:
         """Visualize aceita YAML como input"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.yaml"
         data_file.write_text(yaml.dump({"word_frequencies": {"gato": 5}}))
@@ -1120,16 +1124,18 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(b"<svg>test</svg>").decode(),
+                "encoding": "base64",
+                "format": "svg",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
-            output.write_bytes(b"<svg>test</svg>")
-
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(output),
             ])
 
@@ -1151,13 +1157,13 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Broken Viz"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock(spec=[])  # spec=[] remove todos os métodos
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1179,10 +1185,10 @@ class TestVisualizeCommand:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = "freq_wordcloud_viz.png"
+            mock_instance.render.return_value = "freq_wordcloud_d3.png"
             mock_core.get_plugin.return_value = mock_instance
 
             import os
@@ -1190,10 +1196,10 @@ class TestVisualizeCommand:
             try:
                 os.chdir(tmp_path)
                 result = runner.invoke(viz_cmd, [
-                    str(data_file), "-p", "wordcloud_viz",
+                    str(data_file), "-p", "wordcloud_d3",
                 ])
                 # Deve mostrar nome gerado automaticamente
-                assert "Saída não especificada" in result.output or "freq_wordcloud_viz" in result.output
+                assert "Saída não especificada" in result.output or "freq_wordcloud_d3" in result.output
             finally:
                 os.chdir(old_cwd)
 
@@ -1238,8 +1244,8 @@ class TestTutorials:
         from qualia.cli.interactive.tutorials import TutorialManager
         tm = TutorialManager()
         content = tm.tutorials["visualization"]["content"]
-        assert "wordcloud_viz" in content
-        assert "frequency_chart" in content
+        assert "wordcloud_d3" in content
+        assert "frequency_chart_plotly" in content
 
     def test_tutorial_pipelines_content(self):
         """Tutorial de pipelines menciona YAML e steps"""
@@ -1673,14 +1679,14 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
             mock_instance.render.side_effect = FileNotFoundError("font.ttf not found")
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1703,14 +1709,14 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
             mock_instance.render.side_effect = ValueError("Invalid colormap name")
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1733,10 +1739,10 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
             ])
 
@@ -1761,10 +1767,10 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             result = runner.invoke(viz_cmd, [
-                str(data_file), "-p", "wordcloud_viz",
+                str(data_file), "-p", "wordcloud_d3",
                 "-o", str(tmp_path / "out.png"),
                 "-c", str(config_file),
             ])
@@ -1772,9 +1778,10 @@ class TestVisualizeCommandEdgeCases:
             assert "Erro ao ler configuração" in result.output
 
     def test_visualize_explicit_format_no_output(self, tmp_path):
-        """visualize com -f png sem -o gera nome com extensão correta (line 100-103)"""
+        """visualize com -f svg sem -o gera nome com extensão correta"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
@@ -1787,10 +1794,14 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = "freq_wordcloud_viz.png"
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(b"<svg>test</svg>").decode(),
+                "encoding": "base64",
+                "format": "svg",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
             import os
@@ -1798,22 +1809,24 @@ class TestVisualizeCommandEdgeCases:
             try:
                 os.chdir(tmp_path)
                 result = runner.invoke(viz_cmd, [
-                    str(data_file), "-p", "wordcloud_viz", "-f", "svg",
+                    str(data_file), "-p", "wordcloud_d3", "-f", "svg",
                 ])
                 assert "Saída não especificada" in result.output
-                assert "freq_wordcloud_viz.svg" in result.output
+                assert "freq_wordcloud_d3.svg" in result.output
             finally:
                 os.chdir(old_cwd)
 
     def test_visualize_png_with_size_display(self, tmp_path):
-        """visualize mostra tamanho para formato png (lines 158-161, 164-171)"""
+        """visualize mostra tamanho para formato png"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
+        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
 
         output = tmp_path / "cloud.png"
+        fake_png = b"\x89PNG" * 500
 
         runner = CliRunner()
         with patch("qualia.cli.commands.visualize.get_core") as mock_get_core:
@@ -1823,27 +1836,20 @@ class TestVisualizeCommandEdgeCases:
             mock_plugin_meta = MagicMock()
             mock_plugin_meta.type = PluginType.VISUALIZER
             mock_plugin_meta.name = "Word Cloud"
-            mock_core.registry = {"wordcloud_viz": mock_plugin_meta}
+            mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = str(output)
+            mock_instance.render.return_value = {
+                "data": b64_mod.b64encode(fake_png).decode(),
+                "encoding": "base64",
+                "format": "png",
+            }
             mock_core.get_plugin.return_value = mock_instance
 
-            # Create a fake PNG file with known size
-            output.write_bytes(b"\x89PNG" * 500)
-
-            # Mock PIL.Image.open to return a fake image with dimensions
-            mock_img = MagicMock()
-            mock_img.size = (800, 600)
-            mock_img.__enter__ = lambda s: s
-            mock_img.__exit__ = MagicMock(return_value=False)
-
-            with patch("PIL.Image.open", return_value=mock_img):
-                result = runner.invoke(viz_cmd, [
-                    str(data_file), "-p", "wordcloud_viz",
-                    "-o", str(output), "-f", "png",
-                ])
+            result = runner.invoke(viz_cmd, [
+                str(data_file), "-p", "wordcloud_d3",
+                "-o", str(output), "-f", "png",
+            ])
 
             assert result.exit_code == 0
             assert "Tamanho" in result.output or "KB" in result.output
-            assert "800x600" in result.output

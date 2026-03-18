@@ -126,11 +126,11 @@ class TutorialManager:
     def _tutorial_visualization(self) -> str:
         return """
 1. [cyan]Visualizadores disponíveis[/cyan]
-   - [bold]wordcloud_viz[/bold]: nuvem de palavras
+   - [bold]wordcloud_d3[/bold]: nuvem de palavras
      • Formatos: PNG, SVG, HTML
      • Personalização: cores, tamanho, fundo
    
-   - [bold]frequency_chart[/bold]: gráficos de frequência
+   - [bold]frequency_chart_plotly[/bold]: gráficos de frequência
      • Tipos: barras, pizza, treemap, sunburst
      • Interativo em HTML com Plotly
 
@@ -140,23 +140,23 @@ class TutorialManager:
    qualia analyze doc.txt -p word_frequency -o dados.json
    
    # 2. Criar nuvem de palavras
-   qualia visualize dados.json -p wordcloud_viz -o nuvem.png \\
+   qualia visualize dados.json -p wordcloud_d3 -o nuvem.png \\
      -P colormap=viridis -P background_color=white
    
    # 3. Criar gráfico interativo
-   qualia visualize dados.json -p frequency_chart -o grafico.html \\
+   qualia visualize dados.json -p frequency_chart_plotly -o grafico.html \\
      -P chart_type=treemap -P top_n=30
    ```
 
 3. [cyan]Parâmetros de personalização[/cyan]
    
-   [bold]wordcloud_viz:[/bold]
+   [bold]wordcloud_d3:[/bold]
    - colormap: viridis, plasma, inferno, magma, coolwarm
    - background_color: white, black, transparent
    - width/height: dimensões em pixels
    - max_words: número máximo de palavras
    
-   [bold]frequency_chart:[/bold]
+   [bold]frequency_chart_plotly:[/bold]
    - chart_type: bar, horizontal_bar, pie, treemap, sunburst
    - top_n: quantidade de itens a mostrar
    - color_scale: esquema de cores
@@ -195,7 +195,7 @@ class TutorialManager:
          remove_stopwords: true
        output: frequencies.json
      
-     - plugin: wordcloud_viz
+     - plugin: wordcloud_d3
        config:
          colormap: viridis
          max_words: 100
@@ -240,11 +240,11 @@ class TutorialManager:
 3. [cyan]Visualizações[/cyan]
    ```
    # Nuvem de palavras
-   qualia visualize analise.json -p wordcloud_viz -o nuvem_palavras.png \\
+   qualia visualize analise.json -p wordcloud_d3 -o nuvem_palavras.png \\
      -P colormap=plasma -P background_color=white
    
    # Gráfico interativo
-   qualia visualize analise.json -p frequency_chart -o grafico.html \\
+   qualia visualize analise.json -p frequency_chart_plotly -o grafico.html \\
      -P chart_type=treemap -P top_n=25
    ```
    ✓ Cria visualizações para apresentação

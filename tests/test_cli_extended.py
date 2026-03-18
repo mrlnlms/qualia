@@ -176,21 +176,21 @@ class TestVisualizeCommand:
     def test_visualize_nonexistent_data_file(self, runner):
         """Arquivo de dados inexistente — Click rejeita antes do handler"""
         result = runner.invoke(cli, [
-            "visualize", "/nonexistent/data.json", "-p", "wordcloud_viz",
+            "visualize", "/nonexistent/data.json", "-p", "wordcloud_d3",
         ])
         assert result.exit_code != 0
 
     def test_visualize_unsupported_data_format(self, runner, unsupported_file):
         """Formato de dados não suportado (nem JSON nem YAML)"""
         result = runner.invoke(cli, [
-            "visualize", str(unsupported_file), "-p", "wordcloud_viz",
+            "visualize", str(unsupported_file), "-p", "wordcloud_d3",
         ])
         assert "não suportado" in result.output.lower() or result.exit_code != 0
 
     def test_visualize_invalid_json_data(self, runner, invalid_json_file):
         """JSON malformado deve gerar erro de leitura"""
         result = runner.invoke(cli, [
-            "visualize", str(invalid_json_file), "-p", "wordcloud_viz",
+            "visualize", str(invalid_json_file), "-p", "wordcloud_d3",
         ])
         assert "Erro" in result.output or "erro" in result.output.lower()
 
@@ -199,19 +199,19 @@ class TestVisualizeCommand:
         output = tmp_path / "cloud.png"
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
             "-o", str(output),
         ])
         # O plugin pode falhar se wordcloud não estiver instalado,
         # mas o comando deve ao menos chegar à fase de renderização
         assert "Gerando visualização" in result.output or "Erro" in result.output
 
-    def test_visualize_frequency_chart(self, runner, word_freq_data, tmp_path):
+    def test_visualize_frequency_chart_plotly(self, runner, word_freq_data, tmp_path):
         """Frequency chart com output HTML"""
         output = tmp_path / "chart.html"
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "frequency_chart",
+            "-p", "frequency_chart_plotly",
             "-o", str(output),
         ])
         assert "Gerando visualização" in result.output or "Erro" in result.output
@@ -221,7 +221,7 @@ class TestVisualizeCommand:
         output = tmp_path / "viz_with_config.png"
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
             "-c", str(viz_config),
             "-o", str(output),
         ])
@@ -233,7 +233,7 @@ class TestVisualizeCommand:
         output = tmp_path / "viz_params.png"
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
             "-P", "colormap=plasma",
             "-P", "max_words=30",
             "-o", str(output),
@@ -245,7 +245,7 @@ class TestVisualizeCommand:
         output = tmp_path / "result.html"
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "frequency_chart",
+            "-p", "frequency_chart_plotly",
             "-f", "html",
             "-o", str(output),
         ])
@@ -255,7 +255,7 @@ class TestVisualizeCommand:
         """Sem -o deve gerar nome automático"""
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
         ])
         # Deve mencionar o nome automático gerado
         assert "Saída não especificada" in result.output or "Gerando" in result.output
@@ -265,7 +265,7 @@ class TestVisualizeCommand:
         output = tmp_path / "from_yaml.png"
         result = runner.invoke(cli, [
             "visualize", str(yaml_data_file),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
             "-o", str(output),
         ])
         assert "Gerando visualização" in result.output or "Erro" in result.output
@@ -274,17 +274,17 @@ class TestVisualizeCommand:
         """Config inexistente — Click rejeita antes do handler"""
         result = runner.invoke(cli, [
             "visualize", str(word_freq_data),
-            "-p", "wordcloud_viz",
+            "-p", "wordcloud_d3",
             "-c", "/nonexistent/config.yaml",
         ])
         assert result.exit_code != 0
 
-    def test_visualize_sentiment_viz(self, runner, sentiment_data, tmp_path):
+    def test_visualize_sentiment_viz_plotly(self, runner, sentiment_data, tmp_path):
         """Sentiment viz com dados de sentimento"""
         output = tmp_path / "sentiment.png"
         result = runner.invoke(cli, [
             "visualize", str(sentiment_data),
-            "-p", "sentiment_viz",
+            "-p", "sentiment_viz_plotly",
             "-o", str(output),
         ])
         assert "Gerando visualização" in result.output or "Erro" in result.output

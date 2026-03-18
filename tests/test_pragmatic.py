@@ -32,7 +32,7 @@ class TestCoreBasics:
         assert len(plugins) == 8
         assert all(p in plugins for p in [
             'word_frequency', 'sentiment_analyzer', 'teams_cleaner',
-            'wordcloud_viz', 'frequency_chart', 'sentiment_viz',
+            'wordcloud_d3', 'frequency_chart_plotly', 'sentiment_viz_plotly',
             'readability_analyzer', 'transcription'
         ])
     
@@ -64,15 +64,13 @@ class TestCoreBasics:
         """Plugins que dependem de outros conseguem acessar dados"""
         doc = core.add_document("test", "Texto para análise de sentimento positivo")
 
-        # sentiment_viz depende de sentiment_analyzer
+        # sentiment_viz_plotly depende de sentiment_analyzer
         # execute_plugin deve resolver a dependência automaticamente
-        from unittest.mock import patch
-        with patch('matplotlib.pyplot.savefig'):
-            result = core.execute_plugin("sentiment_viz", doc)
+        result = core.execute_plugin("sentiment_viz_plotly", doc)
 
-        # Deve retornar resultado do visualizer (dict com output_path)
+        # Deve retornar resultado do visualizer (dict com html ou base64)
         assert isinstance(result, dict)
-        assert "output_path" in result
+        assert "html" in result or "data" in result
 
 
 class TestAPIBasics:
@@ -222,9 +220,9 @@ class TestRealWorldUsage:
         from unittest.mock import patch
         with patch('matplotlib.pyplot.savefig'):
             try:
-                # Se sentiment_viz consegue executar, 
+                # Se sentiment_viz_plotly consegue executar, 
                 # conseguiu acessar dados do sentiment_analyzer
-                core.execute_plugin("sentiment_viz", doc)
+                core.execute_plugin("sentiment_viz_plotly", doc)
                 assert True
             except TypeError as e:
                 if "NoneType" in str(e):

@@ -178,12 +178,12 @@ def configure_parameters(plugin: str, context: str = "general") -> Dict[str, str
             "remove_timestamps": ("Remover timestamps", "false"),
             "merge_consecutive": ("Mesclar falas consecutivas", "true")
         },
-        "wordcloud_viz": {
+        "wordcloud_d3": {
             "colormap": ("Esquema de cores", "viridis"),
             "background_color": ("Cor de fundo", "white"),
             "max_words": ("Máximo de palavras", "100")
         },
-        "frequency_chart": {
+        "frequency_chart_plotly": {
             "chart_type": ("Tipo de gráfico", "bar"),
             "top_n": ("Número de itens", "20")
         }

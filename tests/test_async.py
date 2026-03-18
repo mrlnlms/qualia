@@ -135,15 +135,15 @@ class TestVisualization:
         freq_data = analyze_resp.json()["result"]
 
         viz_resp = await ac.post(
-            "/visualize/wordcloud_viz",
+            "/visualize/wordcloud_d3",
             json={
                 "data": freq_data,
                 "config": {"width": 400, "height": 200},
-                "output_format": "png",
+                "output_format": "html",
             },
         )
         assert viz_resp.status_code == 200
-        assert viz_resp.json()["format"] == "png"
+        assert "html" in viz_resp.json()
 
     async def test_nonexistent_visualizer_returns_error(self, ac):
         """Visualizer inexistente retorna erro (400 ou 404)"""
