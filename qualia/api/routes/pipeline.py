@@ -127,10 +127,10 @@ async def execute_pipeline(
 
             plugin_type = core.registry[plugin_id].type.value
 
-            output_format = "png"
+            output_format = "html"
             if plugin_type == "visualizer" and "format" in config_dict:
                 config_dict = {**config_dict}
-                output_format = config_dict.pop("format", "png")
+                output_format = config_dict.pop("format", "html")
 
             validate_plugin_config(core, plugin_id, config_dict)
 
