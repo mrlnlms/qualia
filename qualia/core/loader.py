@@ -30,6 +30,9 @@ class PluginLoader:
     Os demais são instanciados sob demanda no primeiro get_plugin() (lazy).
 
     A detecção é automática via '__init__' in cls.__dict__.
+
+    Discovery é recursivo — plugins podem estar em qualquer profundidade.
+    Pastas cujo nome começa com _ são ignoradas (ex: _templates).
     """
 
     def __init__(self, plugins_dir: Path):
@@ -38,8 +41,22 @@ class PluginLoader:
         self._plugin_classes: Dict[str, type] = {}
         self._lock = threading.Lock()
 
+    def _find_plugin_dirs(self) -> list:
+        """Encontra todas as pastas com __init__.py recursivamente.
+
+        Ignora pastas cujo nome começa com _ (ex: _templates).
+        """
+        plugin_dirs = []
+        for init_file in self.plugins_dir.rglob("__init__.py"):
+            plugin_dir = init_file.parent
+            rel = plugin_dir.relative_to(self.plugins_dir)
+            if any(part.startswith('_') for part in rel.parts):
+                continue
+            plugin_dirs.append(plugin_dir)
+        return plugin_dirs
+
     def discover(self) -> Dict[str, PluginMetadata]:
-        """Descobre plugins e instancia apenas os que precisam de warm-up.
+        """Descobre plugins em qualquer profundidade e instancia os que precisam de warm-up.
 
         Plugins com __init__ próprio → instanciados agora (main thread, thread-safe).
         Plugins sem __init__ próprio → classe guardada, instanciação deferida.
@@ -53,8 +70,7 @@ class PluginLoader:
 
         t_total = time.perf_counter()
 
-        for plugin_dir in self.plugins_dir.iterdir():
-            if plugin_dir.is_dir() and (plugin_dir / "__init__.py").exists():
+        for plugin_dir in self._find_plugin_dirs():
                 try:
                     t0 = time.perf_counter()
                     spec = importlib.util.spec_from_file_location(

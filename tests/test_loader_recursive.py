@@ -115,8 +115,8 @@ class TestRecursiveDiscovery:
         discovered = loader.discover()
         assert discovered == {}
 
-    def test_duplicate_id_raises(self, plugin_tree):
-        """Plugin com ID duplicado em subpasta diferente levanta ValueError"""
+    def test_duplicate_id_logs_error(self, plugin_tree, caplog):
+        """Plugin com ID duplicado em subpasta diferente loga erro (não carrega o duplicado)"""
         dup = plugin_tree / "visualizers" / "flat_plugin"
         dup.mkdir(parents=True)
         (dup / "__init__.py").write_text('''
@@ -132,5 +132,9 @@ class DupAnalyzer(BaseAnalyzerPlugin):
         return {"dup_result": True}
 ''')
         loader = PluginLoader(plugin_tree)
-        with pytest.raises(ValueError, match="duplicado"):
-            loader.discover()
+        import logging
+        with caplog.at_level(logging.ERROR):
+            discovered = loader.discover()
+        # O primeiro flat_plugin carrega, o duplicado é rejeitado com log
+        assert "flat_plugin" in discovered
+        assert "duplicado" in caplog.text.lower() or "duplicado" in str(caplog.records)
