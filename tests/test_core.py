@@ -724,3 +724,65 @@ class TestDocumentMethods:
         doc = Document(id="doc_no_variant", content="texto")
         result = doc.get_variant("nonexistent")
         assert result is None
+
+
+class TestValidateAndConvert:
+    """Testa _validate_and_convert com todas as branches de tipo."""
+
+    def test_int_conversion_from_string(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"count": {"type": "int", "default": 0}}
+        result = _validate_and_convert({"count": "42"}, params)
+        assert result["count"] == 42
+
+    def test_float_conversion_from_string(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"threshold": {"type": "float", "default": 0.0}}
+        result = _validate_and_convert({"threshold": "0.75"}, params)
+        assert result["threshold"] == 0.75
+
+    def test_bool_from_string_true(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"enabled": {"type": "bool", "default": False}}
+        for truthy in ("true", "True", "1", "yes"):
+            result = _validate_and_convert({"enabled": truthy}, params)
+            assert result["enabled"] is True, f"Failed for '{truthy}'"
+
+    def test_bool_from_string_false(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"enabled": {"type": "bool", "default": True}}
+        for falsy in ("false", "0", "no", "anything"):
+            result = _validate_and_convert({"enabled": falsy}, params)
+            assert result["enabled"] is False, f"Failed for '{falsy}'"
+
+    def test_bool_from_nonstring(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"enabled": {"type": "bool", "default": False}}
+        assert _validate_and_convert({"enabled": 1}, params)["enabled"] is True
+        assert _validate_and_convert({"enabled": 0}, params)["enabled"] is False
+        assert _validate_and_convert({"enabled": None}, params)["enabled"] is False
+
+    def test_int_invalid_raises(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"count": {"type": "int", "default": 0}}
+        with pytest.raises(ValueError):
+            _validate_and_convert({"count": "abc"}, params)
+
+    def test_unknown_param_rejected(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"known": {"type": "str", "default": ""}}
+        with pytest.raises(ValueError, match="desconhecido"):
+            _validate_and_convert({"unknown": "x"}, params)
+
+    def test_exclude_skips_params(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"keep": {"type": "str", "default": ""}, "skip": {"type": "str", "default": ""}}
+        result = _validate_and_convert({"keep": "a", "skip": "b"}, params, exclude={"skip"})
+        assert "keep" in result
+        assert "skip" not in result
+
+    def test_default_applied_when_missing(self):
+        from qualia.core.base_plugins import _validate_and_convert
+        params = {"count": {"type": "int", "default": 42}}
+        result = _validate_and_convert({}, params)
+        assert result["count"] == 42
