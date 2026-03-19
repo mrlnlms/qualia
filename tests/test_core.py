@@ -96,17 +96,17 @@ class TestQualiaCore:
         assert result["total_words"] > 0
     
     def test_plugin_with_config(self, core, sample_document):
-        """Testa plugin com configuração - CORRIGIDO"""
+        """Testa plugin com configuração válida"""
         core.add_document(sample_document.id, sample_document.content)
-        
+
         config = {"min_word_length": 5}
         result = core.execute_plugin("word_frequency", sample_document, config)
-        
-        # Verificar se tem palavras
-        if "word_frequencies" in result:
-            words = result["word_frequencies"].keys()
-            # Config pode não ser respeitada, apenas verificar se executou
-            assert len(result["word_frequencies"]) >= 0
+
+        assert isinstance(result, dict)
+        assert "word_frequencies" in result
+        # Com min_word_length=5, palavras curtas devem ser filtradas
+        for word in result["word_frequencies"]:
+            assert len(word) >= 5, f"Palavra '{word}' tem menos de 5 caracteres"
     
     def test_cache_functionality(self, core, sample_document):
         """Testa funcionalidade de cache"""
@@ -128,26 +128,25 @@ class TestQualiaCore:
             core.execute_plugin("nao_existe", sample_document)
     
     def test_pipeline_execution(self, core):
-        """Testa execução de pipeline - CORRIGIDO"""
+        """Testa execução de pipeline"""
         from qualia.core import PipelineConfig, PipelineStep
-        
-        doc = core.add_document("pipeline_test", "Texto para pipeline. Muito bom!")
-        
+
+        doc = core.add_document("pipeline_test", "Texto para pipeline. Muito bom! " * 10)
+
         pipeline = PipelineConfig(
             name="test_pipeline",
             steps=[
                 PipelineStep("word_frequency"),
-                PipelineStep("sentiment_analyzer", {"language": "pt"})  # pt ao invés de portuguese
+                PipelineStep("sentiment_analyzer", {"language": "pt"})
             ]
         )
-        
+
         results = core.execute_pipeline(pipeline, doc)
-        
-        # Pipeline pode ter problemas, verificar se executou algo
+
         assert isinstance(results, dict)
-        # Se executou com sucesso
-        if results:
-            assert "word_frequency" in results or len(results) > 0
+        assert "word_frequency" in results
+        assert "sentiment_analyzer" in results
+        assert results["word_frequency"]["total_words"] > 0
 
 
 class TestPluginTypes:
@@ -197,11 +196,12 @@ class TestErrorHandling:
                 {"invalid_param": "value"}
             )
     
-    def test_missing_dependencies_fixed(self, core):
-        """Testa plugin com dependência faltante - CORRIGIDO"""
-        # Criar mock de plugin que não quebra dict.get
+    def test_missing_dependency_warns(self, core, caplog):
+        """Plugin com dependência inexistente deve logar warning no build_graph"""
+        import logging
+
         mock_plugin = MagicMock()
-        mock_plugin.meta.return_value = PluginMetadata(
+        meta = PluginMetadata(
             id="mock_plugin",
             type=PluginType.ANALYZER,
             name="Mock",
@@ -209,19 +209,21 @@ class TestErrorHandling:
             version="1.0",
             requires=["plugin_inexistente"]
         )
-        
-        # Adicionar ao registry de forma segura
+        mock_plugin.meta.return_value = meta
+        mock_plugin.validate_config.return_value = (True, None)
+
         core.loader.loaded_plugins["mock_plugin"] = mock_plugin
-        core.registry["mock_plugin"] = mock_plugin.meta()
-        
-        doc = core.add_document("test", "texto")
-        
-        # Deve ignorar dependência inexistente ou falhar gracefully
-        try:
-            core.execute_plugin("mock_plugin", doc)
-        except Exception as e:
-            # Ok se falhar, mas não deve ser erro de 'dict.get'
-            assert "dict" not in str(e)
+        core.registry["mock_plugin"] = meta
+
+        # Reconstruir grafo — warning deve ser emitido aqui
+        core.resolver = DependencyResolver()
+        for pid, m in core.registry.items():
+            core.resolver.add_plugin(pid, m)
+        with caplog.at_level(logging.WARNING):
+            core.resolver.build_graph()
+
+        assert "plugin_inexistente" in caplog.text
+        assert "nenhum plugin fornece" in caplog.text
 
 
 class TestPerformance:
