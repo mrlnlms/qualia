@@ -210,7 +210,7 @@ Plugins são singletons compartilhados entre worker threads.
 - `__init__` roda na main thread (discovery, sem concorrência)
 - `_analyze_impl` / `_render_impl` / `_process_impl` rodam em worker threads via `asyncio.to_thread`
 - Recursos pesados (modelos, corpora, conexões) devem ser carregados no `__init__`
-- Convenção documentada em: CLAUDE.md, docstrings das base classes, template `tools/create_plugin.py`
+- Convenção documentada em: CLAUDE.md, docstrings das base classes, templates `plugins/_templates/`
 
 Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__init__` do word_frequency.
 
@@ -243,6 +243,6 @@ GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Movido pra `docs/morto/`: `configs/`, `DEPLOY.md`, `README_COMPLEMENTAR.md`, `KNOWN_ISSUES.md`, `ecossistema-qualia-historia-e-cases.md`, `.docx`, session logs
 - `qualia init` simplificado — cria apenas `plugins/` e `cache/` (removido `output/`, `configs/`, `data/`)
 - `qualia visualize` sem `-o` agora gera em `/tmp/qualia/` (não polui working directory)
-- `tools/create_plugin.py` — não gera mais `requirements.txt` por plugin, aponta pra `pyproject.toml`
+- `tools/` removido — templates migrados pra `plugins/_templates/`, criação via `qualia create`
 - `conftest.py` — auto-cleanup de `cache/` e `.pytest_cache/` via `pytest_sessionfinish`
 - Spec arquivada: `docs/superpowers/` → `docs/archive/claude_sources/plans/`

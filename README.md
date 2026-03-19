@@ -87,10 +87,10 @@ qualia menu                                          # menu interativo (navegaç
 Gerar a estrutura:
 
 ```bash
-python tools/create_plugin.py meu_analyzer analyzer
+qualia create meu_analyzer analyzer
 ```
 
-Cria `plugins/meu_analyzer/__init__.py` com a estrutura completa — procure por `TODO` no código gerado. Tipos disponíveis: `analyzer`, `visualizer`, `document`.
+Cria `plugins/meu_analyzer/__init__.py` com a estrutura completa — procure por `TODO` no código gerado. Tipos disponíveis: `analyzer`, `visualizer`, `document`. Ou copie manualmente de `plugins/_templates/`.
 
 O plugin mínimo:
 

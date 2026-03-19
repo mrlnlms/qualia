@@ -70,7 +70,7 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 
 **Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Múltiplos plugins podem declarar o mesmo campo (ex: dois sentiment analyzers com `provides=["sentiment_score"]`) — o consumer escolhe qual rodar. Resolução automática de dependências só funciona quando há provider único; com múltiplos, o consumer deve escolher explicitamente via pipeline. Visualizers não declaram provides.
 
-**Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Template: `tools/create_plugin.py`.
+**Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Templates: `plugins/_templates/` ou `qualia create`.
 
 ## ConfigurationRegistry (`qualia/core/config.py`)
 

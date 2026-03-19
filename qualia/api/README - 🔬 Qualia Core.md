@@ -262,7 +262,7 @@ kubectl apply -f k8s/
 ## 🤝 Contribuindo
 
 1. Fork o projeto
-2. Crie seu plugin: `python tools/create_plugin.py nome tipo`
+2. Crie seu plugin: `qualia create nome tipo`
 3. Implemente seguindo os exemplos existentes
 4. Teste: `python test_final_complete.py`
 5. Pull Request!
