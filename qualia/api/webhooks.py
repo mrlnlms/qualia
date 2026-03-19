@@ -8,6 +8,7 @@ signature verification and automatic processing.
 from fastapi import APIRouter, Request, HTTPException, Header
 from fastapi.responses import JSONResponse
 from typing import Dict, Any, Optional
+import asyncio
 import hmac
 import hashlib
 import json
@@ -81,6 +82,9 @@ class WebhookProcessor:
         except HTTPException:
             self.stats["total_errors"] += 1
             raise
+        except asyncio.TimeoutError:
+            self.stats["total_errors"] += 1
+            raise HTTPException(status_code=504, detail="Webhook excedeu timeout de 60s")
         except Exception as e:
             self.stats["total_errors"] += 1
             logging.getLogger("qualia.api").error("Webhook error: %s", e, exc_info=True)
@@ -99,9 +103,7 @@ class WebhookProcessor:
         return "word_frequency"  # Default
     
     async def analyze_text(self, text: str, plugin_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Run analysis on extracted text via asyncio.to_thread (não bloqueia event loop)."""
-        import asyncio
-
+        """Run analysis on extracted text via asyncio.to_thread com timeout 60s."""
         if not core:
             raise HTTPException(status_code=500, detail="Core not initialized")
 
@@ -109,9 +111,12 @@ class WebhookProcessor:
         doc_id = f"{self.webhook_type.value}_{datetime.now().timestamp()}"
         doc = core.add_document(doc_id, text)
 
-        # Execute plugin em thread separada (consistente com rotas /analyze, /process, etc.)
+        # Execute plugin em thread separada com timeout (consistente com /analyze, /process, etc.)
         config = {}
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config, context)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(core.execute_plugin, plugin_id, doc, config, context),
+            timeout=60.0,
+        )
 
         return result
 
