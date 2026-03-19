@@ -601,6 +601,46 @@ class TestPipelineEndpoint:
             )
         assert response.status_code == 504
 
+    def test_pipeline_file_step0_timeout_returns_504(self, client):
+        """Timeout no step 0 (file+document) retorna 504."""
+        import asyncio as _asyncio
+
+        with patch("qualia.api.routes.pipeline.asyncio.wait_for", side_effect=_asyncio.TimeoutError):
+            fake_audio = io.BytesIO(b"\x00" * 100)
+            steps = json.dumps([{"plugin_id": "transcription"}])
+            response = client.post(
+                "/pipeline",
+                files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+                data={"steps": steps},
+            )
+        assert response.status_code == 504
+
+    def test_pipeline_visualizer_timeout_returns_504(self, client):
+        """Timeout num step visualizer retorna 504."""
+        import asyncio as _asyncio
+
+        # Primeiro step (analyzer) funciona, segundo (visualizer) timeout
+        text = "palavra repetida repetida tres tres tres quatro quatro quatro quatro"
+        call_count = {"n": 0}
+        original_wait_for = asyncio.wait_for
+
+        async def selective_timeout(coro, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] >= 2:  # visualizer step
+                raise _asyncio.TimeoutError()
+            return await original_wait_for(coro, **kwargs)
+
+        with patch("qualia.api.routes.pipeline.asyncio.wait_for", side_effect=selective_timeout):
+            steps = json.dumps([
+                {"plugin_id": "word_frequency"},
+                {"plugin_id": "frequency_chart_plotly"},
+            ])
+            response = client.post(
+                "/pipeline",
+                data={"text": text, "steps": steps},
+            )
+        assert response.status_code == 504
+
     def test_pipeline_non_text_result_keeps_current_text(self, client):
         """Plugin que retorna dict sem campos de texto não altera current_text."""
         response = client.post(
