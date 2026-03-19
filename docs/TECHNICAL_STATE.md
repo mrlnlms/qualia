@@ -159,6 +159,8 @@ CacheManager(cache_dir, max_size=0, ttl=0)
 # Ambos configuráveis por instância
 ```
 
+**Persistência:** cache em disco (.pkl) sobrevive a restart. `get()` reintegra entradas do disco no tracking LRU automaticamente (usa `st_mtime` como timestamp).
+
 Invalidação seletiva via índice reverso (`_doc_index`, `_plugin_index`):
 ```python
 cache.invalidate(doc_id="doc1")              # remove tudo do documento
@@ -275,8 +277,13 @@ Plugins são singletons compartilhados entre worker threads.
 
 - `__init__` roda na main thread (discovery, sem concorrência)
 - `_analyze_impl` / `_render_impl` / `_process_impl` rodam em worker threads via `asyncio.to_thread`
+- Webhooks também usam `asyncio.to_thread` para `core.execute_plugin()` (consistente com rotas /analyze, /process)
 - Recursos pesados (modelos, corpora, conexões) devem ser carregados no `__init__`
 - Convenção documentada em: CLAUDE.md, docstrings das base classes, templates `plugins/_templates/`
+
+## Webhooks ↔ Monitor
+
+Webhook tracking fiado no bootstrap: `set_tracking_callback(track_webhook)` em `api/__init__.py`. Quando um webhook é processado, `metrics.webhook_stats` é atualizado e streams SSE notificados.
 
 Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__init__` do word_frequency.
 
