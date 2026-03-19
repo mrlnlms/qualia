@@ -1,6 +1,6 @@
 # Qualia Core — Estado Técnico
 
-Última atualização: 2026-03-18
+Última atualização: 2026-03-19
 
 ## Plugins (8)
 
@@ -19,31 +19,32 @@
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
-| test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
-| test_plugin_logic.py | 40 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
+| test_cli_interactive.py | 126 | Handlers, menu, utils, wizards — módulo interactive completo |
+| test_cli_remaining.py | 89 | Init, list, watch, export, visualize, tutorials |
+| test_api_extended.py | 87 | Todos endpoints com variações, timeout, file upload, pipeline |
+| test_cli_extended.py | 57 | Visualize, batch, export — happy paths e edge cases |
 | test_cli.py | 49 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
-| test_cli_extended.py | 46 | Visualize, batch, export — happy paths e edge cases |
-| test_cli_config_watch.py | 33 | Config validate/create/list, watch command, QualiaFileHandler |
-| test_cli_interactive.py | 95 | Handlers, menu, utils, wizards — módulo interactive completo |
-| test_cli_remaining.py | 72 | Init, list, watch, export, visualize, tutorials — gaps restantes |
+| test_core.py | 46 | Discovery, documents, execution, cache básico |
 | test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
-| test_api.py | 20 | Endpoints REST: health, plugins, analyze, file upload |
-| test_api_extended.py | 44 | Todos endpoints com variações, timeout, file upload, pipeline |
-| test_webhooks.py | 19 | WebhookProcessor, GenericWebhook, endpoints /webhook/* |
-| test_pragmatic.py | 18 | Contratos de plugin, pipeline, usage real |
-| test_transcription.py | 17 | Meta, validação, mocks Groq API |
-| test_core.py | 16 | Discovery, documents, execution, cache básico |
-| test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva, limpeza de índices |
-| test_cache_deps.py | 15 | CacheManager hit/miss, DependencyResolver ciclos |
+| test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
+| test_plugin_logic.py | 37 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
+| test_cli_config_watch.py | 33 | Config validate/create/list, watch command, QualiaFileHandler |
+| test_cache_deps.py | 30 | CacheManager hit/miss, DependencyResolver ciclos |
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
+| test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
+| test_webhooks.py | 24 | WebhookProcessor, GenericWebhook, endpoints /webhook/* |
+| test_api.py | 20 | Endpoints REST: health, plugins, analyze, file upload |
+| test_transcription.py | 17 | Meta, validação, mocks Groq API |
+| test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
 | test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
+| test_engine_edges.py | 2 | Edge cases do engine |
 
 ## API — Estrutura modular
 
 ```
 qualia/api/
-  __init__.py     # Bootstrap (~110 linhas): app, CORS, router mounting, SPA catch-all
+  __init__.py     # Bootstrap: app, CORS, router mounting, SPA catch-all
   deps.py         # get_core(), track(), validate_plugin_config(), require_plugin_type()
   schemas.py      # 5 modelos Pydantic + plugin_to_info helper
   routes/
@@ -55,7 +56,7 @@ qualia/api/
     pipeline.py   # POST /pipeline
     config.py     # GET /plugins/{id}/schema, /config/consolidated, POST /config/resolve
     transcribe.py # POST /transcribe/{id}
-  monitor.py      # Métricas + SSE stream (~155 linhas)
+  monitor.py      # Métricas + SSE stream
   templates/
     monitor.html  # Dashboard HTML/CSS/JS (servido pelo monitor.py)
   webhooks.py     # Webhook genérico
@@ -87,7 +88,7 @@ qualia/api/
 
 ```
 qualia/core/
-  __init__.py      # Fachada de re-exports (~47 linhas)
+  __init__.py      # Fachada de re-exports
   interfaces.py    # PluginType, PluginMetadata, IPlugin, I*Plugin
   models.py        # Document, ExecutionContext, PipelineStep, PipelineConfig
   base_plugins.py  # BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin
@@ -168,7 +169,7 @@ Stats via `GET /cache/stats`:
 `provides` é contrato: campos que o resultado do plugin DEVE conter.
 
 - **Analyzers/Documents:** declaram provides, engine valida com warning se resultado não contém os campos
-- **Visualizers:** `provides=[]` (retornam Path, engine envolve em `{"output_path": ...}`)
+- **Visualizers:** `provides=[]` (retornam figura nativa — plotly.Figure, matplotlib.Figure ou HTML string. BaseVisualizerPlugin._serialize() faz duck-typing e serializa)
 - **Múltiplos providers:** dois plugins com mesmo campo coexistem (log info). Resolução automática só funciona com provider único; com múltiplos, consumer escolhe via pipeline
 - **Colisão de plugin ID:** dois plugins com mesmo id em meta() → `ValueError` no startup
 - **Resolver:** field names em `requires` são resolvidos automaticamente via `provides_map` → plugin ID
@@ -235,3 +236,13 @@ GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Deletado `nginx.conf` (conteúdo corrompido) e service nginx do docker-compose
 - Movido pra `docs/morto/`: ops/, scripts/, demos/, examples/, notebooks/, screenshots
 - Removido do root: `freq_result_wordcloud_viz.png`, `qualia_core.egg-info/`
+
+## Limpeza do repo (2026-03-19)
+
+- Removidos artefatos: `cache/*` (903 pkl), `output/`, `data/`, `__pycache__/` root, `.coverage`, `.DS_Store`
+- Movido pra `docs/morto/`: `configs/`, `DEPLOY.md`, `README_COMPLEMENTAR.md`, `KNOWN_ISSUES.md`, `ecossistema-qualia-historia-e-cases.md`, `.docx`, session logs
+- `qualia init` simplificado — cria apenas `plugins/` e `cache/` (removido `output/`, `configs/`, `data/`)
+- `qualia visualize` sem `-o` agora gera em `/tmp/qualia/` (não polui working directory)
+- `tools/create_plugin.py` — não gera mais `requirements.txt` por plugin, aponta pra `pyproject.toml`
+- `conftest.py` — auto-cleanup de `cache/` e `.pytest_cache/` via `pytest_sessionfinish`
+- Spec arquivada: `docs/superpowers/` → `docs/archive/claude_sources/plans/`
