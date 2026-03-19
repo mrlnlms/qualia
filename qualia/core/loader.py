@@ -66,6 +66,8 @@ class PluginLoader:
         logger = logging.getLogger(__name__)
         discovered = {}
         self.discovery_errors = []
+        self.loaded_plugins.clear()
+        self._plugin_classes.clear()
 
         if not self.plugins_dir.exists():
             return discovered

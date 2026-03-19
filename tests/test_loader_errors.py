@@ -56,3 +56,33 @@ class TestDiscoveryErrors:
 
         assert "good" in discovered
         assert len(loader.discovery_errors) > 0
+
+    def test_rediscovery_clears_stale_plugins(self, broken_plugins_dir):
+        """Após remover plugin do disco, rediscovery não deve manter fantasma."""
+        # Criar plugin temporário
+        plugin_dir = broken_plugins_dir / "ephemeral"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text(
+            "from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document\n"
+            "class EphemeralPlugin(BaseAnalyzerPlugin):\n"
+            "    def meta(self):\n"
+            "        return PluginMetadata(id='ephemeral', name='Ephemeral', type=PluginType.ANALYZER,\n"
+            "                             version='1.0', description='test')\n"
+            "    def _analyze_impl(self, doc, config, ctx):\n"
+            "        return {'ok': True}\n"
+        )
+
+        loader = PluginLoader(broken_plugins_dir)
+
+        # Primeira discovery — plugin existe
+        discovered1 = loader.discover()
+        assert "ephemeral" in discovered1
+        assert loader.get_plugin("ephemeral") is not None
+
+        # Remover plugin do disco
+        shutil.rmtree(plugin_dir)
+
+        # Segunda discovery — plugin não deve mais existir
+        discovered2 = loader.discover()
+        assert "ephemeral" not in discovered2
+        assert loader.get_plugin("ephemeral") is None
