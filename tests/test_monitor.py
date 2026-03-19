@@ -58,31 +58,23 @@ class TestTrackRequest:
         """Usa fixture do conftest para resetar estado global"""
         pass
 
-    def test_increments_total(self):
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/word_frequency")
-        )
+    async def test_increments_total(self):
+        await track_request("/analyze/word_frequency")
         assert metrics.requests_total == 1
 
-    def test_tracks_plugin_usage(self):
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/word_frequency", plugin_id="word_frequency")
-        )
+    async def test_tracks_plugin_usage(self):
+        await track_request("/analyze/word_frequency", plugin_id="word_frequency")
         assert metrics.plugin_usage["word_frequency"] == 1
 
-    def test_tracks_error(self):
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/bad", error="Plugin not found")
-        )
+    async def test_tracks_error(self):
+        await track_request("/analyze/bad", error="Plugin not found")
         assert metrics.errors_total == 1
         assert "Plugin not found" in metrics.last_error
 
-    def test_calculates_rpm(self):
+    async def test_calculates_rpm(self):
         # Disparar 3 requests
         for _ in range(3):
-            asyncio.get_event_loop().run_until_complete(
-                track_request("/test")
-            )
+            await track_request("/test")
         # Todos dentro do último minuto
         assert metrics.requests_per_minute == 3
 
@@ -97,10 +89,8 @@ class TestTrackWebhook:
     def _reset(self, reset_monitor_state):
         pass
 
-    def test_increments_webhook_stats(self):
-        asyncio.get_event_loop().run_until_complete(
-            track_webhook("generic")
-        )
+    async def test_increments_webhook_stats(self):
+        await track_webhook("generic")
         assert metrics.webhook_stats["generic"] == 1
 
 
@@ -114,16 +104,16 @@ class TestNotifyStreams:
     def _reset(self, reset_monitor_state):
         pass
 
-    def test_no_streams_no_error(self):
+    async def test_no_streams_no_error(self):
         """Sem streams ativos, notify_streams não faz nada"""
-        asyncio.get_event_loop().run_until_complete(notify_streams())
+        await notify_streams()
         # Se chegou aqui sem erro, passou
 
-    def test_sends_to_active_queue(self):
+    async def test_sends_to_active_queue(self):
         queue = asyncio.Queue()
         active_streams.add(queue)
         try:
-            asyncio.get_event_loop().run_until_complete(notify_streams())
+            await notify_streams()
             # Deve ter colocado dados na queue
             assert not queue.empty()
             data = json.loads(queue.get_nowait())
@@ -171,7 +161,7 @@ class TestSSEEndpoint:
         assert "error-box" in html
         assert "last-error" in html
 
-    def test_monitor_stream_returns_sse_data(self):
+    async def test_monitor_stream_returns_sse_data(self):
         """event_generator produz dados iniciais no formato SSE correto"""
         from unittest.mock import AsyncMock, MagicMock
 
@@ -180,9 +170,7 @@ class TestSSEEndpoint:
         mock_request.is_disconnected = AsyncMock(return_value=True)
 
         from qualia.api.monitor import monitor_stream
-        response = asyncio.get_event_loop().run_until_complete(
-            monitor_stream(mock_request)
-        )
+        response = await monitor_stream(mock_request)
 
         # Verifica headers do StreamingResponse
         assert response.media_type == "text/event-stream"
@@ -191,7 +179,7 @@ class TestSSEEndpoint:
 
         # Consome o generator para pegar dados iniciais
         gen = response.body_iterator
-        first_chunk = asyncio.get_event_loop().run_until_complete(gen.__anext__())
+        first_chunk = await gen.__anext__()
 
         assert first_chunk.startswith("data: ")
         assert first_chunk.endswith("\n\n")
@@ -205,7 +193,7 @@ class TestSSEEndpoint:
         assert "plugin_usage" in m
         assert "webhook_stats" in m
 
-    def test_monitor_stream_sends_queued_updates(self):
+    async def test_monitor_stream_sends_queued_updates(self):
         """event_generator envia dados da queue quando disponíveis"""
         from unittest.mock import AsyncMock, MagicMock
 
@@ -222,27 +210,25 @@ class TestSSEEndpoint:
 
         from qualia.api.monitor import monitor_stream
 
-        response = asyncio.get_event_loop().run_until_complete(
-            monitor_stream(mock_request)
-        )
+        response = await monitor_stream(mock_request)
 
         gen = response.body_iterator
 
         # Pular dados iniciais
-        asyncio.get_event_loop().run_until_complete(gen.__anext__())
+        await gen.__anext__()
 
         # Colocar dados na queue que foi registrada em active_streams
         test_data = json.dumps({"test": True})
         for q in list(active_streams):
-            asyncio.get_event_loop().run_until_complete(q.put(test_data))
+            await q.put(test_data)
 
         # Próximo chunk deve ser o dado da queue
-        chunk = asyncio.get_event_loop().run_until_complete(gen.__anext__())
+        chunk = await gen.__anext__()
         assert "data:" in chunk
         parsed = json.loads(chunk.strip().replace("data: ", ""))
         assert parsed.get("test") is True
 
-    def test_monitor_stream_sends_heartbeat_on_timeout(self):
+    async def test_monitor_stream_sends_heartbeat_on_timeout(self):
         """event_generator envia heartbeat quando queue não recebe dados"""
         from unittest.mock import AsyncMock, MagicMock
 
@@ -258,20 +244,18 @@ class TestSSEEndpoint:
 
         from qualia.api.monitor import monitor_stream
 
-        response = asyncio.get_event_loop().run_until_complete(
-            monitor_stream(mock_request)
-        )
+        response = await monitor_stream(mock_request)
 
         gen = response.body_iterator
 
         # Pular dados iniciais
-        asyncio.get_event_loop().run_until_complete(gen.__anext__())
+        await gen.__anext__()
 
         # Sem dados na queue, deve dar timeout e enviar heartbeat
-        chunk = asyncio.get_event_loop().run_until_complete(gen.__anext__())
+        chunk = await gen.__anext__()
         assert chunk == ": heartbeat\n\n"
 
-    def test_monitor_stream_cleans_up_on_disconnect(self):
+    async def test_monitor_stream_cleans_up_on_disconnect(self):
         """Queue é removida de active_streams quando cliente desconecta"""
         from unittest.mock import AsyncMock, MagicMock
 
@@ -282,16 +266,14 @@ class TestSSEEndpoint:
 
         streams_before = len(active_streams)
 
-        response = asyncio.get_event_loop().run_until_complete(
-            monitor_stream(mock_request)
-        )
+        response = await monitor_stream(mock_request)
 
         # Consumir todo o generator
         gen = response.body_iterator
         chunks = []
         try:
             while True:
-                chunk = asyncio.get_event_loop().run_until_complete(gen.__anext__())
+                chunk = await gen.__anext__()
                 chunks.append(chunk)
         except StopAsyncIteration:
             pass
@@ -310,7 +292,7 @@ class TestNotifyStreamsEdgeCases:
     def _reset(self, reset_monitor_state):
         pass
 
-    def test_broken_queue_is_discarded(self):
+    async def test_broken_queue_is_discarded(self):
         """Queue que falha no put() é removida de active_streams"""
 
         class BrokenQueue:
@@ -322,12 +304,12 @@ class TestNotifyStreamsEdgeCases:
         active_streams.add(broken)
 
         # Não deve levantar exceção
-        asyncio.get_event_loop().run_until_complete(notify_streams())
+        await notify_streams()
 
         # Queue quebrada deve ter sido removida
         assert broken not in active_streams
 
-    def test_mixed_good_and_broken_queues(self):
+    async def test_mixed_good_and_broken_queues(self):
         """Queue boa recebe dados mesmo com queue quebrada na lista"""
 
         class BrokenQueue:
@@ -340,7 +322,7 @@ class TestNotifyStreamsEdgeCases:
         active_streams.add(good_queue)
         active_streams.add(broken)
 
-        asyncio.get_event_loop().run_until_complete(notify_streams())
+        await notify_streams()
 
         # Queue boa recebeu dados
         assert not good_queue.empty()
@@ -354,13 +336,13 @@ class TestNotifyStreamsEdgeCases:
 
         active_streams.discard(good_queue)
 
-    def test_notify_updates_uptime_and_connections(self):
+    async def test_notify_updates_uptime_and_connections(self):
         """notify_streams atualiza uptime e active_connections"""
         queue = asyncio.Queue()
         active_streams.add(queue)
 
         try:
-            asyncio.get_event_loop().run_until_complete(notify_streams())
+            await notify_streams()
             data = json.loads(queue.get_nowait())
             # active_connections deve refletir a queue adicionada
             assert data["metrics"]["active_connections"] >= 1
@@ -380,45 +362,31 @@ class TestTrackRequestEdgeCases:
     def _reset(self, reset_monitor_state):
         pass
 
-    def test_request_without_plugin_or_error(self):
+    async def test_request_without_plugin_or_error(self):
         """Request sem plugin_id e sem error só incrementa total"""
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/health")
-        )
+        await track_request("/health")
         assert metrics.requests_total == 1
         assert metrics.errors_total == 0
         assert metrics.last_error == ""
         assert len(metrics.plugin_usage) == 0
 
-    def test_multiple_plugins_tracked_independently(self):
+    async def test_multiple_plugins_tracked_independently(self):
         """Diferentes plugins são contabilizados separadamente"""
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/sentiment", plugin_id="sentiment_analyzer")
-        )
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/sentiment", plugin_id="sentiment_analyzer")
-        )
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/analyze/readability", plugin_id="readability_analyzer")
-        )
+        await track_request("/analyze/sentiment", plugin_id="sentiment_analyzer")
+        await track_request("/analyze/sentiment", plugin_id="sentiment_analyzer")
+        await track_request("/analyze/readability", plugin_id="readability_analyzer")
         assert metrics.plugin_usage["sentiment_analyzer"] == 2
         assert metrics.plugin_usage["readability_analyzer"] == 1
 
-    def test_error_message_format(self):
+    async def test_error_message_format(self):
         """Mensagem de erro contém endpoint e descrição"""
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/process/bad_plugin", error="Timeout exceeded")
-        )
+        await track_request("/process/bad_plugin", error="Timeout exceeded")
         assert metrics.last_error == "/process/bad_plugin: Timeout exceeded"
 
-    def test_consecutive_errors_keep_last(self):
+    async def test_consecutive_errors_keep_last(self):
         """Último erro sobrescreve o anterior"""
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/a", error="Erro 1")
-        )
-        asyncio.get_event_loop().run_until_complete(
-            track_request("/b", error="Erro 2")
-        )
+        await track_request("/a", error="Erro 1")
+        await track_request("/b", error="Erro 2")
         assert metrics.errors_total == 2
         assert "Erro 2" in metrics.last_error
         assert "/b" in metrics.last_error
@@ -434,21 +402,21 @@ class TestTrackWebhookEdgeCases:
     def _reset(self, reset_monitor_state):
         pass
 
-    def test_multiple_webhook_types(self):
+    async def test_multiple_webhook_types(self):
         """Diferentes tipos de webhook são contabilizados separadamente"""
-        asyncio.get_event_loop().run_until_complete(track_webhook("generic"))
-        asyncio.get_event_loop().run_until_complete(track_webhook("generic"))
-        asyncio.get_event_loop().run_until_complete(track_webhook("custom"))
+        await track_webhook("generic")
+        await track_webhook("generic")
+        await track_webhook("custom")
         assert metrics.webhook_stats["generic"] == 2
         assert metrics.webhook_stats["custom"] == 1
 
-    def test_webhook_notifies_streams(self):
+    async def test_webhook_notifies_streams(self):
         """track_webhook envia atualização para streams ativos"""
         queue = asyncio.Queue()
         active_streams.add(queue)
 
         try:
-            asyncio.get_event_loop().run_until_complete(track_webhook("test"))
+            await track_webhook("test")
             assert not queue.empty()
             data = json.loads(queue.get_nowait())
             assert data["metrics"]["webhook_stats"]["test"] == 1
