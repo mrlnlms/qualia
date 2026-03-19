@@ -99,18 +99,20 @@ class WebhookProcessor:
         return "word_frequency"  # Default
     
     async def analyze_text(self, text: str, plugin_id: str, context: Dict[str, Any]) -> Dict[str, Any]:
-        """Run analysis on extracted text."""
+        """Run analysis on extracted text via asyncio.to_thread (não bloqueia event loop)."""
+        import asyncio
+
         if not core:
             raise HTTPException(status_code=500, detail="Core not initialized")
-        
+
         # Create document
         doc_id = f"{self.webhook_type.value}_{datetime.now().timestamp()}"
         doc = core.add_document(doc_id, text)
-        
-        # Execute plugin
-        config = {}  # Could be customized based on webhook type
-        result = core.execute_plugin(plugin_id, doc, config, context)
-        
+
+        # Execute plugin em thread separada (consistente com rotas /analyze, /process, etc.)
+        config = {}
+        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config, context)
+
         return result
 
 class GenericWebhookProcessor(WebhookProcessor):
