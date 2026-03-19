@@ -50,7 +50,10 @@ async def transcribe(
         doc.metadata["original_filename"] = file.filename
         doc.metadata["file_size"] = len(content)
 
-        result = await asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict)
+        result = await asyncio.wait_for(
+            asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict),
+            timeout=60.0,
+        )
 
         # Plugin retorna status: "error" para falhas de domínio (sem API key, arquivo inválido, etc)
         if isinstance(result, dict) and result.get("status") == "error":
@@ -68,6 +71,9 @@ async def transcribe(
         }
     except HTTPException:
         raise
+    except asyncio.TimeoutError:
+        await track(f"/transcribe/{plugin_id}", plugin_id, "Timeout")
+        raise HTTPException(status_code=504, detail="Transcrição excedeu timeout de 60s")
     except Exception as e:
         await track(f"/transcribe/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
