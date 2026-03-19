@@ -130,6 +130,7 @@ async def monitor_stream(request: Request):
                     
         finally:
             active_streams.discard(queue)
+            metrics.active_connections = len(active_streams)
     
     return StreamingResponse(
         event_generator(),
