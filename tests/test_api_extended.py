@@ -793,6 +793,44 @@ class TestTranscribeEndpoint:
 # POST /webhook/custom e GET /webhook/stats
 # ============================================================================
 
+class TestUploadSizeLimit:
+    """Testa rejeição de uploads grandes com 413."""
+
+    def test_transcribe_file_too_large_returns_413(self, client):
+        """Upload > MAX_UPLOAD_SIZE em transcribe retorna 413."""
+        from qualia.api.deps import MAX_UPLOAD_SIZE
+        fake_content = b"\x00" * (MAX_UPLOAD_SIZE + 1)
+        response = client.post(
+            "/transcribe/transcription",
+            files={"file": ("big.mp3", io.BytesIO(fake_content), "audio/mpeg")},
+            data={"config": "{}"},
+        )
+        assert response.status_code == 413
+
+    def test_pipeline_file_too_large_returns_413(self, client):
+        """Upload > MAX_UPLOAD_SIZE em pipeline retorna 413."""
+        from qualia.api.deps import MAX_UPLOAD_SIZE
+        fake_content = b"\x00" * (MAX_UPLOAD_SIZE + 1)
+        steps = json.dumps([{"plugin_id": "transcription"}])
+        response = client.post(
+            "/pipeline",
+            files={"file": ("big.mp3", io.BytesIO(fake_content), "audio/mpeg")},
+            data={"steps": steps},
+        )
+        assert response.status_code == 413
+
+    def test_small_file_accepted(self, client):
+        """Upload dentro do limite não retorna 413."""
+        fake_content = b"\x00" * 100
+        response = client.post(
+            "/transcribe/transcription",
+            files={"file": ("small.mp3", io.BytesIO(fake_content), "audio/mpeg")},
+            data={"config": "{}"},
+        )
+        # Pode ser 200 ou 400 (sem API key), mas não 413
+        assert response.status_code != 413
+
+
 class TestWebhookEndpoints:
     """Testa endpoints de webhook"""
 

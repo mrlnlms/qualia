@@ -2,12 +2,15 @@
 
 from typing import Dict, Optional
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
 from qualia.core import QualiaCore
 
 _core: Optional[QualiaCore] = None
 HAS_EXTENSIONS: bool = False
+
+# Limite de upload (25MB — alinhado com Groq API limit)
+MAX_UPLOAD_SIZE = 25 * 1024 * 1024
 
 
 def set_core(core: QualiaCore):
@@ -48,6 +51,18 @@ def require_plugin_type(core: QualiaCore, plugin_id: str, *expected_types: str) 
             detail=f"Plugin '{plugin_id}' é do tipo '{meta.type.value}', "
                    f"esperado: {', '.join(expected_types)}",
         )
+
+
+async def check_upload_size(file: UploadFile, max_size: int = MAX_UPLOAD_SIZE) -> bytes:
+    """Lê conteúdo do upload e rejeita com 413 se exceder limite."""
+    content = await file.read()
+    if len(content) > max_size:
+        size_mb = len(content) / (1024 * 1024)
+        raise HTTPException(
+            status_code=413,
+            detail=f"Arquivo muito grande: {size_mb:.1f}MB. Limite: {max_size // (1024 * 1024)}MB."
+        )
+    return content
 
 
 async def track(endpoint: str, plugin_id: str = None, error: str = None):

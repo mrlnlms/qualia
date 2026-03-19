@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from qualia.api.deps import get_core, track, validate_plugin_config
+from qualia.api.deps import get_core, track, validate_plugin_config, check_upload_size
 
 router = APIRouter()
 
@@ -77,9 +77,9 @@ async def execute_pipeline(
             config_dict = step0.get("config", {})
             validate_plugin_config(core, plugin_id, config_dict)
 
+            content = await check_upload_size(file)
             suffix = Path(file.filename).suffix if file.filename else ""
             with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                content = await file.read()
                 tmp.write(content)
                 tmp_path = tmp.name
 
