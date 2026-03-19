@@ -169,12 +169,68 @@ Stats via `GET /cache/stats`:
 
 `provides` é contrato: campos que o resultado do plugin DEVE conter.
 
-- **Analyzers/Documents:** declaram provides, engine valida com warning se resultado não contém os campos
+- **Analyzers/Documents:** declaram provides, engine valida com ValueError se resultado não contém os campos (contrato enforced)
 - **Visualizers:** `provides=[]` (retornam figura nativa — plotly.Figure, matplotlib.Figure ou HTML string. BaseVisualizerPlugin._serialize() faz duck-typing e serializa)
 - **Múltiplos providers:** dois plugins com mesmo campo coexistem (log info). Resolução automática só funciona com provider único; com múltiplos, consumer escolhe via pipeline
 - **Colisão de plugin ID:** dois plugins com mesmo id em meta() → `ValueError` no startup
 - **Resolver:** field names em `requires` são resolvidos automaticamente via `provides_map` → plugin ID
 - **Requires não satisfeitos:** warning no log se nenhum plugin fornece um campo requerido
+
+## Stability
+
+Classificação de estabilidade das interfaces. **Stable** = contrato mantido entre versões. **Experimental** = pode mudar sem aviso.
+
+### API Endpoints
+
+| Categoria | Endpoints | Estabilidade |
+|-----------|-----------|-------------|
+| Core | `/health`, `/plugins`, `/plugins/{id}`, `/plugins/{id}/schema` | **Stable** |
+| Análise | `/analyze/{id}`, `/analyze/{id}/file`, `/process/{id}` | **Stable** |
+| Visualização | `/visualize/{id}` | **Stable** |
+| Pipeline | `/pipeline` | **Stable** |
+| Config | `/config/consolidated`, `/config/resolve` | **Stable** |
+| Cache | `/cache/stats` | **Stable** |
+| Transcrição | `/transcribe/{id}` | **Experimental** — depende de API externa (Groq) |
+| Webhooks | `/webhook/custom`, `/webhook/stats` | **Experimental** — interface pode mudar |
+| Monitor | `/monitor/`, `/monitor/stream` | **Experimental** — SSE, dashboard pode mudar |
+
+### Core Python API
+
+| Interface | Estabilidade |
+|-----------|-------------|
+| `QualiaCore` (engine.py) | **Stable** — `execute_plugin()`, `execute_pipeline()`, `discover_plugins()` |
+| `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin` | **Stable** — contrato `meta()` + `_*_impl()` |
+| `PluginMetadata`, `Document`, `PipelineConfig` | **Stable** |
+| `ConfigurationRegistry` | **Stable** — `validate_config()`, `get_consolidated_view()` |
+| `CacheManager` | **Stable** — `get()`, `set()`, `stats()`, `invalidate()` |
+| `DependencyResolver` | **Stable** — `resolve()`, `build_graph()` |
+
+### Plugins
+
+| Plugin | Estabilidade | Nota |
+|--------|-------------|------|
+| `word_frequency` | **Stable** | Core analyzer, provides bem definidos |
+| `sentiment_analyzer` | **Stable** | Core analyzer, TextBlob/langdetect |
+| `readability_analyzer` | **Stable** | Core analyzer, pure Python |
+| `teams_cleaner` | **Stable** | Core document processor |
+| `transcription` | **Experimental** | Depende de GROQ_API_KEY e API externa |
+| `wordcloud_d3` | **Stable** | D3.js, sem deps Python |
+| `frequency_chart_plotly` | **Stable** | Requer plotly (extra `[viz]`) |
+| `sentiment_viz_plotly` | **Stable** | Requer plotly (extra `[viz]`) |
+
+### CLI
+
+| Comando | Estabilidade |
+|---------|-------------|
+| `qualia list`, `qualia inspect`, `qualia analyze`, `qualia process`, `qualia visualize` | **Stable** |
+| `qualia pipeline`, `qualia batch`, `qualia export`, `qualia config` | **Stable** |
+| `qualia create`, `qualia init` | **Stable** |
+| `qualia watch` | **Experimental** — file watcher |
+| `qualia menu` (interactive) | **Experimental** — UI pode mudar |
+
+### Frontend (Svelte)
+
+**Experimental** — todo o frontend Svelte é experimental. Páginas, componentes e API client podem mudar sem aviso. O contrato estável é a API REST, não o frontend.
 
 ## Error handling
 
