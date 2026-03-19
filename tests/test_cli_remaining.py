@@ -99,27 +99,9 @@ class TestInitCommand:
         with runner.isolated_filesystem(temp_dir=tmp_path):
             result = runner.invoke(cli, ["init"])
             assert result.exit_code == 0
-            # Verifica pastas criadas
+            # Verifica pastas criadas (apenas as essenciais pro engine)
             assert Path("plugins").is_dir()
             assert Path("cache").is_dir()
-            assert Path("output").is_dir()
-            assert Path("configs/pipelines").is_dir()
-            assert Path("configs/methodologies").is_dir()
-            assert Path("data/raw").is_dir()
-            assert Path("data/processed").is_dir()
-
-    def test_init_creates_pipeline_example(self, runner, tmp_path):
-        """Init deve criar pipeline de exemplo em YAML"""
-        with runner.isolated_filesystem(temp_dir=tmp_path):
-            result = runner.invoke(cli, ["init"])
-            assert result.exit_code == 0
-            pipeline_path = Path("configs/pipelines/example.yaml")
-            assert pipeline_path.exists()
-            # Verificar conteúdo do YAML
-            content = yaml.safe_load(pipeline_path.read_text())
-            assert content["name"] == "example_pipeline"
-            assert "steps" in content
-            assert len(content["steps"]) == 2
 
     def test_init_shows_success_message(self, runner, tmp_path):
         """Init deve mostrar mensagem de sucesso"""

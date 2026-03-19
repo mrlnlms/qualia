@@ -2,10 +2,31 @@
 Fixtures compartilhadas para os testes do Qualia.
 """
 
+import shutil
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
 from qualia.api import app
+
+
+# Diretórios de artefatos que os testes geram
+_PROJECT_ROOT = Path(__file__).parent.parent
+_ARTIFACTS = [
+    _PROJECT_ROOT / "cache",
+    _PROJECT_ROOT / ".pytest_cache",
+]
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Limpa artefatos gerados pelos testes ao final da sessão."""
+    for path in _ARTIFACTS:
+        if path.is_dir():
+            shutil.rmtree(path)
+            # Recria cache/ vazio (engine espera que exista)
+            if path.name == "cache":
+                path.mkdir()
 
 
 @pytest.fixture
