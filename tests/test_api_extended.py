@@ -17,6 +17,7 @@ Foco em endpoints e branches nao cobertos pelo test_api.py original:
 import pytest
 import json
 import io
+import asyncio
 import base64
 from unittest.mock import patch, MagicMock
 from pathlib import Path
@@ -1246,6 +1247,29 @@ class TestTranscribeEdgeCases:
         data = response.json()
         error_text = str(data.get("detail", data.get("message", "")))
         assert "indisponivel" in error_text.lower() or "503" in error_text
+
+    def test_transcribe_timeout_returns_504(self, client):
+        """Transcrição que excede 60s retorna 504."""
+        with patch("qualia.api.routes.transcribe.get_core") as mock_get_core:
+            mock_core = MagicMock()
+            mock_get_core.return_value = mock_core
+            mock_core.registry = {
+                "transcription": _mock_registry_entry("transcription", "document"),
+            }
+            mock_core.loader.get_plugin.return_value = MagicMock()
+            mock_core.get_config_registry.return_value = None
+            mock_core.add_document.return_value = MagicMock()
+            mock_core.execute_plugin.side_effect = asyncio.TimeoutError()
+
+            fake_audio = io.BytesIO(b"\x00" * 100)
+            response = client.post(
+                "/transcribe/transcription",
+                files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+                data={"config": "{}"},
+            )
+
+        assert response.status_code == 504
+        assert "timeout" in response.json()["message"].lower() or "60s" in response.json()["message"]
 
     def test_transcribe_domain_error_returns_400(self, client):
         """Plugin de transcrição retorna status=error → API retorna 400."""
