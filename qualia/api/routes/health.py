@@ -25,14 +25,14 @@ def _api_info():
     from qualia.api.deps import HAS_EXTENSIONS
     if HAS_EXTENSIONS:
         endpoints.update({
-            "webhooks": "/webhook/{provider}",
+            "webhooks": "/webhook/custom",
             "webhook_stats": "/webhook/stats",
             "monitor": "/monitor/",
             "monitor_stream": "/monitor/stream"
         })
     return {
         "name": "Qualia Core API",
-        "version": "0.1.0",
+        "version": "0.2.0-beta",
         "description": "REST API for qualitative analysis",
         "endpoints": endpoints,
         "documentation": "/docs"
