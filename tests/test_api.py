@@ -220,21 +220,6 @@ class TestPipelineEndpoints:
         assert response.status_code == 422
 
 
-class TestUploadEndpoints:
-    """Testa endpoints de upload"""
-    
-    @pytest.mark.skip(reason="Endpoint /upload não implementado ainda")
-    def test_upload_text_file(self, client):
-        """Testa upload de arquivo texto"""
-        # Pular por enquanto se endpoint não existe
-        pass
-    
-    @pytest.mark.skip(reason="Endpoint /upload não implementado ainda")
-    def test_upload_with_config(self, client):
-        """Testa upload com configuração"""
-        pass
-
-
 class TestDocumentEndpoints:
     """Testa endpoints de documentos"""
     
@@ -298,9 +283,3 @@ class TestErrorHandling:
         # Pipeline with non-existent plugin returns 400
         assert response.status_code == 400
 
-
-# Remover teste async por enquanto ou instalar pytest-asyncio
-@pytest.mark.skip(reason="Precisa instalar pytest-asyncio")
-async def test_async_health_check():
-    """Testa endpoint assíncrono"""
-    pass
