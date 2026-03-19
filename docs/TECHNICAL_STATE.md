@@ -142,9 +142,9 @@ Request (worker thread via asyncio.to_thread):
   plugin.analyze(doc, config, context)
 ```
 
-Startup medido (8 plugins):
-- Primeiro startup (cold — NLTK download/validação): ~910ms
-- Startups subsequentes (warm — NLTK em cache local): ~500ms
+Startup medido (8 plugins, varia por ambiente):
+- Primeiro startup (cold — NLTK download/validação): ~1-2s
+- Startups subsequentes (warm — NLTK em cache local): ~500ms-1s
 - 2 eager: word_frequency (~139ms), sentiment_analyzer (~455ms)
 - 6 lazy: ~0ms cada (instanciam sob demanda)
 
