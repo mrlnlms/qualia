@@ -32,7 +32,7 @@
 | test_cache_deps.py | 30 | CacheManager hit/miss, DependencyResolver ciclos |
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
 | test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
-| test_webhooks.py | 24 | WebhookProcessor, GenericWebhook, endpoints /webhook/* |
+| test_webhooks.py | 26 | WebhookProcessor, GenericWebhook, endpoints, timeout 504, integração webhook→monitor |
 | test_api.py | 20 | Endpoints REST: health, plugins, analyze, file upload |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
@@ -80,13 +80,13 @@ qualia/api/
 | POST | /analyze/{id} | Análise de texto (404 plugin, 422 config/tipo, 504 timeout 60s) |
 | POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 422 config/tipo, 504 timeout 60s) |
 | POST | /process/{id} | Processamento de documento (404 plugin, 422 config/tipo, 504 timeout 60s) |
-| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 422 config/tipo, 400 falha domínio) |
+| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 422 config/tipo, 504 timeout 60s, 400 falha domínio) |
 | POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML, 422 config/tipo, 504 timeout 60s) |
 | POST | /pipeline | Executa sequência de plugins (fail-fast, encadeia texto entre steps) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
 | POST | /config/resolve | Resolve config com text_size |
 | GET | /cache/stats | Estatísticas do cache (size, hits, misses, evictions) |
-| POST | /webhook/custom | Webhook genérico (extrai texto, analisa) |
+| POST | /webhook/custom | Webhook genérico (extrai texto, analisa, 422 payload inválido, 504 timeout 60s) |
 | GET | /webhook/stats | Stats de webhooks processados |
 | GET | /monitor/ | Dashboard HTML de monitoramento |
 | GET | /monitor/stream | SSE stream de métricas tempo real |
@@ -250,7 +250,7 @@ API:
 - Plugin não encontrado → 404 em todas as rotas
 - Plugin tipo incompatível → 422 (e.g. analyzer em /process, document em /analyze)
 - Config inválida → 422 em todas as rotas (validação centralizada via `validate_plugin_config()`)
-- Timeout → 504 após 60s em analyze, process, visualize e transcribe
+- Timeout → 504 após 60s em analyze, process, visualize, transcribe e webhook
 - Pipeline encadeia texto: `_extract_text_result()` propaga `transcription` > `cleaned_document` > `processed_text` (prioridade documentada)
 - Pipeline com file + step[0] não-document → 422 descritivo (não mais erro genérico)
 - Pipeline timeout 60s em todos os paths (step 0, loop analyzer/document, loop visualizer)
