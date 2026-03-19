@@ -119,7 +119,13 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
             if fmt == "html":
                 return {"html": fig.to_html(include_plotlyjs="cdn", full_html=True)}
             elif fmt in ("png", "svg"):
-                img_bytes = fig.to_image(format=fmt)
+                try:
+                    img_bytes = fig.to_image(format=fmt)
+                except Exception as e:
+                    raise ValueError(
+                        f"Formato '{fmt}' requer kaleido funcional. "
+                        f"Erro: {e}. Use output_format='html' como alternativa."
+                    ) from e
                 return {"data": b64_mod.b64encode(img_bytes).decode(), "encoding": "base64", "format": fmt}
             else:
                 raise ValueError(f"Formato '{fmt}' não suportado para plotly.Figure")
@@ -159,18 +165,28 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
     @staticmethod
     def get_supported_formats(render_lib):
         """Retorna formatos disponíveis baseado na lib e nas deps instaladas."""
-        import importlib.util
-
         if render_lib == "html":
             return ["html"]
         elif render_lib == "matplotlib":
             return ["html", "png", "svg"]
         elif render_lib == "plotly":
             formats = ["html"]
-            if importlib.util.find_spec("kaleido") is not None:
+            if BaseVisualizerPlugin._kaleido_works():
                 formats.extend(["png", "svg"])
             return formats
         return ["html"]
+
+    @staticmethod
+    def _kaleido_works():
+        """Testa se kaleido está instalado E funcional (não só presente)."""
+        try:
+            import kaleido  # noqa: F401
+            import plotly.graph_objects as go
+            fig = go.Figure()
+            fig.to_image(format="png", width=1, height=1)
+            return True
+        except Exception:
+            return False
 
     def _validate_config(self, config):
         """Valida e converte tipos dos parâmetros."""
