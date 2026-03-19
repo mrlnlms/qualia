@@ -539,33 +539,3 @@ class TeamsTranscriptCleaner(BaseDocumentPlugin):  # MUDANÇA: Herdar de Base
                 'unique_speakers': len(set(utt['speaker'] for utt in utterances)) if utterances else 0
             }
         }
-
-
-# Teste standalone
-if __name__ == "__main__":
-    # Exemplo de transcrição Teams
-    sample = """
-[00:00:00] Recording Started
-[00:00:05] João Silva: Bom dia pessoal, vamos começar a reunião?
-[00:00:10] Maria Santos: Bom dia! Sim, podemos começar.
-[00:00:15] João Silva: Ótimo.
-[00:00:16] João Silva: Primeiro item da pauta...
-[00:00:20] Pedro Oliveira (Guest): Oi, desculpem o atraso
-[00:00:25] Maria Santos: Sem problemas Pedro!
-[00:00:30] Sistema: Pedro Oliveira is now presenting
-    """
-    
-    from qualia.core import Document
-    
-    cleaner = TeamsTranscriptCleaner()
-    doc = Document(id="test", content=sample)
-    
-    result = cleaner._process_impl(doc, {
-        "remove_system_messages": True,
-        "merge_consecutive": True
-    }, {})
-    
-    print("Documento limpo:")
-    print(result['cleaned_document'])
-    print(f"\nQualidade: {result['quality_report']['quality_score']}/100")
-    print(f"Speakers: {[s['name'] for s in result['speakers']]}")

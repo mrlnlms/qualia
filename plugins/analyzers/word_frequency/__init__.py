@@ -313,24 +313,3 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             return basic_en
         else:
             return set()
-
-
-# Exemplo de uso standalone (para testes)
-if __name__ == "__main__":
-    # Teste rápido
-    analyzer = WordFrequencyAnalyzer()
-    
-    # Criar documento fake
-    from qualia.core import Document
-    doc = Document(
-        id="test",
-        content="Este é um teste de análise de frequência. Teste teste teste."
-    )
-    
-    # Executar análise
-    result = analyzer._analyze_impl(doc, {"min_word_length": 3}, {})
-    
-    print("Resultado da análise:")
-    print(f"Vocabulário: {result['vocabulary_size']} palavras")
-    print(f"Top palavras: {result['top_words'][:5]}")
-    print(f"Hapax legomena: {len(result['hapax_legomena'])}")

@@ -279,33 +279,3 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
                 interpretation['subjectivity'] = "The text is mainly objective (factual)"
         
         return interpretation
-
-
-# Para testes diretos
-if __name__ == "__main__":
-    import json
-    
-    analyzer = SentimentAnalyzer()
-    print(f"Plugin: {analyzer.meta().name}")
-    print(f"Versão: {analyzer.meta().version}")
-    
-    # Teste com texto de exemplo
-    test_text = """
-    Este produto é absolutamente maravilhoso! Superou todas as minhas expectativas.
-    A qualidade é excelente e o atendimento foi perfeito.
-    Recomendo fortemente para todos.
-    """
-    
-    doc = Document("test_doc", test_text)
-    config = {
-        "analyze_sentences": True,
-        "include_examples": True
-    }
-    
-    try:
-        result = analyzer._analyze_impl(doc, config, ExecutionContext())
-        print("\nResultado da análise:")
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-    except Exception as e:
-        print(f"\nErro: {e}")
-        print("Certifique-se de instalar: pip install textblob langdetect")
