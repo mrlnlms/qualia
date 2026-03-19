@@ -24,9 +24,6 @@ def pytest_sessionfinish(session, exitstatus):
     for path in _ARTIFACTS:
         if path.is_dir():
             shutil.rmtree(path)
-            # Recria cache/ vazio (engine espera que exista)
-            if path.name == "cache":
-                path.mkdir()
 
 
 @pytest.fixture
