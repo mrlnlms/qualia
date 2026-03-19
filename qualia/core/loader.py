@@ -40,6 +40,7 @@ class PluginLoader:
         self.loaded_plugins: Dict[str, IPlugin] = {}
         self._plugin_classes: Dict[str, type] = {}
         self._lock = threading.Lock()
+        self.discovery_errors: list = []
 
     def _find_plugin_dirs(self) -> list:
         """Encontra todas as pastas com __init__.py recursivamente.
@@ -64,6 +65,7 @@ class PluginLoader:
         """
         logger = logging.getLogger(__name__)
         discovered = {}
+        self.discovery_errors = []
 
         if not self.plugins_dir.exists():
             return discovered
@@ -124,6 +126,11 @@ class PluginLoader:
 
                 except Exception as e:
                     logger.error(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
+                    self.discovery_errors.append({
+                        "plugin": plugin_dir.name,
+                        "error": str(e),
+                        "path": str(plugin_dir),
+                    })
 
         eager_count = len(self.loaded_plugins)
         lazy_count = len(discovered) - eager_count

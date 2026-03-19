@@ -65,7 +65,7 @@ def health_check():
     """Health check endpoint"""
     core = get_core()
     from qualia.api.deps import HAS_EXTENSIONS
-    return {
+    response = {
         "status": "healthy",
         "plugins_loaded": len(core.registry),
         "plugin_types": {
@@ -78,3 +78,6 @@ def health_check():
             "monitoring": HAS_EXTENSIONS
         }
     }
+    if core.discovery_errors:
+        response["discovery_errors"] = core.discovery_errors
+    return response

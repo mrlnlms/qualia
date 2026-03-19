@@ -213,3 +213,8 @@ class QualiaCore:
     def get_config_registry(self) -> Optional[ConfigurationRegistry]:
         """Retorna a instância do ConfigurationRegistry"""
         return self.config_registry
+
+    @property
+    def discovery_errors(self) -> list:
+        """Erros encontrados durante discovery de plugins."""
+        return self.loader.discovery_errors
