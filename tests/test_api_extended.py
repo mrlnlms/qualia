@@ -830,6 +830,46 @@ class TestTranscribeEndpoint:
 
 
 # ============================================================================
+# GET /plugins/health
+# ============================================================================
+
+class TestPluginsHealth:
+
+    def test_plugins_health_returns_200(self, client):
+        """GET /plugins/health retorna 200 com status por plugin."""
+        response = client.get("/plugins/health")
+        assert response.status_code == 200
+        data = response.json()
+        assert "plugins" in data
+        assert data["total"] >= 8
+        assert data["status"] == "healthy"
+
+    def test_plugins_health_has_per_plugin_info(self, client):
+        """Cada plugin tem id, status, loading."""
+        response = client.get("/plugins/health")
+        data = response.json()
+        for p in data["plugins"]:
+            assert "id" in p
+            assert "status" in p
+            assert p["status"] in ("loaded", "pending")
+            assert "loading" in p
+            assert p["loading"] in ("eager", "lazy")
+
+    def test_plugins_health_no_errors(self, client):
+        """Sem erros de discovery → errors ausente ou vazio."""
+        response = client.get("/plugins/health")
+        data = response.json()
+        assert data.get("errors", []) == [] or "errors" not in data
+
+    def test_plugins_health_not_captured_by_plugin_id_route(self, client):
+        """GET /plugins/health não cai no catch-all /plugins/{plugin_id}."""
+        response = client.get("/plugins/health")
+        # Se caísse no catch-all, seria 404 (plugin "health" não existe)
+        assert response.status_code == 200
+        assert "plugins" in response.json()
+
+
+# ============================================================================
 # POST /webhook/custom e GET /webhook/stats
 # ============================================================================
 
