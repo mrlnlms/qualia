@@ -138,3 +138,51 @@ class DupAnalyzer(BaseAnalyzerPlugin):
         # O primeiro flat_plugin carrega, o duplicado é rejeitado com log
         assert "flat_plugin" in discovered
         assert "duplicado" in caplog.text.lower() or "duplicado" in str(caplog.records)
+
+
+class TestEagerLoadAttribute:
+
+    def test_eager_load_true_forces_eager(self, tmp_path):
+        """Plugin com EAGER_LOAD = True é carregado eagerly mesmo sem __init__."""
+        plugin_dir = tmp_path / "eager_test"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text('''
+from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
+
+class EagerTestPlugin(BaseAnalyzerPlugin):
+    EAGER_LOAD = True
+
+    def meta(self):
+        return PluginMetadata(
+            id="eager_test", name="Eager Test", type=PluginType.ANALYZER,
+            version="1.0.0", description="Test", provides=["test_field"],
+        )
+
+    def _analyze_impl(self, document, config, context):
+        return {"test_field": "ok"}
+''')
+        loader = PluginLoader(tmp_path)
+        loader.discover()
+        assert "eager_test" in loader.loaded_plugins
+
+    def test_no_eager_load_stays_lazy(self, tmp_path):
+        """Plugin sem EAGER_LOAD e sem __init__ permanece lazy."""
+        plugin_dir = tmp_path / "lazy_test"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text('''
+from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
+
+class LazyTestPlugin(BaseAnalyzerPlugin):
+    def meta(self):
+        return PluginMetadata(
+            id="lazy_test", name="Lazy Test", type=PluginType.ANALYZER,
+            version="1.0.0", description="Test", provides=["test_field"],
+        )
+
+    def _analyze_impl(self, document, config, context):
+        return {"test_field": "ok"}
+''')
+        loader = PluginLoader(tmp_path)
+        loader.discover()
+        assert "lazy_test" not in loader.loaded_plugins
+        assert "lazy_test" in loader._plugin_classes

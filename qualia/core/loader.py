@@ -25,11 +25,11 @@ from qualia.core.interfaces import (
 class PluginLoader:
     """Carrega plugins com instanciação lazy ou eager automática.
 
-    Plugins que definem __init__ próprio (warm-up, modelos, corpora)
+    Plugins com EAGER_LOAD = True ou __init__ próprio (warm-up, modelos, corpora)
     são instanciados na main thread durante discover() (eager).
     Os demais são instanciados sob demanda no primeiro get_plugin() (lazy).
 
-    A detecção é automática via '__init__' in cls.__dict__.
+    A detecção prioriza EAGER_LOAD (explícito) sobre '__init__' in cls.__dict__ (implícito).
 
     Discovery é recursivo — plugins podem estar em qualquer profundidade.
     Pastas cujo nome começa com _ são ignoradas (ex: _templates).
@@ -96,7 +96,7 @@ class PluginLoader:
 
                                 found_plugin = True
                                 self._plugin_classes[obj.__name__] = obj
-                                needs_eager = '__init__' in obj.__dict__
+                                needs_eager = getattr(obj, 'EAGER_LOAD', None) is True or '__init__' in obj.__dict__
 
                                 if needs_eager:
                                     # Warm-up na main thread (thread-safe)
