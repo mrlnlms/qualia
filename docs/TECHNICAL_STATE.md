@@ -159,7 +159,7 @@ CacheManager(cache_dir, max_size=0, ttl=0)
 # Ambos configuráveis por instância
 ```
 
-**Persistência:** cache em disco (.pkl) sobrevive a restart. `get()` reintegra entradas do disco no tracking LRU automaticamente (usa `st_mtime` como timestamp).
+**Persistência:** cache em disco (.pkl) sobrevive a restart. `get()` reintegra entradas do disco no tracking LRU automaticamente (usa `st_mtime` como timestamp). **Nota:** `stats()["size"]` reflete entradas ativas em memória, não arquivos no disco. Após restart, size começa em 0 e cresce conforme entries são acessadas via `get()`.
 
 Invalidação seletiva via índice reverso (`_doc_index`, `_plugin_index`):
 ```python
