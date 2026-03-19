@@ -81,7 +81,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-836 testes (Python 3.13), ~90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+836 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 834 passed, 2 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
