@@ -119,7 +119,8 @@ Startup (main thread):
   QualiaCore.__init__(plugins_dir=None, cache_dir=None)
     → Resolve paths relativos ao pacote (não ao cwd)
     → PluginLoader.discover()
-      → Para cada plugins/*/:
+      → Walk recursivo (rglob __init__.py), ignora pastas com _
+      → Para cada plugin encontrado:
         1. exec_module() — importa módulo (stdlib + qualia.core, ~0ms)
         2. Detecta __init__ próprio: '__init__' in cls.__dict__
         3. Se eager: instancia agora (warm-up thread-safe)
