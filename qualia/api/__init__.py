@@ -38,10 +38,11 @@ set_core(core)
 
 # Extensions (opcionais)
 try:
-    from qualia.api.webhooks import router as webhook_router, init_webhooks
-    from qualia.api.monitor import router as monitor_router
+    from qualia.api.webhooks import router as webhook_router, init_webhooks, set_tracking_callback
+    from qualia.api.monitor import router as monitor_router, track_webhook
     set_extensions(True)
     init_webhooks(core)
+    set_tracking_callback(track_webhook)
     app.include_router(webhook_router)
     app.include_router(monitor_router)
 except ImportError:
