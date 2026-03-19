@@ -9,7 +9,6 @@ principais da API. Inconsistência documentada, não corrigida aqui.
 """
 
 import pytest
-import asyncio
 from unittest.mock import MagicMock, AsyncMock, patch
 
 from fastapi import HTTPException
@@ -62,60 +61,44 @@ def mock_core(monkeypatch):
 class TestGenericExtractText:
     """Testa extração de texto de diferentes formatos de payload"""
 
-    def test_extract_text_field(self, generic_processor):
+    async def test_extract_text_field(self, generic_processor):
         payload = {"text": "Olá mundo"}
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text(payload)
-        )
+        result = await generic_processor.extract_text(payload)
         assert result == "Olá mundo"
 
-    def test_extract_content_field(self, generic_processor):
+    async def test_extract_content_field(self, generic_processor):
         payload = {"content": "Conteúdo aqui"}
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text(payload)
-        )
+        result = await generic_processor.extract_text(payload)
         assert result == "Conteúdo aqui"
 
-    def test_extract_message_field(self, generic_processor):
+    async def test_extract_message_field(self, generic_processor):
         payload = {"message": "Mensagem recebida"}
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text(payload)
-        )
+        result = await generic_processor.extract_text(payload)
         assert result == "Mensagem recebida"
 
-    def test_extract_nested_body_text(self, generic_processor):
+    async def test_extract_nested_body_text(self, generic_processor):
         payload = {"body": {"text": "Texto aninhado"}}
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text(payload)
-        )
+        result = await generic_processor.extract_text(payload)
         assert result == "Texto aninhado"
 
-    def test_extract_returns_none_for_unknown(self, generic_processor):
+    async def test_extract_returns_none_for_unknown(self, generic_processor):
         payload = {"unknown_field": 42, "other": [1, 2, 3]}
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text(payload)
-        )
+        result = await generic_processor.extract_text(payload)
         assert result is None
 
-    def test_extract_empty_payload(self, generic_processor):
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.extract_text({})
-        )
+    async def test_extract_empty_payload(self, generic_processor):
+        result = await generic_processor.extract_text({})
         assert result is None
 
 
 class TestGenericDeterminePlugin:
 
-    def test_default_plugin(self, generic_processor):
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.determine_plugin({})
-        )
+    async def test_default_plugin(self, generic_processor):
+        result = await generic_processor.determine_plugin({})
         assert result == "word_frequency"
 
-    def test_custom_plugin(self, generic_processor):
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.determine_plugin({"plugin": "sentiment_analyzer"})
-        )
+    async def test_custom_plugin(self, generic_processor):
+        result = await generic_processor.determine_plugin({"plugin": "sentiment_analyzer"})
         assert result == "sentiment_analyzer"
 
 
@@ -125,39 +108,29 @@ class TestGenericDeterminePlugin:
 
 class TestWebhookStats:
 
-    def test_process_increments_received(self, generic_processor, mock_core):
-        asyncio.get_event_loop().run_until_complete(
-            generic_processor.process({"text": "teste"}, {})
-        )
+    async def test_process_increments_received(self, generic_processor, mock_core):
+        await generic_processor.process({"text": "teste"}, {})
         assert generic_processor.stats["total_received"] == 1
 
-    def test_process_increments_processed_on_success(self, generic_processor, mock_core):
-        asyncio.get_event_loop().run_until_complete(
-            generic_processor.process({"text": "teste"}, {})
-        )
+    async def test_process_increments_processed_on_success(self, generic_processor, mock_core):
+        await generic_processor.process({"text": "teste"}, {})
         assert generic_processor.stats["total_processed"] == 1
 
-    def test_process_increments_errors_on_failure(self, generic_processor, mock_core):
+    async def test_process_increments_errors_on_failure(self, generic_processor, mock_core):
         mock_core.execute_plugin.side_effect = Exception("boom")
         with pytest.raises(Exception):
-            asyncio.get_event_loop().run_until_complete(
-                generic_processor.process({"text": "teste"}, {})
-            )
+            await generic_processor.process({"text": "teste"}, {})
         assert generic_processor.stats["total_errors"] == 1
 
-    def test_process_skips_when_no_text(self, generic_processor, mock_core):
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.process({"random": 123}, {})
-        )
+    async def test_process_skips_when_no_text(self, generic_processor, mock_core):
+        result = await generic_processor.process({"random": 123}, {})
         assert result["status"] == "skipped"
         # Recebido mas não processado
         assert generic_processor.stats["total_received"] == 1
         assert generic_processor.stats["total_processed"] == 0
 
-    def test_process_returns_success_structure(self, generic_processor, mock_core):
-        result = asyncio.get_event_loop().run_until_complete(
-            generic_processor.process({"text": "teste"}, {})
-        )
+    async def test_process_returns_success_structure(self, generic_processor, mock_core):
+        result = await generic_processor.process({"text": "teste"}, {})
         assert result["status"] == "success"
         assert result["webhook_type"] == "generic"
         assert result["plugin_used"] == "word_frequency"
@@ -220,28 +193,22 @@ class TestWebhookEndpoints:
 class TestWebhookEdgeCases:
     """Testa branches nao cobertos em webhooks.py"""
 
-    def test_webhook_processor_extract_text_not_implemented(self):
+    async def test_webhook_processor_extract_text_not_implemented(self):
         """Base WebhookProcessor.extract_text levanta NotImplementedError"""
         proc = WebhookProcessor(WebhookType.GENERIC)
         with pytest.raises(NotImplementedError):
-            asyncio.get_event_loop().run_until_complete(
-                proc.extract_text({})
-            )
+            await proc.extract_text({})
 
-    def test_webhook_processor_determine_plugin_default(self):
+    async def test_webhook_processor_determine_plugin_default(self):
         """Base WebhookProcessor.determine_plugin retorna word_frequency"""
         proc = WebhookProcessor(WebhookType.GENERIC)
-        result = asyncio.get_event_loop().run_until_complete(
-            proc.determine_plugin({})
-        )
+        result = await proc.determine_plugin({})
         assert result == "word_frequency"
 
-    def test_generic_webhook_string_payload(self):
+    async def test_generic_webhook_string_payload(self):
         """GenericWebhookProcessor.extract_text com string retorna a string"""
         proc = GenericWebhookProcessor()
-        result = asyncio.get_event_loop().run_until_complete(
-            proc.extract_text("just a string")
-        )
+        result = await proc.extract_text("just a string")
         assert result == "just a string"
 
     def test_set_tracking_callback(self):
@@ -257,7 +224,7 @@ class TestWebhookEdgeCases:
         finally:
             wh_module.track_webhook_callback = old
 
-    def test_webhook_verify_signature_failure(self, mock_core):
+    async def test_webhook_verify_signature_failure(self, mock_core):
         """Falha na verificacao de assinatura levanta HTTPException"""
 
         class StrictProcessor(WebhookProcessor):
@@ -272,9 +239,7 @@ class TestWebhookEdgeCases:
 
         proc = StrictProcessor()
         with pytest.raises(HTTPException) as exc_info:
-            asyncio.get_event_loop().run_until_complete(
-                proc.process({"text": "teste"}, {})
-            )
+            await proc.process({"text": "teste"}, {})
         # A HTTPException 401 do verify_signature e capturada pelo except
         # generico do process(), que re-wrapa como HTTPException 500
         assert "Invalid signature" in exc_info.value.detail
