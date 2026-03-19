@@ -12,7 +12,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from plugins.transcription import TranscriptionPlugin, MAX_FILE_SIZE_BYTES
+from plugins.documents.transcription import TranscriptionPlugin, MAX_FILE_SIZE_BYTES
 from qualia.core import Document, PluginType
 
 
@@ -118,7 +118,7 @@ class TestValidation:
 class TestDependencies:
     def test_groq_not_installed(self, plugin, doc_with_file):
         """groq não instalado → erro descritivo."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
         original = mod.HAS_GROQ
         try:
             mod.HAS_GROQ = False
@@ -131,7 +131,7 @@ class TestDependencies:
     @patch.dict(os.environ, {}, clear=False)
     def test_no_api_key(self, plugin, doc_with_file):
         """GROQ_API_KEY não definida → erro descritivo."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
         original = mod.HAS_GROQ
         try:
             mod.HAS_GROQ = True
@@ -153,7 +153,7 @@ class TestTranscription:
     @pytest.fixture(autouse=True)
     def _enable_groq(self):
         """Habilita HAS_GROQ e injeta mock Groq no módulo para todos os testes desta classe."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
         original_has = mod.HAS_GROQ
         original_groq = mod.Groq
         mod.HAS_GROQ = True
@@ -165,7 +165,7 @@ class TestTranscription:
     @patch.dict(os.environ, {"GROQ_API_KEY": "test-key-123"}, clear=False)
     def test_successful_transcription(self, plugin, doc_with_file):
         """Transcrição com sucesso retorna texto e metadados."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
 
         mock_result = MagicMock()
         mock_result.text = "Olá, isto é um teste de transcrição."
@@ -191,7 +191,7 @@ class TestTranscription:
     @patch.dict(os.environ, {"GROQ_API_KEY": "test-key-123"}, clear=False)
     def test_auto_language(self, plugin, doc_with_file):
         """language=auto não passa language pra API."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
 
         mock_result = MagicMock()
         mock_result.text = "Hello world"
@@ -213,7 +213,7 @@ class TestTranscription:
     @patch.dict(os.environ, {"GROQ_API_KEY": "test-key-123"}, clear=False)
     def test_api_error(self, plugin, doc_with_file):
         """Erro da API Groq → status error com mensagem."""
-        import plugins.transcription as mod
+        import plugins.documents.transcription as mod
 
         mock_client = MagicMock()
         mock_client.audio.transcriptions.create.side_effect = Exception("Rate limit exceeded")

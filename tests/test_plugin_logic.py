@@ -15,19 +15,19 @@ from qualia.core import Document
 
 @pytest.fixture
 def word_freq():
-    from plugins.word_frequency import WordFrequencyAnalyzer
+    from plugins.analyzers.word_frequency import WordFrequencyAnalyzer
     return WordFrequencyAnalyzer()
 
 
 @pytest.fixture
 def readability():
-    from plugins.readability_analyzer import ReadabilityAnalyzer
+    from plugins.analyzers.readability_analyzer import ReadabilityAnalyzer
     return ReadabilityAnalyzer()
 
 
 @pytest.fixture
 def teams():
-    from plugins.teams_cleaner import TeamsTranscriptCleaner
+    from plugins.documents.teams_cleaner import TeamsTranscriptCleaner
     return TeamsTranscriptCleaner()
 
 
@@ -360,7 +360,7 @@ class TestSentimentAnalyzer:
 
     @pytest.fixture
     def sentiment(self):
-        from plugins.sentiment_analyzer import SentimentAnalyzer
+        from plugins.analyzers.sentiment_analyzer import SentimentAnalyzer
         return SentimentAnalyzer()
 
     def test_plugin_loads(self, sentiment):

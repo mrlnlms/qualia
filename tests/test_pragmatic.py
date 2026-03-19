@@ -244,6 +244,10 @@ def test_sanity_api_exists():
 
 
 def test_sanity_plugins_directory_exists():
-    """Diretório de plugins existe"""
-    assert Path("plugins").exists()
-    assert len(list(Path("plugins").iterdir())) >= 6
+    """Diretório de plugins existe e tem conteúdo"""
+    plugins_dir = Path(__file__).parent.parent / "plugins"
+    assert plugins_dir.exists()
+    # Conta __init__.py recursivamente (cada plugin tem um), ignorando _templates
+    plugin_inits = [p for p in plugins_dir.rglob("__init__.py")
+                    if not any(part.startswith("_") for part in p.parent.relative_to(plugins_dir).parts)]
+    assert len(plugin_inits) >= 6
