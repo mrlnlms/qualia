@@ -188,15 +188,14 @@ class TestPluginTypes:
 class TestErrorHandling:
     """Testa tratamento de erros"""
     
-    def test_invalid_config(self, core, sample_document):
-        """Testa configuração inválida"""
-        # Sistema atual ignora parâmetros inválidos
-        result = core.execute_plugin(
-            "word_frequency", 
-            sample_document,
-            {"invalid_param": "value"}
-        )
-        assert result is not None
+    def test_invalid_config_rejected(self, core, sample_document):
+        """Core deve rejeitar parâmetros desconhecidos (alinhado com API)"""
+        with pytest.raises(ValueError, match="Configuração inválida"):
+            core.execute_plugin(
+                "word_frequency",
+                sample_document,
+                {"invalid_param": "value"}
+            )
     
     def test_missing_dependencies_fixed(self, core):
         """Testa plugin com dependência faltante - CORRIGIDO"""

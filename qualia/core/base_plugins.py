@@ -43,6 +43,12 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
         meta = self.meta()
         validated = {}
 
+        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
+        known_params = set(meta.parameters.keys())
+        unknown = set(config.keys()) - known_params
+        if unknown:
+            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
+
         for param_name, param_spec in meta.parameters.items():
             if param_name in config:
                 value = config[param_name]
@@ -170,6 +176,14 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
         """Valida e converte tipos dos parâmetros."""
         meta = self.meta()
         validated = {}
+
+        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
+        # output_format já foi extraído no render(), então não estará em config
+        known_params = {k for k in meta.parameters.keys() if k != "output_format"}
+        unknown = set(config.keys()) - known_params
+        if unknown:
+            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
+
         for param_name, param_spec in meta.parameters.items():
             if param_name == "output_format":
                 continue  # já extraído no render()
@@ -232,6 +246,12 @@ class BaseDocumentPlugin(IDocumentPlugin):
         """Valida e aplica defaults aos parâmetros, com conversão de tipos."""
         meta = self.meta()
         validated = {}
+
+        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
+        known_params = set(meta.parameters.keys())
+        unknown = set(config.keys()) - known_params
+        if unknown:
+            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
 
         for param_name, param_spec in meta.parameters.items():
             if param_name in config:
