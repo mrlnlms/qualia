@@ -9,6 +9,7 @@ Este plugin conta palavras e gera estatísticas sobre vocabulário.
 from typing import Dict, Any, List, Tuple
 from collections import Counter
 import re
+import logging
 
 # MUDANÇA: Importar BaseAnalyzerPlugin ao invés de IAnalyzerPlugin
 from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
@@ -49,6 +50,8 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
         self._stopwords_cache: Dict[str, set] = {}
         self._nltk_available = False
         self._warm_up_nltk()
+        self._spacy_nlp = None
+        self._warm_up_spacy()
 
     def _warm_up_nltk(self):
         """Pré-carrega recursos NLTK na main thread (antes de concorrência).
@@ -76,6 +79,23 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
                     pass
         except ImportError:
             self._nltk_available = False
+
+    def _warm_up_spacy(self):
+        """Pré-carrega modelo spaCy na main thread (antes de concorrência)."""
+        logger = logging.getLogger(__name__)
+        try:
+            import spacy
+            try:
+                self._spacy_nlp = spacy.load("pt_core_news_sm")
+                logger.debug("spaCy: modelo pt_core_news_sm carregado")
+            except OSError:
+                try:
+                    self._spacy_nlp = spacy.load("en_core_web_sm")
+                    logger.debug("spaCy: modelo en_core_web_sm carregado (fallback)")
+                except OSError:
+                    logger.info("spaCy instalado mas sem modelos — tokenization=spacy indisponível")
+        except ImportError:
+            logger.debug("spaCy não instalado — tokenization=spacy indisponível")
 
     def meta(self) -> PluginMetadata:
         return PluginMetadata(
@@ -209,20 +229,12 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             return nltk.word_tokenize(text)
         
         elif method == "spacy":
-            try:
-                import spacy
-                # Tentar carregar modelo português
-                try:
-                    nlp = spacy.load("pt_core_news_sm")
-                except OSError:
-                    # Tentar modelo inglês
-                    nlp = spacy.load("en_core_web_sm")
-                
-                doc = nlp(text)
+            logger = logging.getLogger(__name__)
+            if self._spacy_nlp is not None:
+                doc = self._spacy_nlp(text)
                 return [token.text for token in doc if not token.is_punct]
-            except (ImportError, OSError):
-                # spaCy não instalado ou sem modelo
-                print("spaCy não disponível. Usando tokenização simples.")
+            else:
+                logger.warning("spaCy não disponível. Usando tokenização simples.")
                 return self._tokenize(text, "simple")
         
         return []
