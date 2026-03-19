@@ -33,6 +33,15 @@ async def transcribe(
 
     require_plugin_type(core, plugin_id, "document")
 
+    # Validar que o plugin é de transcrição (não qualquer document plugin)
+    meta = core.registry.get(plugin_id)
+    if meta and "transcription" not in meta.provides and "transcription" not in plugin_id:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Plugin '{plugin_id}' é document mas não é de transcrição. "
+                   f"Use POST /process/{plugin_id} para processamento de documentos.",
+        )
+
     validate_plugin_config(core, plugin_id, config_dict)
 
     suffix = Path(file.filename).suffix if file.filename else ""

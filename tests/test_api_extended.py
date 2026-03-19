@@ -1235,6 +1235,17 @@ class TestTranscribeEdgeCases:
         )
         assert response.status_code == 422
 
+    def test_transcribe_non_transcription_document_returns_422(self, client):
+        """Transcribe deve rejeitar document plugin que nao e de transcricao (ex: teams_cleaner)."""
+        fake_audio = io.BytesIO(b"\x00" * 100)
+        response = client.post(
+            "/transcribe/teams_cleaner",
+            files={"file": ("audio.mp3", fake_audio, "audio/mpeg")},
+            data={"config": "{}"},
+        )
+        assert response.status_code == 422
+        assert "transcrição" in response.json()["message"].lower() or "transcri" in response.json()["message"].lower()
+
     def test_transcribe_http_exception_reraise(self, client):
         """HTTPException lancada dentro do try e relancada (linha 71)"""
         from fastapi import HTTPException as FastAPIHTTPException
