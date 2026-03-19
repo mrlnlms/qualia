@@ -208,6 +208,9 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
     def validate_config(self, config):
         """Valida config e retorna (ok, error_msg)."""
         try:
+            # output_format é extraído por render() antes de _validate_config,
+            # mas validate_config() pode ser chamado diretamente com config completa
+            config = {k: v for k, v in config.items() if k != "output_format"}
             self._validate_config(config)
             return True, None
         except Exception as e:
