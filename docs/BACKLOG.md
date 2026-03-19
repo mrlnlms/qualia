@@ -4,6 +4,54 @@
 
 ## Pendente
 
+### ~~Code review completo (2026-03-19) — Onda 1: Crashes em runtime~~ Concluído
+
+- [x] **CacheManager thread-safe** — `threading.Lock` em `get()`/`set()`/`invalidate()`/`clear()`/`stats()`. Risco de pickle documentado no docstring.
+- [x] **`provides` violado — readability** — `longest_sentence`/`shortest_sentence` sempre incluídos (independente de detail_level).
+- [x] **`provides` violado — sentiment** — `sentence_sentiments` default `[]` quando `analyze_sentences=false`.
+- [x] **Pipeline CLI: render() args corrigidos** — Agora chama `render(data, config)` com 2 args, output_format=html, salva HTML se output_dir.
+- [x] **Pipeline CLI: UTF-8 fallback** — try/except UnicodeDecodeError com fallback latin-1.
+- [x] **SentimentAnalyzer NLTK thread-safe** — Download movido pro `__init__` (warm-up na main thread). `validate_config` override removido (base class cuida).
+- [x] **Transcription raises exceptions** — Erros agora levantam ValueError/RuntimeError em vez de retornar dicts com status=error.
+- [x] **Cache TTL bypass pós-restart** — Reintegração do disco movida para antes do check de TTL.
+
+### ~~Code review completo (2026-03-19) — Onda 2: Contratos violados~~ Concluído
+
+- [x] **Exit codes consistentes** — `raise SystemExit(1)` em todos os error paths de visualize, watch, inspect, export.
+- [x] **pytest-timeout nas deps** — Adicionado `pytest-timeout>=2.2.0` ao extra `dev`.
+- [x] **conftest.py seguro** — Removidos `cache/` e `.pytest_cache` de `_ARTIFACTS`.
+- [x] **Docker healthcheck** — `urllib.request.urlopen` em vez de `requests`/`curl`.
+- [x] **Pipeline API: 404** — Plugin inexistente mid-pipeline retorna 404 (era 400).
+- [x] **Webhook validação** — `analyze_text` valida plugin existe e é analyzer (404/422). doc_id usa content hash.
+- [x] **CORS** — Removido `allow_credentials=True` (stateless API).
+
+### ~~Code review completo (2026-03-19) — Onda 3: Qualidade e consistência~~ Concluído
+
+- [x] **Frontend Transcribe** — Filtra por `provides.includes('transcription')`.
+- [x] **Analyze.svelte** — Default `'html'` em vez de `'png'`.
+- [x] **Interactive show_config** — Usa `QualiaCore().registry` em vez de contagem manual.
+- [x] **_choose_file_from_recent** — Indexação corrigida (`recent[idx-1]`).
+- [x] **_kaleido_works() cache** — Resultado cacheado em `_kaleido_result` (class-level).
+- [x] **import asyncio duplicado** — Removido em webhooks.py.
+- [x] **Visualizer template** — Adicionado `output_format` ao meta().parameters.
+- [x] **Document template** — provides mudado de `cleaned_document` para `processed_output`.
+- [x] **config CLI tipos** — Suporta `bool`/`int` além de `boolean`/`integer`, e `str+options` como choice.
+- [x] **Dead code formatters.py** — Removidos `Syntax` import e `format_info` function.
+- [x] **Dead code workflow.js** — Removido primeiro BFS não utilizado em `wouldCreateCycle`.
+
+### ~~Code review completo (2026-03-19) — Pendente (menor prioridade)~~ Concluído
+
+- [x] **_validate_config extraído** — `_validate_and_convert()` helper compartilhado entre os 3 base plugins.
+- [x] **Branches mortas FILTER/COMPOSER removidas** — Engine agora tem fallback `else: raise ValueError`. Tipos FILTER/COMPOSER devolvidos quando tiverem base class.
+- [x] **Dead code stateful removido** — `self.documents`, `self.pipelines`, `get_document()`, `save_pipeline()` removidos. `add_document()` cria doc efêmero.
+- [x] **Plugin count >= 8 em testes** — 5 assertions atualizadas pra `>= 8`.
+- [x] **CI com Python 3.13 + 3.14** — Matrix strategy com `allow-prereleases: true`.
+- [x] **process.py passa context** — `ProcessRequest` agora tem campo `context`, passado ao `execute_plugin`.
+- [x] **Duplicate fixtures removidas** — `client`/`sample_text` removidos de test_api.py e test_pragmatic.py (usam conftest).
+- [x] **Test fixtures com Path absoluto** — `Path(__file__).parent.parent / "plugins"` em 6 test files.
+- [x] **Pipeline API: valida tipo do plugin** — Steps com tipo não suportado (analyzer/document/visualizer) → 422.
+- [x] **11 testes com assertions ambíguas** — Todos `assert status_code in [...]` substituídos por status code exato. Zero assertions ambíguas restantes.
+
 ### Higiene de código (análise Codex — 2026-03-18)
 
 - [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
@@ -81,7 +129,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-837 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 835 passed, 2 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+835 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 834 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 

@@ -121,11 +121,11 @@ class ReadabilityAnalyzer(BaseAnalyzerPlugin):
             "paragraph_count": paragraph_count,
             "avg_words_per_sentence": round(avg_words_per_sentence, 1),
             "avg_sentences_per_paragraph": round(avg_sentences_per_paragraph, 1),
+            "longest_sentence": longest,
+            "shortest_sentence": shortest,
         }
 
         if config.get("detail_level") == "full":
-            result["longest_sentence"] = longest
-            result["shortest_sentence"] = shortest
             result["avg_word_length"] = round(avg_word_length, 1)
             result["sentence_lengths"] = sentence_lengths
 

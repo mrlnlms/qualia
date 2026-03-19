@@ -14,6 +14,7 @@ class AnalyzeRequest(BaseModel):
 class ProcessRequest(BaseModel):
     text: str = Field(..., description="Text content to process")
     config: Dict[str, Any] = Field(default_factory=dict, description="Plugin configuration parameters")
+    context: Dict[str, Any] = Field(default_factory=dict, description="Execution context")
 
 
 class VisualizeRequest(BaseModel):

@@ -23,7 +23,7 @@ async def process(plugin_id: str, request: ProcessRequest):
         doc = core.add_document(f"api_process_{plugin_id}_{hashlib.md5(request.text.encode()).hexdigest()[:8]}", request.text)
         try:
             result = await asyncio.wait_for(
-                asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config),
+                asyncio.to_thread(core.execute_plugin, plugin_id, doc, request.config, request.context),
                 timeout=60.0
             )
         except asyncio.TimeoutError:

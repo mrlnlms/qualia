@@ -12,11 +12,9 @@ from qualia.api import app
 
 
 # Diretórios de artefatos que os testes geram
+# Nota: NÃO incluir "cache/" (pode conter dados de dev) nem ".pytest_cache/" (gerido pelo pytest, necessário para --lf)
 _PROJECT_ROOT = Path(__file__).parent.parent
-_ARTIFACTS = [
-    _PROJECT_ROOT / "cache",
-    _PROJECT_ROOT / ".pytest_cache",
-]
+_ARTIFACTS = []
 
 
 def pytest_sessionfinish(session, exitstatus):

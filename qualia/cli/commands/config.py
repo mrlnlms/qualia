@@ -27,24 +27,24 @@ def prompt_for_value(param_name: str, param_info: Dict[str, Any]) -> Any:
         console.print(f"  [dim]{description}[/dim]")
     
     # Solicitar baseado no tipo
-    if param_type == 'boolean':
+    if param_type in ('boolean', 'bool'):
         return Confirm.ask(f"  {param_name}", default=default)
-    
-    elif param_type == 'integer':
+
+    elif param_type in ('integer', 'int'):
         return IntPrompt.ask(f"  {param_name}", default=default)
-    
+
     elif param_type == 'float':
         return FloatPrompt.ask(f"  {param_name}", default=default)
-    
-    elif param_type == 'choice':
+
+    elif param_type == 'choice' or (param_type == 'str' and 'options' in param_info):
         options = param_info.get('options', [])
-        console.print(f"  Opções: {', '.join(options)}")
+        console.print(f"  Opções: {', '.join(str(o) for o in options)}")
         while True:
             value = Prompt.ask(f"  {param_name}", default=str(default))
-            if value in options:
+            if value in [str(o) for o in options]:
                 return value
-            console.print(f"  [red]Valor inválido. Escolha entre: {', '.join(options)}[/red]")
-    
+            console.print(f"  [red]Valor inválido. Escolha entre: {', '.join(str(o) for o in options)}[/red]")
+
     else:  # string ou qualquer outro
         return Prompt.ask(f"  {param_name}", default=str(default) if default else "")
 

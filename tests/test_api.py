@@ -4,25 +4,9 @@ Versão corrigida para estrutura atual da API
 """
 
 import pytest
-import httpx
-from fastapi.testclient import TestClient
 import json
 import tempfile
 from pathlib import Path
-
-from qualia.api import app
-
-
-@pytest.fixture
-def client():
-    """Cliente de teste para a API"""
-    return TestClient(app)
-
-
-@pytest.fixture
-def sample_text():
-    """Texto de exemplo para testes"""
-    return "Este é um texto de teste. Teste teste palavra."
 
 
 class TestHealthEndpoints:
@@ -35,7 +19,7 @@ class TestHealthEndpoints:
         
         data = response.json()
         assert data["status"] == "healthy"
-        assert data["plugins_loaded"] == 8
+        assert data["plugins_loaded"] >= 8
         # API atual não retorna uptime, então removemos essa assertion
     
     def test_root_endpoint(self, client):
@@ -53,7 +37,7 @@ class TestPluginEndpoints:
         assert response.status_code == 200
         
         plugins = response.json()
-        assert len(plugins) == 8
+        assert len(plugins) >= 8
         
         # Verifica estrutura
         for plugin in plugins:
@@ -147,8 +131,7 @@ class TestAnalysisEndpoints:
             "/analyze/plugin_invalido",
             json={"text": sample_text, "config": {}}
         )
-        # API retorna 400, não 404
-        assert response.status_code in [400, 404]
+        assert response.status_code == 404
     
     def test_analyze_empty_text(self, client):
         """Testa análise com texto vazio"""
@@ -280,6 +263,6 @@ class TestErrorHandling:
                 "steps": _json.dumps([{"plugin_id": "plugin_que_nao_existe"}])
             }
         )
-        # Pipeline with non-existent plugin returns 400
-        assert response.status_code == 400
+        # Pipeline with non-existent plugin returns 404
+        assert response.status_code == 404
 

@@ -18,7 +18,7 @@ def inspect(plugin_id: str):
     
     if plugin_id not in core.registry:
         console.print(f"[red]Plugin '{plugin_id}' não encontrado![/red]")
-        return
+        raise SystemExit(1)
     
     meta = core.registry[plugin_id]
     

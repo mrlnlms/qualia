@@ -98,11 +98,12 @@ def _choose_file_from_recent(recent_files: List[str]) -> Optional[str]:
         return None
     
     console.print("\n[bold]Arquivos recentes:[/bold]")
-    for i, f in enumerate(recent_files[-5:], 1):
+    recent = recent_files[-5:]
+    for i, f in enumerate(recent, 1):
         console.print(f"{i}. {f}")
-    
-    idx = get_int_choice("Escolha", 1, min(5, len(recent_files)))
-    return recent_files[-idx]
+
+    idx = get_int_choice("Escolha", 1, len(recent))
+    return recent[idx - 1]
 
 
 def parse_plugin_list(output: str, plugin_type: str = "all") -> List[Tuple[str, str, str]]:

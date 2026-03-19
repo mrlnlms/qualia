@@ -493,12 +493,6 @@ class TestFormatters:
         msg = format_warning("Cuidado com isso")
         assert "Cuidado com isso" in msg
 
-    def test_format_info(self):
-        """Mensagem informativa contém o texto"""
-        from qualia.cli.formatters import format_info
-        msg = format_info("Informação útil")
-        assert "Informação útil" in msg
-
     def test_show_banner(self):
         """Banner retorna Panel com título do Qualia"""
         from qualia.cli.formatters import show_banner

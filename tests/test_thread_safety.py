@@ -17,7 +17,7 @@ import shutil
 @pytest.fixture
 def core():
     tmp = Path(tempfile.mkdtemp())
-    c = QualiaCore(plugins_dir=Path("plugins"), cache_dir=tmp / "cache")
+    c = QualiaCore(plugins_dir=Path(__file__).parent.parent / "plugins", cache_dir=tmp / "cache")
     yield c
     shutil.rmtree(tmp)
 

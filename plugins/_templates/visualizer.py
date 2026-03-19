@@ -60,6 +60,12 @@ class __CLASS_NAME__(BaseVisualizerPlugin):
             provides=[],
 
             parameters={
+                "output_format": {
+                    "type": "str",
+                    "options": self.get_supported_formats(self.RENDER_LIB),
+                    "default": "html",
+                    "description": "Formato de saida (html, png, svg)"
+                },
                 "theme": {
                     "type": "str",
                     "options": ["light", "dark"],

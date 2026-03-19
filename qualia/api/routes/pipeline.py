@@ -121,11 +121,16 @@ async def execute_pipeline(
             plugin_id = step_def["plugin_id"]
             config_dict = step_def.get("config", {})
 
+            if plugin_id not in core.registry:
+                raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' not found")
             plugin = core.loader.get_plugin(plugin_id)
-            if not plugin:
-                raise HTTPException(status_code=400, detail=f"Plugin '{plugin_id}' not found")
 
             plugin_type = core.registry[plugin_id].type.value
+            if plugin_type not in ("analyzer", "document", "visualizer"):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Plugin '{plugin_id}' é tipo '{plugin_type}', não suportado em pipelines"
+                )
 
             output_format = "html"
             if plugin_type == "visualizer" and "format" in config_dict:

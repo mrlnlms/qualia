@@ -217,7 +217,12 @@ class TestReadability:
         config = default_config(readability)
         config["detail_level"] = "basic"
         result = readability._analyze_impl(doc, config, {})
-        assert "longest_sentence" not in result
+        # provides sempre inclui longest/shortest (contrato enforced)
+        assert "longest_sentence" in result
+        assert "shortest_sentence" in result
+        # detail extras (avg_word_length, sentence_lengths) ausentes no basic
+        assert "avg_word_length" not in result
+        assert "sentence_lengths" not in result
 
 
 # =============================================================================

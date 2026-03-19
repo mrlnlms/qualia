@@ -68,7 +68,10 @@ class QualiaFileHandler(FileSystemEventHandler):
         
         try:
             # Ler documento
-            content = path.read_text(encoding='utf-8')
+            try:
+                content = path.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                content = path.read_text(encoding='latin-1')
             doc = self.core.add_document(path.stem, content)
             
             # Executar plugin
@@ -117,7 +120,7 @@ def watch(folder: str, plugin: str, pattern: str, output_dir: str,
     # Verificar plugin
     if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
-        return
+        raise SystemExit(1)
     
     plugin_meta = core.registry[plugin]
     

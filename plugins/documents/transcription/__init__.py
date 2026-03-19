@@ -84,66 +84,31 @@ class TranscriptionPlugin(BaseDocumentPlugin):
 
         file_path = document.metadata.get("file_path")
         if not file_path:
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": "Nenhum arquivo fornecido. Use o endpoint /transcribe com upload de arquivo.",
-            }
+            raise ValueError("Nenhum arquivo fornecido. Use o endpoint /transcribe com upload de arquivo.")
 
         file_path = Path(file_path)
 
         # Validar que arquivo existe
         if not file_path.exists():
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": f"Arquivo não encontrado: {file_path}",
-            }
+            raise ValueError(f"Arquivo não encontrado: {file_path}")
 
         # Validar tamanho
         file_size = file_path.stat().st_size
         if file_size > MAX_FILE_SIZE_BYTES:
             size_mb = file_size / (1024 * 1024)
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": (
-                    f"Arquivo muito grande: {size_mb:.1f}MB. "
-                    f"Limite da Groq API: {MAX_FILE_SIZE_MB}MB."
-                ),
-            }
+            raise ValueError(
+                f"Arquivo muito grande: {size_mb:.1f}MB. "
+                f"Limite da Groq API: {MAX_FILE_SIZE_MB}MB."
+            )
 
         # Verificar dependência groq
         if not HAS_GROQ:
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": "Groq não instalado. Execute: pip install groq",
-            }
+            raise ValueError("Groq não instalado. Execute: pip install groq")
 
         # Verificar API key
         api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": "GROQ_API_KEY não configurada no ambiente.",
-            }
+            raise ValueError("GROQ_API_KEY não configurada no ambiente.")
 
         # Montar kwargs da API
         model = config.get("model", "whisper-large-v3")
@@ -179,11 +144,4 @@ class TranscriptionPlugin(BaseDocumentPlugin):
             }
 
         except Exception as e:
-            return {
-                "transcription": None,
-                "status": "error",
-                "detected_language": None,
-                "language": None,  # backward compat
-                "duration": None,
-                "error": f"Erro na transcrição: {str(e)}",
-            }
+            raise RuntimeError(f"Erro na transcrição: {str(e)}") from e

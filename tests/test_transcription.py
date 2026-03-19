@@ -85,30 +85,27 @@ class TestMeta:
 
 class TestValidation:
     def test_no_file_path(self, plugin):
-        """Sem file_path no metadata → erro descritivo."""
+        """Sem file_path no metadata → ValueError."""
         doc = Document(id="no_file", content="")
-        result = plugin._process_impl(doc, {}, {})
-        assert result["status"] == "error"
-        assert "arquivo" in result["error"].lower() or "file" in result["error"].lower()
+        with pytest.raises(ValueError, match="arquivo"):
+            plugin._process_impl(doc, {}, {})
 
     def test_file_not_found(self, plugin):
-        """Arquivo não existe → erro descritivo."""
+        """Arquivo não existe → ValueError."""
         doc = Document(id="missing", content="")
         doc.metadata["file_path"] = "/tmp/inexistente_abc123.opus"
-        result = plugin._process_impl(doc, {}, {})
-        assert result["status"] == "error"
-        assert "não encontrado" in result["error"].lower() or "not found" in result["error"].lower()
+        with pytest.raises(ValueError, match="não encontrado"):
+            plugin._process_impl(doc, {}, {})
 
     def test_file_too_large(self, plugin, tmp_path):
-        """Arquivo > 25MB → erro descritivo."""
+        """Arquivo > 25MB → ValueError."""
         big_file = tmp_path / "big.mp3"
         big_file.write_bytes(b"\x00" * (MAX_FILE_SIZE_BYTES + 1))
 
         doc = Document(id="big", content="")
         doc.metadata["file_path"] = str(big_file)
-        result = plugin._process_impl(doc, {}, {})
-        assert result["status"] == "error"
-        assert "25" in result["error"]
+        with pytest.raises(ValueError, match="25"):
+            plugin._process_impl(doc, {}, {})
 
 
 # ============================================================================
@@ -117,28 +114,26 @@ class TestValidation:
 
 class TestDependencies:
     def test_groq_not_installed(self, plugin, doc_with_file):
-        """groq não instalado → erro descritivo."""
+        """groq não instalado → ValueError."""
         import plugins.documents.transcription as mod
         original = mod.HAS_GROQ
         try:
             mod.HAS_GROQ = False
-            result = plugin._process_impl(doc_with_file, {}, {})
-            assert result["status"] == "error"
-            assert "groq" in result["error"].lower()
+            with pytest.raises(ValueError, match="[Gg]roq"):
+                plugin._process_impl(doc_with_file, {}, {})
         finally:
             mod.HAS_GROQ = original
 
     @patch.dict(os.environ, {}, clear=False)
     def test_no_api_key(self, plugin, doc_with_file):
-        """GROQ_API_KEY não definida → erro descritivo."""
+        """GROQ_API_KEY não definida → ValueError."""
         import plugins.documents.transcription as mod
         original = mod.HAS_GROQ
         try:
             mod.HAS_GROQ = True
             os.environ.pop("GROQ_API_KEY", None)
-            result = plugin._process_impl(doc_with_file, {}, {})
-            assert result["status"] == "error"
-            assert "GROQ_API_KEY" in result["error"]
+            with pytest.raises(ValueError, match="GROQ_API_KEY"):
+                plugin._process_impl(doc_with_file, {}, {})
         finally:
             mod.HAS_GROQ = original
 
@@ -212,18 +207,15 @@ class TestTranscription:
 
     @patch.dict(os.environ, {"GROQ_API_KEY": "test-key-123"}, clear=False)
     def test_api_error(self, plugin, doc_with_file):
-        """Erro da API Groq → status error com mensagem."""
+        """Erro da API Groq → RuntimeError."""
         import plugins.documents.transcription as mod
 
         mock_client = MagicMock()
         mock_client.audio.transcriptions.create.side_effect = Exception("Rate limit exceeded")
         mod.Groq = MagicMock(return_value=mock_client)
 
-        result = plugin._process_impl(doc_with_file, {}, {})
-
-        assert result["status"] == "error"
-        assert "Rate limit" in result["error"]
-        assert result["transcription"] is None
+        with pytest.raises(RuntimeError, match="Rate limit"):
+            plugin._process_impl(doc_with_file, {}, {})
 
 
 # ============================================================================

@@ -29,11 +29,12 @@ def show_config():
     console.print(f"Python: {sys.version}")
     console.print(f"Diretório: {Path.cwd()}")
 
-    plugin_count = 0
-    if Path('plugins').exists():
-        for item in Path('plugins').iterdir():
-            if item.is_dir() and (item / '__init__.py').exists():
-                plugin_count += 1
+    from qualia.core import QualiaCore
+    try:
+        core = QualiaCore()
+        plugin_count = len(core.registry)
+    except Exception:
+        plugin_count = 0
 
     console.print(f"Plugins instalados: {plugin_count}")
 

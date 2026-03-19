@@ -33,7 +33,7 @@ class TestDiscoveryErrors:
 
     def test_discovery_errors_empty_on_success(self):
         """Sem erros quando todos plugins carregam ok."""
-        loader = PluginLoader(Path("plugins"))
+        loader = PluginLoader(Path(__file__).parent.parent / "plugins")
         loader.discover()
         assert loader.discovery_errors == []
 

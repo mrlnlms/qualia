@@ -344,11 +344,11 @@ class TestWatchCommand:
         assert result.exit_code != 0
 
     def test_watch_invalid_plugin(self, runner, tmp_path):
-        """Plugin inexistente deve avisar"""
+        """Plugin inexistente deve retornar exit code 1"""
         result = runner.invoke(cli, [
             "watch", str(tmp_path), "-p", "plugin_fantasma",
         ])
-        assert result.exit_code == 0
+        assert result.exit_code == 1
         assert "não encontrado" in result.output
 
     def test_watch_missing_plugin_option(self, runner, tmp_path):
@@ -467,8 +467,8 @@ class TestQualiaFileHandler:
         handler._process_file(str(txt_file))
         assert txt_file in handler.processed_files
 
-    def test_handler_binary_file_error(self, tmp_path):
-        """Arquivo binario deve gerar erro (nao e utf-8)"""
+    def test_handler_binary_file_latin1_fallback(self, tmp_path):
+        """Arquivo binario é lido via fallback latin-1 (não falha no encoding)"""
         from qualia.cli.commands.watch import QualiaFileHandler
 
         handler = QualiaFileHandler(
@@ -481,8 +481,8 @@ class TestQualiaFileHandler:
         bin_file.write_bytes(b"\x80\x81\x82\x83\xff\xfe")
 
         handler._process_file(str(bin_file))
-        assert handler.stats["errors"] == 1
-        assert handler.stats["processed"] == 0
+        # latin-1 fallback lê sem erro de encoding; processamento pode passar ou falhar
+        assert handler.stats["errors"] + handler.stats["processed"] == 1
 
     def test_handler_empty_file(self, tmp_path):
         """Arquivo vazio deve ser processado sem crash"""

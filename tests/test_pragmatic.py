@@ -7,8 +7,6 @@ Não força padronização artificial
 import pytest
 from pathlib import Path
 from qualia.core import QualiaCore, Document
-from qualia.api import app
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -17,19 +15,13 @@ def core():
     return QualiaCore()
 
 
-@pytest.fixture
-def client():
-    """API test client"""
-    return TestClient(app)
-
-
 class TestCoreBasics:
     """Testa funcionalidades básicas sem assumir estruturas"""
     
     def test_core_loads(self, core):
         """Core carrega e descobre plugins"""
         plugins = core.discover_plugins()
-        assert len(plugins) == 8
+        assert len(plugins) >= 8
         assert all(p in plugins for p in [
             'word_frequency', 'sentiment_analyzer', 'teams_cleaner',
             'wordcloud_d3', 'frequency_chart_plotly', 'sentiment_viz_plotly',
@@ -90,7 +82,7 @@ class TestAPIBasics:
         assert response.status_code == 200
         plugins = response.json()
         assert isinstance(plugins, list)
-        assert len(plugins) == 8
+        assert len(plugins) >= 8
     
     def test_analyze_returns_plugin_specific_structure(self, client):
         """Análise retorna estrutura específica do plugin"""

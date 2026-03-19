@@ -35,7 +35,7 @@ class __CLASS_NAME__(BaseDocumentPlugin):
             # Outros plugins podem depender destes via requires=["campo"].
             # Dois plugins NAO podem fornecer o mesmo campo (erro no startup).
             provides=[
-                "cleaned_document",
+                "processed_output",
                 "quality_report",
             ],
 

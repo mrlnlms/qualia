@@ -31,7 +31,7 @@ class TestStartupPerformance:
         """QualiaCore init + plugin discovery deve ser < 2s (inclui warm-up NLTK/spaCy)"""
         start = time.perf_counter()
         core = QualiaCore(
-            plugins_dir=Path("plugins"),
+            plugins_dir=Path(__file__).parent.parent / "plugins",
             cache_dir=temp_dir / "cache"
         )
         elapsed = time.perf_counter() - start
@@ -49,7 +49,7 @@ class TestExecutionPerformance:
     @pytest.fixture
     def core(self, temp_dir):
         return QualiaCore(
-            plugins_dir=Path("plugins"),
+            plugins_dir=Path(__file__).parent.parent / "plugins",
             cache_dir=temp_dir / "cache"
         )
 
@@ -94,7 +94,7 @@ class TestCachePerformance:
     @pytest.fixture
     def core(self, temp_dir):
         return QualiaCore(
-            plugins_dir=Path("plugins"),
+            plugins_dir=Path(__file__).parent.parent / "plugins",
             cache_dir=temp_dir / "cache"
         )
 

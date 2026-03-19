@@ -161,7 +161,7 @@ class TestVisualization:
 class TestPipelineErrors:
 
     async def test_invalid_plugin_in_pipeline(self, ac):
-        """Plugin inexistente no pipeline retorna 400"""
+        """Plugin inexistente no pipeline retorna 404"""
         resp = await ac.post(
             "/pipeline",
             data={
@@ -169,7 +169,7 @@ class TestPipelineErrors:
                 "text": "Texto de teste.",
             },
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     async def test_invalid_steps_json(self, ac):
         """JSON inválido no campo steps retorna 422"""

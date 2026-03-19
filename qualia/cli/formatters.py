@@ -5,7 +5,6 @@ Formatadores Rich compartilhados entre CLI e menu interativo
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
-from rich.syntax import Syntax
 from rich import box
 from typing import List, Dict, Any
 
@@ -73,11 +72,6 @@ def format_success(message: str) -> str:
 def format_warning(message: str) -> str:
     """Formata mensagem de aviso"""
     return f"[bold yellow]⚠[/bold yellow] {message}"
-
-
-def format_info(message: str) -> str:
-    """Formata mensagem informativa"""
-    return f"[bold blue]ℹ[/bold blue] {message}"
 
 
 def show_banner() -> Panel:

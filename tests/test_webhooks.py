@@ -47,6 +47,13 @@ def mock_core(monkeypatch):
         "word_frequencies": {"teste": 3},
         "total_words": 5,
     }
+    # registry precisa ter word_frequency e sentiment_analyzer para validação
+    fake_meta_analyzer = MagicMock()
+    fake_meta_analyzer.type.value = "analyzer"
+    fake_core.registry = {
+        "word_frequency": fake_meta_analyzer,
+        "sentiment_analyzer": fake_meta_analyzer,
+    }
     monkeypatch.setattr(wh_module, "core", fake_core)
     monkeypatch.setattr(wh_module, "track_webhook_callback", None)
     return fake_core

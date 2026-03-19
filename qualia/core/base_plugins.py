@@ -13,6 +13,44 @@ from qualia.core.interfaces import IAnalyzerPlugin, IDocumentPlugin, IVisualizer
 from qualia.core.models import Document
 
 
+def _validate_and_convert(config: Dict[str, Any], parameters: Dict[str, Any],
+                          exclude: set = None) -> Dict[str, Any]:
+    """Valida config contra schema de parâmetros: rejeita desconhecidos, converte tipos, aplica defaults.
+
+    Args:
+        config: Config do usuário
+        parameters: Schema de meta().parameters
+        exclude: Params a ignorar (ex: {"output_format"} para visualizers)
+    """
+    exclude = exclude or set()
+    known_params = {k for k in parameters.keys() if k not in exclude}
+    unknown = set(config.keys()) - known_params - exclude
+    if unknown:
+        raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
+
+    validated = {}
+    for param_name, param_spec in parameters.items():
+        if param_name in exclude:
+            continue
+        if param_name in config:
+            value = config[param_name]
+            param_type = param_spec.get('type')
+            if param_type in ('integer', 'int'):
+                validated[param_name] = int(value)
+            elif param_type == 'float':
+                validated[param_name] = float(value)
+            elif param_type in ('boolean', 'bool'):
+                if isinstance(value, str):
+                    validated[param_name] = value.lower() in ('true', '1', 'yes')
+                else:
+                    validated[param_name] = bool(value)
+            else:
+                validated[param_name] = value
+        else:
+            validated[param_name] = param_spec.get('default')
+    return validated
+
+
 class BaseAnalyzerPlugin(IAnalyzerPlugin):
     """Base class com funcionalidades comuns para analyzers.
 
@@ -40,34 +78,7 @@ class BaseAnalyzerPlugin(IAnalyzerPlugin):
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Valida e aplica defaults aos parâmetros, com conversão de tipos."""
-        meta = self.meta()
-        validated = {}
-
-        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
-        known_params = set(meta.parameters.keys())
-        unknown = set(config.keys()) - known_params
-        if unknown:
-            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
-
-        for param_name, param_spec in meta.parameters.items():
-            if param_name in config:
-                value = config[param_name]
-                param_type = param_spec.get('type')
-                if param_type in ('integer', 'int'):
-                    validated[param_name] = int(value)
-                elif param_type == 'float':
-                    validated[param_name] = float(value)
-                elif param_type in ('boolean', 'bool'):
-                    if isinstance(value, str):
-                        validated[param_name] = value.lower() in ('true', '1', 'yes')
-                    else:
-                        validated[param_name] = bool(value)
-                else:
-                    validated[param_name] = value
-            else:
-                validated[param_name] = param_spec.get('default')
-
-        return validated
+        return _validate_and_convert(config, self.meta().parameters)
 
     def _analyze_impl(self, document: Document, config: Dict[str, Any],
                       context: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,50 +187,26 @@ class BaseVisualizerPlugin(IVisualizerPlugin):
             return formats
         return ["html"]
 
+    _kaleido_result = None  # Cache de classe (testado uma vez por processo)
+
     @staticmethod
     def _kaleido_works():
-        """Testa se kaleido está instalado E funcional (não só presente)."""
+        """Testa se kaleido está instalado E funcional (não só presente). Resultado cacheado."""
+        if BaseVisualizerPlugin._kaleido_result is not None:
+            return BaseVisualizerPlugin._kaleido_result
         try:
             import kaleido  # noqa: F401
             import plotly.graph_objects as go
             fig = go.Figure()
             fig.to_image(format="png", width=1, height=1)
-            return True
+            BaseVisualizerPlugin._kaleido_result = True
         except Exception:
-            return False
+            BaseVisualizerPlugin._kaleido_result = False
+        return BaseVisualizerPlugin._kaleido_result
 
     def _validate_config(self, config):
-        """Valida e converte tipos dos parâmetros."""
-        meta = self.meta()
-        validated = {}
-
-        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
-        # output_format já foi extraído no render(), então não estará em config
-        known_params = {k for k in meta.parameters.keys() if k != "output_format"}
-        unknown = set(config.keys()) - known_params
-        if unknown:
-            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
-
-        for param_name, param_spec in meta.parameters.items():
-            if param_name == "output_format":
-                continue  # já extraído no render()
-            if param_name in config:
-                value = config[param_name]
-                param_type = param_spec.get('type')
-                if param_type in ('integer', 'int'):
-                    validated[param_name] = int(value)
-                elif param_type == 'float':
-                    validated[param_name] = float(value)
-                elif param_type in ('boolean', 'bool'):
-                    if isinstance(value, str):
-                        validated[param_name] = value.lower() in ('true', '1', 'yes')
-                    else:
-                        validated[param_name] = bool(value)
-                else:
-                    validated[param_name] = value
-            else:
-                validated[param_name] = param_spec.get('default')
-        return validated
+        """Valida e converte tipos dos parâmetros (exclui output_format, já extraído no render)."""
+        return _validate_and_convert(config, self.meta().parameters, exclude={"output_format"})
 
     def validate_config(self, config):
         """Valida config e retorna (ok, error_msg)."""
@@ -263,34 +250,7 @@ class BaseDocumentPlugin(IDocumentPlugin):
 
     def _validate_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """Valida e aplica defaults aos parâmetros, com conversão de tipos."""
-        meta = self.meta()
-        validated = {}
-
-        # Rejeitar parâmetros desconhecidos (alinhado com API/ConfigRegistry)
-        known_params = set(meta.parameters.keys())
-        unknown = set(config.keys()) - known_params
-        if unknown:
-            raise ValueError(f"Parâmetro(s) desconhecido(s): {', '.join(sorted(unknown))}")
-
-        for param_name, param_spec in meta.parameters.items():
-            if param_name in config:
-                value = config[param_name]
-                param_type = param_spec.get('type')
-                if param_type in ('integer', 'int'):
-                    validated[param_name] = int(value)
-                elif param_type == 'float':
-                    validated[param_name] = float(value)
-                elif param_type in ('boolean', 'bool'):
-                    if isinstance(value, str):
-                        validated[param_name] = value.lower() in ('true', '1', 'yes')
-                    else:
-                        validated[param_name] = bool(value)
-                else:
-                    validated[param_name] = value
-            else:
-                validated[param_name] = param_spec.get('default')
-
-        return validated
+        return _validate_and_convert(config, self.meta().parameters)
 
     def _process_impl(self, document: Document, config: Dict[str, Any],
                       context: Dict[str, Any]) -> Dict[str, Any]:

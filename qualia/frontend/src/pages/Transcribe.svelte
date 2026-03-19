@@ -113,7 +113,7 @@
         </div>
       </div>
       <div class="picker-grid">
-        {#each $pluginsByType.document as p, i}
+        {#each $pluginsByType.document.filter(p => p.provides.includes('transcription')) as p, i}
           <button class="picker-card" style="animation-delay: {i * 50}ms" onclick={() => navigate('transcribe', p.id)}>
             <span class="pc-name">{p.name}</span>
             <span class="pc-desc">{p.description}</span>

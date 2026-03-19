@@ -104,7 +104,7 @@
     vizLoading = true;
     startTimer('Visualizing...');
     try {
-      vizResult = await visualize(vizPluginId, result.result, {}, 'png');
+      vizResult = await visualize(vizPluginId, result.result, {}, 'html');
     } catch (e) {
       error = e.message || 'Visualization failed';
     } finally {

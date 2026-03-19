@@ -40,13 +40,13 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
     if plugin not in core.registry:
         console.print(f"[red]Plugin '{plugin}' não encontrado![/red]")
         console.print("\nUse 'qualia list -t visualizer' para ver visualizadores disponíveis.")
-        return
+        raise SystemExit(1)
 
     # Verificar se é visualizer
     plugin_meta = core.registry[plugin]
     if plugin_meta.type != PluginType.VISUALIZER:
         console.print(f"[red]'{plugin}' não é um visualizador! Tipo: {plugin_meta.type.value}[/red]")
-        return
+        raise SystemExit(1)
 
     # Ler dados
     data_path = Path(data_path)
@@ -61,10 +61,12 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
                 data = yaml.safe_load(f)
         else:
             console.print("[red]Formato de dados não suportado! Use JSON ou YAML.[/red]")
-            return
+            raise SystemExit(1)
+    except SystemExit:
+        raise
     except Exception as e:
         console.print(f"[red]Erro ao ler dados: {str(e)}[/red]")
-        return
+        raise SystemExit(1)
 
     # Preparar configuração
     params = {}
@@ -79,7 +81,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
                 params = json.loads(config_path.read_text())
         except Exception as e:
             console.print(f"[red]Erro ao ler configuração: {str(e)}[/red]")
-            return
+            raise SystemExit(1)
 
     # Adicionar parâmetros individuais
     params.update(parse_params(param))
@@ -132,7 +134,7 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
             if not hasattr(plugin_instance, 'render'):
                 progress.stop()
                 console.print(f"[red]Plugin '{plugin}' não suporta visualização![/red]")
-                return
+                raise SystemExit(1)
 
             # Renderizar — passa output_format, plugin retorna dict
             params_with_format = {**params, "output_format": format_ext}

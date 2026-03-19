@@ -49,7 +49,10 @@ def pipeline(document_path: str, config: str, output_dir: str):
     
     # Ler documento
     doc_path = Path(document_path)
-    content = doc_path.read_text(encoding='utf-8')
+    try:
+        content = doc_path.read_text(encoding='utf-8')
+    except UnicodeDecodeError:
+        content = doc_path.read_text(encoding='latin-1')
     doc = core.add_document(doc_path.stem, content)
     
     # Executar pipeline
@@ -98,14 +101,15 @@ def pipeline(document_path: str, config: str, output_dir: str):
                                 break
                         
                         if data_for_viz:
-                            # Criar path de saída
-                            if output_dir:
-                                viz_output = output_path / f"{step.output_name or step.plugin_id}.png"
-                            else:
-                                viz_output = Path(document_path).parent / f"{step.output_name or step.plugin_id}.png"
                             plugin_instance = core.get_plugin(step.plugin_id)
-                            plugin_instance.render(data_for_viz, step.config or {}, viz_output)
-                            results[step.output_name or step.plugin_id] = {"output": str(viz_output)}
+                            viz_config = {**(step.config or {}), "output_format": "html"}
+                            viz_result = plugin_instance.render(data_for_viz, viz_config)
+                            # Salvar se output_dir especificado
+                            if output_dir and "html" in viz_result:
+                                viz_output = output_path / f"{step.output_name or step.plugin_id}.html"
+                                viz_output.write_text(viz_result["html"], encoding="utf-8")
+                                viz_result["output"] = str(viz_output)
+                            results[step.output_name or step.plugin_id] = viz_result
                         else:
                             raise ValueError(f"Nenhum dado de frequências encontrado para {step.plugin_id}")
                     else:

@@ -44,9 +44,6 @@ class QualiaCore:
         self.resolver = DependencyResolver()
         self.cache = CacheManager(cache_dir)
 
-        # Estado
-        self.documents: Dict[str, Document] = {}
-        self.pipelines: Dict[str, PipelineConfig] = {}
         self.config_registry: Optional[ConfigurationRegistry] = None
 
         self.discover_plugins()
@@ -121,9 +118,6 @@ class QualiaCore:
 
         if metadata.type == PluginType.ANALYZER:
             result = plugin.analyze(document, config, dep_results)
-        elif metadata.type == PluginType.FILTER:
-            data = dep_results.get(metadata.requires[0]) if metadata.requires else {}
-            result = plugin.filter(data, config)
         elif metadata.type == PluginType.DOCUMENT:
             result = plugin.process(document, config, context or {})
         elif metadata.type == PluginType.VISUALIZER:
@@ -133,9 +127,8 @@ class QualiaCore:
                 if isinstance(dep_result, dict):
                     data.update(dep_result)
             result = plugin.render(data, config)
-            # result já é dict com "html" ou "data"+"encoding"+"format"
-        elif metadata.type == PluginType.COMPOSER:
-            result = plugin.compose(dep_results, config)
+        else:
+            raise ValueError(f"Tipo de plugin não suportado: {metadata.type.value}")
 
         # Valida contrato de provides (analyzers e documents)
         if (result and isinstance(result, dict) and metadata.provides
@@ -147,10 +140,9 @@ class QualiaCore:
                     f"mas resultado não contém: {missing}"
                 )
 
-        # Armazena no cache e no documento
+        # Armazena no cache
         if result is not None:
             self.cache.set(document.id, plugin_id, config, result)
-            document.add_analysis(plugin_id, result)
 
         if result is None:
             logger.warning("Plugin '%s' retornou None", plugin_id)
@@ -184,18 +176,8 @@ class QualiaCore:
         return results
 
     def add_document(self, doc_id: str, content: str, metadata: Dict[str, Any] = None) -> Document:
-        """Adiciona documento ao sistema"""
-        doc = Document(id=doc_id, content=content, metadata=metadata or {})
-        self.documents[doc_id] = doc
-        return doc
-
-    def get_document(self, doc_id: str) -> Optional[Document]:
-        """Recupera documento"""
-        return self.documents.get(doc_id)
-
-    def save_pipeline(self, pipeline: PipelineConfig) -> None:
-        """Salva configuração de pipeline"""
-        self.pipelines[pipeline.name] = pipeline
+        """Cria documento efêmero para processamento stateless."""
+        return Document(id=doc_id, content=content, metadata=metadata or {})
 
     def list_plugins(self, plugin_type: Optional[PluginType] = None) -> List[PluginMetadata]:
         """Lista plugins disponíveis, opcionalmente filtrados por tipo"""

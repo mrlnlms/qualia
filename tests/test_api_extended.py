@@ -150,7 +150,7 @@ class TestAnalyzeConfigValidation:
     """Testa validacao de config no endpoint /analyze"""
 
     def test_analyze_invalid_config_returns_422(self, client):
-        """Config invalida deve retornar 422 com erros descritivos"""
+        """Config com valor fora do range mas sem min definido no schema — aceita"""
         response = client.post(
             "/analyze/word_frequency",
             json={
@@ -158,9 +158,8 @@ class TestAnalyzeConfigValidation:
                 "config": {"min_word_length": -999},
             },
         )
-        # Pode retornar 422 (validacao) ou 200 (se range nao tem min)
-        # O importante e cobrir o branch de validacao
-        assert response.status_code in [200, 400, 422]
+        # word_frequency nao define range com min, entao aceita qualquer int
+        assert response.status_code == 200
 
     def test_analyze_timeout_returns_504(self, client):
         """Timeout na analise retorna 504."""
@@ -464,8 +463,7 @@ class TestVisualizeEndpoint:
                 "output_format": "png",
             },
         )
-        # 404 do plugin not found, ou 400 do exception handler
-        assert response.status_code in [400, 404]
+        assert response.status_code == 404
 
     def test_visualize_wrong_plugin_type_returns_422(self, client, word_freq_result):
         """Visualize deve rejeitar plugin que nao e visualizer."""
@@ -504,8 +502,7 @@ class TestVisualizeEndpoint:
                     "output_format": "png",
                 },
             )
-            # 504 do timeout ou 400 do handler geral
-            assert response.status_code in [400, 504]
+            assert response.status_code == 504
 
 
 # ============================================================================
@@ -530,9 +527,8 @@ class TestPipelineEndpoint:
             "/pipeline",
             data={"steps": steps},
         )
-        # Sem text e sem file, text="" e nao e document plugin -> usa "" como texto
-        # Pode retornar 200 (texto vazio aceito) ou 422
-        assert response.status_code in [200, 422]
+        # Sem text e sem file -> text="" que e falsy -> 422
+        assert response.status_code == 422
 
     def test_pipeline_analyzer_then_visualizer(self, client):
         """Pipeline: word_frequency -> frequency_chart_plotly (HTML default)"""
@@ -565,8 +561,8 @@ class TestPipelineEndpoint:
             "/pipeline",
             data={"text": "qualquer texto", "steps": steps},
         )
-        # 422 se registry rejeita, 400 se plugin rejeita
-        assert response.status_code in [200, 400, 422]
+        # min_word_length com valor nao-numerico -> 422 na validacao
+        assert response.status_code == 422
 
     def test_pipeline_visualizer_without_previous_step(self, client):
         """Visualizer como primeiro step sem resultado anterior retorna 422"""
@@ -589,7 +585,7 @@ class TestPipelineEndpoint:
             "/pipeline",
             data={"text": "algo", "steps": steps},
         )
-        assert response.status_code == 400
+        assert response.status_code == 404
 
     def test_pipeline_timeout_mid_step_returns_504(self, client):
         """Timeout num step do pipeline retorna 504."""
@@ -1085,6 +1081,7 @@ class TestPipelineEdgeCases:
             mock_plugin = MagicMock()
             mock_core.loader.get_plugin.return_value = mock_plugin
             mock_core.registry.get.return_value = None  # first_is_document = False
+            mock_core.registry.__contains__ = MagicMock(return_value=True)
             mock_core.registry.__getitem__ = MagicMock()
             mock_core.registry.__getitem__.return_value = MagicMock(type=MagicMock(value="analyzer"))
             mock_core.get_config_registry.return_value = None
@@ -1096,9 +1093,8 @@ class TestPipelineEdgeCases:
                 data={"text": "algo", "steps": steps},
             )
 
-        assert response.status_code in [400, 500]
+        assert response.status_code == 400
         data = response.json()
-        # Pode estar em "detail" (HTTPException) ou "message" (handler customizado)
         error_text = data.get("detail", data.get("message", ""))
         assert "plugin explodiu" in str(error_text)
 
@@ -1132,8 +1128,8 @@ class TestPipelineEdgeCases:
             "/pipeline",
             data={"text": text, "steps": steps},
         )
-        # Pode ser 200 (formato tratado como base64) ou 400 (erro no plugin)
-        assert response.status_code in [200, 400]
+        # pdf nao suportado pelo plugin -> 400 (erro no render)
+        assert response.status_code == 400
 
     def test_pipeline_text_only_no_file(self, client):
         """Pipeline com texto e sem file para analyzer (linhas 135-144 text path)"""
@@ -1272,7 +1268,7 @@ class TestTranscribeEdgeCases:
                 data={"config": "{}"},
             )
 
-        assert response.status_code in [400, 503]
+        assert response.status_code == 503
         data = response.json()
         error_text = str(data.get("detail", data.get("message", "")))
         assert "indisponivel" in error_text.lower() or "503" in error_text
@@ -1343,7 +1339,7 @@ class TestVisualizeEdgeCases:
                 "output_format": "png",
             },
         )
-        assert response.status_code in [400, 404]
+        assert response.status_code == 404
 
     def test_visualize_generic_exception_returns_400(self, client):
         """Erro generico no render retorna 400 (linhas 72-74)"""
@@ -1369,7 +1365,7 @@ class TestVisualizeEdgeCases:
                 },
             )
 
-        assert response.status_code in [400, 500]
+        assert response.status_code == 400
         data = response.json()
         error_text = str(data.get("detail", data.get("message", "")))
         assert "dados invalidos" in error_text.lower()

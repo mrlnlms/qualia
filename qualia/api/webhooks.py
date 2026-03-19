@@ -14,7 +14,6 @@ import hashlib
 import json
 import logging
 from datetime import datetime
-import asyncio
 from enum import Enum
 
 from qualia.core import QualiaCore
@@ -107,8 +106,15 @@ class WebhookProcessor:
         if not core:
             raise HTTPException(status_code=500, detail="Core not initialized")
 
-        # Create document
-        doc_id = f"{self.webhook_type.value}_{datetime.now().timestamp()}"
+        # Validar que plugin existe e é analyzer
+        if plugin_id not in core.registry:
+            raise HTTPException(status_code=404, detail=f"Plugin '{plugin_id}' não encontrado")
+        plugin_type = core.registry[plugin_id].type.value
+        if plugin_type not in ("analyzer",):
+            raise HTTPException(status_code=422, detail=f"Plugin '{plugin_id}' é '{plugin_type}', não 'analyzer'")
+
+        # Create document (content-hashed para cache consistency)
+        doc_id = f"{self.webhook_type.value}_{hashlib.md5(text.encode()).hexdigest()[:8]}"
         doc = core.add_document(doc_id, text)
 
         # Execute plugin em thread separada com timeout (consistente com /analyze, /process, etc.)

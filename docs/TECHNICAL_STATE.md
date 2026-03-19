@@ -23,8 +23,8 @@
 | test_cli_remaining.py | 89 | Init, list, watch, export, visualize, tutorials |
 | test_api_extended.py | 87 | Todos endpoints com variações, timeout, file upload, pipeline |
 | test_cli_extended.py | 57 | Visualize, batch, export — happy paths e edge cases |
-| test_cli.py | 49 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
-| test_core.py | 46 | Discovery, documents, execution, cache básico |
+| test_cli.py | 48 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
+| test_core.py | 44 | Discovery, documents, execution, cache básico |
 | test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
 | test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
 | test_plugin_logic.py | 37 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
@@ -33,7 +33,7 @@
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
 | test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
 | test_webhooks.py | 26 | WebhookProcessor, GenericWebhook, endpoints, timeout 504, integração webhook→monitor |
-| test_api.py | 20 | Endpoints REST: health, plugins, analyze, file upload |
+| test_api.py | 18 | Endpoints REST: health, plugins, analyze, file upload |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
@@ -259,12 +259,15 @@ API:
 - Type conversion em BaseAnalyzerPlugin e BaseDocumentPlugin (consistente com BaseVisualizer)
 - DependencyResolver ValueError tratado com mensagem descritiva
 - Webhook payload JSON inválido → 422 (não 500)
+- Webhook valida plugin existe (404) e tipo analyzer (422) antes de executar
+- Pipeline plugin inexistente mid-step → 404 (não 400)
 - Monitor `active_connections` atualizado no `finally` do SSE (sem stale após desconexão)
+- CORS sem `allow_credentials` (stateless API, spec compliance)
 
 CLI:
 - Sem bare except — todos os catches são tipados (`except Exception`)
-- UTF-8 com fallback latin-1 em todos os comandos de leitura de arquivo
-- Exit code 1 em todos os erros (não mais return silencioso)
+- UTF-8 com fallback latin-1 em todos os comandos de leitura de arquivo (incluindo pipeline e watch)
+- Exit code 1 em todos os erros — visualize, watch, inspect, export, pipeline (não mais return silencioso)
 
 Plugins:
 - Import error no plugin → `logger.error` + acumulado em `loader.discovery_errors`
@@ -272,6 +275,8 @@ Plugins:
 - Discovery errors expostos via `core.discovery_errors` property e `/health` endpoint (quando há erros)
 - `qualia list --check` classifica erros por tipo (ImportError, SyntaxError, OSError) com sugestão de fix
 - Plugin retorna None → `logger.warning`, retorna `{}`
+- Transcription levanta ValueError/RuntimeError (não retorna dict com status=error)
+- `provides` enforced: readability sempre inclui `longest_sentence`/`shortest_sentence`, sentiment sempre inclui `sentence_sentiments`
 
 ## Thread-safety
 
@@ -280,6 +285,7 @@ Plugins são singletons compartilhados entre worker threads.
 - `__init__` roda na main thread (discovery, sem concorrência)
 - `_analyze_impl` / `_render_impl` / `_process_impl` rodam em worker threads via `asyncio.to_thread`
 - Webhooks também usam `asyncio.to_thread` para `core.execute_plugin()` (consistente com rotas /analyze, /process)
+- CacheManager protegido por `threading.Lock` — todas as operações (`get`, `set`, `invalidate`, `clear`, `stats`) são thread-safe
 - Recursos pesados (modelos, corpora, conexões) devem ser carregados no `__init__`
 - Convenção documentada em: CLAUDE.md, docstrings das base classes, templates `plugins/_templates/`
 
@@ -319,5 +325,5 @@ GitHub Actions ativo em `.github/workflows/tests.yml`:
 - `qualia init` simplificado — cria apenas `plugins/` e `cache/` (removido `output/`, `configs/`, `data/`)
 - `qualia visualize` sem `-o` agora gera em `/tmp/qualia/` (não polui working directory)
 - `tools/` removido — templates migrados pra `plugins/_templates/`, criação via `qualia create`
-- `conftest.py` — auto-cleanup de `cache/` e `.pytest_cache/` via `pytest_sessionfinish`
+- `conftest.py` — `_ARTIFACTS` esvaziado (não deleta mais `cache/` nem `.pytest_cache/`)
 - Spec arquivada: `docs/superpowers/` → `docs/archive/claude_sources/plans/`

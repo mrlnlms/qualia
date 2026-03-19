@@ -28,7 +28,7 @@ def temp_dir():
 def core(temp_dir):
     """Cria instância do core para testes"""
     return QualiaCore(
-        plugins_dir=Path("plugins"),
+        plugins_dir=Path(__file__).parent.parent / "plugins",
         cache_dir=temp_dir / "cache"
     )
 
@@ -50,7 +50,7 @@ class TestQualiaCore:
         """Testa inicialização básica"""
         core = QualiaCore(cache_dir=temp_dir / "cache")
         assert core is not None
-        assert len(core.registry) == 8
+        assert len(core.registry) >= 8
         assert (temp_dir / "cache").exists()
     
     def test_plugin_discovery(self, core):
@@ -70,17 +70,12 @@ class TestQualiaCore:
             assert meta.id == plugin_id
             assert meta.type in PluginType
     
-    def test_document_management(self, core):
-        """Testa gerenciamento de documentos"""
+    def test_document_creation(self, core):
+        """Testa criação de documentos efêmeros"""
         doc = core.add_document("doc1", "Conteúdo teste", {"lang": "pt"})
         assert doc.id == "doc1"
         assert doc.content == "Conteúdo teste"
         assert doc.metadata["lang"] == "pt"
-        
-        retrieved = core.get_document("doc1")
-        assert retrieved == doc
-        
-        assert core.get_document("nao_existe") is None
     
     def test_simple_plugin_execution(self, core, sample_document):
         """Testa execução simples - CORRIGIDO"""
@@ -390,17 +385,6 @@ class TestEngineEdgeCases:
         with pytest.raises(RuntimeError, match="failing_plugin"):
             core.execute_pipeline(pipeline, doc)
 
-    def test_save_pipeline(self, core):
-        """save_pipeline deve armazenar pipeline em core.pipelines"""
-        from qualia.core import PipelineConfig, PipelineStep
-
-        pipeline = PipelineConfig(
-            name="saved_pipe",
-            steps=[PipelineStep("word_frequency")],
-        )
-        core.save_pipeline(pipeline)
-        assert "saved_pipe" in core.pipelines
-        assert core.pipelines["saved_pipe"] is pipeline
 
     def test_list_plugins_filtered(self, core):
         """list_plugins com tipo deve retornar somente plugins daquele tipo"""

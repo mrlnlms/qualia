@@ -47,10 +47,11 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         except ImportError:
             logger.warning("langdetect não instalado. Instale com: pip install langdetect")
 
-    def _ensure_nltk(self):
-        """Baixa corpora do NLTK no primeiro uso (lazy)"""
-        if self._nltk_ready:
-            return
+        # Warm-up NLTK na main thread (thread-safe)
+        self._warm_up_nltk()
+
+    def _warm_up_nltk(self):
+        """Baixa corpora do NLTK no __init__ (thread-safe — roda na main thread)"""
         try:
             import nltk
             nltk.download('brown', quiet=True)
@@ -101,21 +102,6 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
             }
         )
     
-    def validate_config(self, config: Dict[str, Any]) -> Tuple[bool, Optional[str]]:
-        """Valida configuração do plugin"""
-        if not self._textblob_available:
-            return False, "TextBlob não está instalado. Execute: pip install textblob"
-        
-        threshold = config.get('polarity_threshold', 0.1)
-        if not 0 <= threshold <= 1:
-            return False, "polarity_threshold deve estar entre 0 e 1"
-        
-        language = config.get('language', 'auto')
-        if language not in ['auto', 'pt', 'en']:
-            return False, f"Idioma '{language}' não suportado. Use: auto, pt, en"
-        
-        return True, None
-    
     def _detect_language(self, text: str) -> str:
         """Detecta idioma do texto"""
         if self._langdetect_available:
@@ -143,9 +129,10 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         else:
             return "neutro"
     
-    def _analyze_impl(self, document: Document, config: Dict[str, Any], context: ExecutionContext) -> Dict[str, Any]:
+    def _analyze_impl(self, document: Document, config: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Implementa análise de sentimento"""
-        self._ensure_nltk()
+        if not self._textblob_available:
+            raise ValueError("TextBlob não está instalado. Execute: pip install textblob")
         text = document.content
         
         # Configurações
@@ -173,10 +160,11 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
             'subjectivity': round(subjectivity, 4),
             'sentiment_label': sentiment_label,
             'language': language,
+            'sentence_sentiments': [],
             'text_length': len(text),
             'word_count': len(text.split())
         }
-        
+
         # Análise por sentença
         if analyze_sentences and blob.sentences:
             sentence_sentiments = []

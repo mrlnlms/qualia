@@ -73,31 +73,17 @@ export function canConnect(state, sourceId, targetId) {
 }
 
 function wouldCreateCycle(state, sourceId, targetId) {
-  // Check if targetId can reach sourceId via existing edges
+  // BFS: can we reach sourceId from targetId through existing edges?
   const visited = new Set();
-  const queue = [sourceId];
+  const queue = [targetId];
   while (queue.length > 0) {
     const curr = queue.shift();
-    if (curr === targetId) continue; // skip the edge we're about to add
+    if (curr === sourceId) return true;
     if (visited.has(curr)) continue;
     visited.add(curr);
     for (const e of state.edges) {
-      if (e.targetNodeId === curr && !visited.has(e.sourceNodeId)) {
-        queue.push(e.sourceNodeId);
-      }
-    }
-  }
-  // Now check: can we reach sourceId from targetId through existing edges?
-  const visited2 = new Set();
-  const queue2 = [targetId];
-  while (queue2.length > 0) {
-    const curr = queue2.shift();
-    if (curr === sourceId) return true;
-    if (visited2.has(curr)) continue;
-    visited2.add(curr);
-    for (const e of state.edges) {
-      if (e.sourceNodeId === curr && !visited2.has(e.targetNodeId)) {
-        queue2.push(e.targetNodeId);
+      if (e.sourceNodeId === curr && !visited.has(e.targetNodeId)) {
+        queue.push(e.targetNodeId);
       }
     }
   }

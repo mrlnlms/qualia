@@ -289,10 +289,12 @@ def export(input_file: str, format: str, output: str, pretty: bool):
                 data = yaml.safe_load(f)
         else:
             console.print("[red]Formato de entrada não suportado. Use JSON ou YAML.[/red]")
-            return
+            raise SystemExit(1)
+    except SystemExit:
+        raise
     except Exception as e:
         console.print(f"[red]Erro ao ler arquivo: {str(e)}[/red]")
-        return
+        raise SystemExit(1)
     
     # Determinar arquivo de saída
     if not output:
@@ -333,5 +335,7 @@ def export(input_file: str, format: str, output: str, pretty: bool):
                 
     except ImportError as e:
         console.print(f"[red]Erro de dependência: {str(e)}[/red]")
+        raise SystemExit(1)
     except Exception as e:
         console.print(f"[red]Erro ao exportar: {str(e)}[/red]")
+        raise SystemExit(1)
