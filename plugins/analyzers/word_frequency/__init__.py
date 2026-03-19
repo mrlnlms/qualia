@@ -14,6 +14,8 @@ import logging
 # MUDANÇA: Importar BaseAnalyzerPlugin ao invés de IAnalyzerPlugin
 from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 
+logger = logging.getLogger(__name__)
+
 
 class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
     """
@@ -81,8 +83,12 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             self._nltk_available = False
 
     def _warm_up_spacy(self):
-        """Pré-carrega modelo spaCy na main thread (antes de concorrência)."""
-        logger = logging.getLogger(__name__)
+        """Pré-carrega modelo spaCy na main thread (antes de concorrência).
+
+        Plugins são singletons compartilhados entre worker threads.
+        spacy.load() não é thread-safe, então forçamos o carregamento
+        aqui — onde só existe uma thread.
+        """
         try:
             import spacy
             try:
@@ -229,7 +235,6 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             return nltk.word_tokenize(text)
         
         elif method == "spacy":
-            logger = logging.getLogger(__name__)
             if self._spacy_nlp is not None:
                 doc = self._spacy_nlp(text)
                 return [token.text for token in doc if not token.is_punct]
