@@ -422,23 +422,14 @@ def create_plugin(plugin_id: str, plugin_type: str):
     init_content = TEMPLATES[plugin_type].format(**template_vars)
     (plugin_dir / "__init__.py").write_text(init_content)
 
-    # Gerar requirements.txt
-    req_content = f"# Dependencias para {plugin_title}\n# Adicione as dependencias necessarias\n"
-    (plugin_dir / "requirements.txt").write_text(req_content)
-
     cli_cmd = {"analyzer": "analyze", "visualizer": "visualize", "document": "process"}[plugin_type]
 
     print(f"""
 Plugin criado: plugins/{plugin_id}/
 
-Estrutura:
-  plugins/{plugin_id}/
-  ├── __init__.py        # Codigo principal (procure por TODO)
-  └── requirements.txt   # Dependencias
-
 Proximos passos:
   1. Editar plugins/{plugin_id}/__init__.py — procurar por TODO
-  2. Instalar dependencias se necessario
+  2. Se precisar de deps novas, adicionar no pyproject.toml (extras)
   3. Testar: python plugins/{plugin_id}/__init__.py
   4. Usar:   qualia {cli_cmd} arquivo.txt -p {plugin_id}
 """)
