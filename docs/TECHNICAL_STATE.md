@@ -250,7 +250,7 @@ API:
 - Plugin não encontrado → 404 em todas as rotas
 - Plugin tipo incompatível → 422 (e.g. analyzer em /process, document em /analyze)
 - Config inválida → 422 em todas as rotas (validação centralizada via `validate_plugin_config()`)
-- Timeout → 504 após 60s em analyze, process e visualize
+- Timeout → 504 após 60s em analyze, process, visualize e transcribe
 - Pipeline encadeia texto: `_extract_text_result()` propaga `transcription` > `cleaned_document` > `processed_text` (prioridade documentada)
 - Pipeline com file + step[0] não-document → 422 descritivo (não mais erro genérico)
 - Pipeline timeout 60s em todos os paths (step 0, loop analyzer/document, loop visualizer)
@@ -258,6 +258,8 @@ API:
 - Interfaces alinhadas com implementação (IDocumentPlugin.process, IVisualizerPlugin.render)
 - Type conversion em BaseAnalyzerPlugin e BaseDocumentPlugin (consistente com BaseVisualizer)
 - DependencyResolver ValueError tratado com mensagem descritiva
+- Webhook payload JSON inválido → 422 (não 500)
+- Monitor `active_connections` atualizado no `finally` do SSE (sem stale após desconexão)
 
 CLI:
 - Sem bare except — todos os catches são tipados (`except Exception`)
