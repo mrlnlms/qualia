@@ -106,7 +106,10 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
 
     # Determinar arquivo de saída
     if not output:
-        output = str(data_path.parent / f"{data_path.stem}_{plugin}.{format_ext}")
+        import tempfile
+        tmp_dir = Path(tempfile.gettempdir()) / "qualia"
+        tmp_dir.mkdir(exist_ok=True)
+        output = str(tmp_dir / f"{data_path.stem}_{plugin}.{format_ext}")
         console.print(f"[yellow]Saída não especificada. Usando: {output}[/yellow]")
 
     output_path = Path(output)

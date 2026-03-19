@@ -47,7 +47,7 @@ viz = [
     "matplotlib>=3.8.0",
     "wordcloud>=1.9.0",
     "plotly>=5.18.0",
-    "kaleido>=0.2.1",
+    "kaleido==0.2.1",
 ]
 nlp = [
     "textblob>=0.17.1",

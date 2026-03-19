@@ -15,7 +15,7 @@
 | frequency_chart_plotly | Visualizer | plotly (lazy dentro do render) | Lazy |
 | sentiment_viz_plotly | Visualizer | plotly (lazy dentro do render) | Lazy |
 
-## Testes (772 passando, 90% coverage)
+## Testes (rodar `pytest tests/ -v` pra contagem atual)
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -169,7 +169,7 @@ Stats via `GET /cache/stats`:
 
 - **Analyzers/Documents:** declaram provides, engine valida com warning se resultado não contém os campos
 - **Visualizers:** `provides=[]` (retornam Path, engine envolve em `{"output_path": ...}`)
-- **Colisão de provides:** dois plugins com mesmo campo → `ValueError` no startup (fail-fast)
+- **Múltiplos providers:** dois plugins com mesmo campo coexistem (log info). Resolução automática só funciona com provider único; com múltiplos, consumer escolhe via pipeline
 - **Colisão de plugin ID:** dois plugins com mesmo id em meta() → `ValueError` no startup
 - **Resolver:** field names em `requires` são resolvidos automaticamente via `provides_map` → plugin ID
 - **Requires não satisfeitos:** warning no log se nenhum plugin fornece um campo requerido

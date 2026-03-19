@@ -29,7 +29,7 @@ make frontend-build
 ```
 qualia/
   core/             # Engine — descoberta de plugins, dependências, cache, execução
-    __init__.py     # Fachada de re-exports (~47 linhas)
+    __init__.py     # Fachada de re-exports
     interfaces.py   # PluginType, PluginMetadata, IPlugin e variantes
     models.py       # Document, ExecutionContext, PipelineStep, PipelineConfig
     base_plugins.py # BaseAnalyzerPlugin, BaseVisualizerPlugin, BaseDocumentPlugin
@@ -39,7 +39,7 @@ qualia/
     resolver.py     # DependencyResolver (ordenação topológica)
     config.py       # ConfigurationRegistry (normalização, validação, calibração)
   cli/
-    commands/     # 11 comandos Click (analyze, batch, export, watch, etc.)
+    commands/     # Comandos Click (analyze, batch, export, watch, etc.)
     interactive/  # Menu interativo
       handlers.py   # Fachada de orquestração (delega pra actions/services)
       actions.py    # Lógica de execução (analyze, visualize, pipeline)
@@ -48,16 +48,16 @@ qualia/
       wizards.py    # PipelineWizard
       utils.py      # Helpers (choose_plugin, configure_parameters)
   api/            # FastAPI — REST API
-    __init__.py   # Bootstrap mínimo (~110 linhas): app, CORS, routers, SPA
+    __init__.py   # Bootstrap: app, CORS, routers, SPA
     deps.py       # Dependências compartilhadas (get_core, track, validate_plugin_config, require_plugin_type)
     schemas.py    # Modelos Pydantic (request/response)
     routes/       # Endpoints por domínio (analyze, process, visualize, pipeline, etc.)
-    monitor.py    # Métricas + SSE stream (~155 linhas)
+    monitor.py    # Métricas + SSE stream
     templates/    # monitor.html (dashboard HTML/CSS/JS)
     webhooks.py   # Webhook genérico
   frontend/       # Svelte 5 + Vite (Home, Analyze, Transcribe, Monitor, Workflow)
 plugins/          # Cada plugin em sua pasta, auto-descoberto pelo core
-tests/            # pytest (770+ testes, 90% coverage)
+tests/            # pytest — rodar `pytest tests/ -v` pra contagem e status
 ```
 
 ## Plugins
@@ -66,7 +66,7 @@ Tipos: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
 
 O core descobre plugins automaticamente — basta criar pasta em `plugins/` com `__init__.py` que exporte a classe. Sem registro manual.
 
-**Existentes:** word_frequency, sentiment_analyzer, readability_analyzer, teams_cleaner, transcription, wordcloud_d3, frequency_chart_plotly, sentiment_viz_plotly.
+**Existentes:** descobertos automaticamente. Ver `GET /plugins` ou `ls plugins/`.
 
 **Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Múltiplos plugins podem declarar o mesmo campo (ex: dois sentiment analyzers com `provides=["sentiment_score"]`) — o consumer escolhe qual rodar. Resolução automática de dependências só funciona quando há provider único; com múltiplos, o consumer deve escolher explicitamente via pipeline. Visualizers não declaram provides.
 
@@ -105,7 +105,7 @@ O core descobre plugins automaticamente — basta criar pasta em `plugins/` com 
 - **Load env:** `python-dotenv` com `load_dotenv()` no topo de `qualia/api/__init__.py`
 - **Frontend:** operações async sempre com loading/progress feedback visual
 - **README:** tom honesto e acessível, sem hype
-- **Pipeline:** fail-fast — se um step falha, pipeline para com RuntimeError descritivo
+- **Pipeline:** fail-fast — core levanta RuntimeError, API traduz pra HTTPException (422 validação, 504 timeout, 400 erro genérico)
 - **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `ml` (PyTorch, transformers, sentence-transformers), `transcription`, `dev`, `all`
 - **Docs mortos:** ficam em `docs/morto/` (ignorado pelo git), docs ativos em `docs/`
 
