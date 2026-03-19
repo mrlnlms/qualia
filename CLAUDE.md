@@ -68,7 +68,9 @@ O core descobre plugins automaticamente em qualquer profundidade dentro de `plug
 
 **Existentes:** descobertos automaticamente. Ver `GET /plugins` ou `ls plugins/`.
 
-**Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com warning. Múltiplos plugins podem declarar o mesmo campo (ex: dois sentiment analyzers com `provides=["sentiment_score"]`) — o consumer escolhe qual rodar. Resolução automática de dependências só funciona quando há provider único; com múltiplos, o consumer deve escolher explicitamente via pipeline. Visualizers não declaram provides.
+**Provides (contrato):** analyzers e documents declaram `provides=["campo1", "campo2"]` — campos que o resultado DEVE conter. Engine valida com ValueError (contrato enforced). Múltiplos plugins podem declarar o mesmo campo (ex: dois sentiment analyzers com `provides=["sentiment_score"]`) — o consumer escolhe qual rodar. Resolução automática de dependências só funciona quando há provider único; com múltiplos, o consumer deve escolher explicitamente via pipeline. Visualizers não declaram provides.
+
+**Validação de config:** base plugins rejeitam parâmetros desconhecidos (alinhado com API/ConfigRegistry). Config inválida → ValueError no core, 422 na API.
 
 **Thread-safety:** plugins são singletons — `__init__` roda na main thread, `_analyze_impl`/`_process_impl`/`_render_impl` rodam em worker threads via `asyncio.to_thread`. Carregar modelos, corpora e recursos pesados sempre no `__init__`, nunca no método de execução. Templates: `plugins/_templates/` ou `qualia create`.
 
@@ -106,7 +108,9 @@ O core descobre plugins automaticamente em qualquer profundidade dentro de `plug
 - **Frontend:** operações async sempre com loading/progress feedback visual
 - **README:** tom honesto e acessível, sem hype
 - **Pipeline:** fail-fast — core levanta RuntimeError, API traduz pra HTTPException (422 validação, 504 timeout, 400 erro genérico)
-- **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `ml` (PyTorch, transformers, sentence-transformers), `transcription`, `dev`, `all`
+- **Packaging:** `pyproject.toml` (não tem mais setup.py). Extras: `api`, `viz`, `nlp`, `ml` (PyTorch, transformers, sentence-transformers), `transcription`, `export` (pandas, openpyxl), `dev`, `all`
+- **Diagnóstico:** `qualia list --check` mostra saúde dos plugins (eager/lazy, erros de discovery com classificação e sugestão de fix)
+- **Estabilidade:** interfaces classificadas como stable/experimental em `docs/TECHNICAL_STATE.md` seção Stability
 - **Docs mortos:** ficam em `docs/morto/` (ignorado pelo git), docs ativos em `docs/`
 
 ## Ecossistema

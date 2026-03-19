@@ -38,6 +38,13 @@
 | test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
 | test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
+| test_cli_plugins_check.py | 4 | `qualia list --check` diagnóstico de plugins |
+| test_visualizer_execution.py | 22 | Execução real dos 3 visualizers + pipelines analyzer→visualizer |
+| test_thread_safety.py | 3 | Concorrência de plugin singletons (ThreadPoolExecutor) |
+| test_cache_pipeline.py | 3 | Cache hit/miss em pipelines repetidos |
+| test_loader_errors.py | 3 | Discovery errors acumulados e expostos |
+| test_loader_recursive.py | 8 | Discovery recursivo em profundidade |
+| test_word_frequency_spacy.py | 2 | Cache de modelo spaCy no __init__ |
 | test_engine_edges.py | 2 | Edge cases do engine |
 
 ## API — Estrutura modular
@@ -256,8 +263,10 @@ CLI:
 - Exit code 1 em todos os erros (não mais return silencioso)
 
 Plugins:
-- Import error no plugin → `logger.error` (não print)
+- Import error no plugin → `logger.error` + acumulado em `loader.discovery_errors`
 - Plugin dir sem IPlugin → `logger.warning`
+- Discovery errors expostos via `core.discovery_errors` property e `/health` endpoint (quando há erros)
+- `qualia list --check` classifica erros por tipo (ImportError, SyntaxError, OSError) com sugestão de fix
 - Plugin retorna None → `logger.warning`, retorna `{}`
 
 ## Thread-safety
