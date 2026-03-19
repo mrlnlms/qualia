@@ -91,3 +91,23 @@ class TestCreateCommand:
             result = runner.invoke(cli, ["create", "test_plugin"])
             assert result.exit_code == 1
             assert "tipo" in result.output.lower() or "type" in result.output.lower()
+
+    def test_create_with_dir(self, runner, tmp_path):
+        """Cria plugin em subpasta com --dir"""
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            _setup_templates(tmp_path)
+            result = runner.invoke(cli, ["create", "sub_analyzer", "analyzer", "--dir", "analyzers"])
+            assert result.exit_code == 0
+            init_file = Path("plugins/analyzers/sub_analyzer/__init__.py")
+            assert init_file.exists()
+            content = init_file.read_text()
+            assert "class SubAnalyzerAnalyzer" in content
+
+    def test_create_with_nested_dir(self, runner, tmp_path):
+        """Cria plugin em subpasta aninhada com --dir"""
+        with runner.isolated_filesystem(temp_dir=tmp_path):
+            _setup_templates(tmp_path)
+            result = runner.invoke(cli, ["create", "deep_cleaner", "document", "-d", "documents/cleaners"])
+            assert result.exit_code == 0
+            init_file = Path("plugins/documents/cleaners/deep_cleaner/__init__.py")
+            assert init_file.exists()

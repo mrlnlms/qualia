@@ -42,13 +42,15 @@ def _resolve_templates_dir() -> Path:
 @click.argument("plugin_id", required=False)
 @click.argument("plugin_type", required=False,
                 type=click.Choice(["analyzer", "visualizer", "document"], case_sensitive=False))
-def create(plugin_id: str, plugin_type: str):
+@click.option("--dir", "-d", "subdir", default=None,
+              help="Subpasta dentro de plugins/ (ex: analyzers, documents/cleaners)")
+def create(plugin_id: str, plugin_type: str, subdir: str):
     """Cria novo plugin a partir de template.
 
     Exemplos:
         qualia create meu_analyzer analyzer
-        qualia create meu_viz visualizer
-        qualia create meu_cleaner document
+        qualia create meu_viz visualizer --dir visualizers
+        qualia create meu_cleaner document -d documents/cleaners
         qualia create  (lista templates disponíveis)
     """
     templates_dir = _resolve_templates_dir()
@@ -79,7 +81,10 @@ def create(plugin_id: str, plugin_type: str):
         raise SystemExit(1)
 
     # Verificar se plugin já existe
-    plugin_dir = Path("plugins") / plugin_id
+    if subdir:
+        plugin_dir = Path("plugins") / subdir / plugin_id
+    else:
+        plugin_dir = Path("plugins") / plugin_id
     if plugin_dir.exists():
         console.print(f"[red]Plugin '{plugin_id}' já existe em {plugin_dir}/[/red]")
         raise SystemExit(1)
@@ -102,9 +107,10 @@ def create(plugin_id: str, plugin_type: str):
     (plugin_dir / "__init__.py").write_text(content)
 
     cli_cmd = _CLI_COMMANDS[plugin_type]
-    console.print(f"\n[green]✓ Plugin criado: plugins/{plugin_id}/[/green]")
+    rel_path = plugin_dir
+    console.print(f"\n[green]✓ Plugin criado: {rel_path}/[/green]")
     console.print(f"\nPróximos passos:")
-    console.print(f"  1. Editar plugins/{plugin_id}/__init__.py — procurar por TODO")
+    console.print(f"  1. Editar {rel_path}/__init__.py — procurar por TODO")
     console.print(f"  2. Se precisar de deps novas, adicionar no pyproject.toml (extras)")
     console.print(f"  3. Testar: python plugins/{plugin_id}/__init__.py")
     console.print(f"  4. Usar:   qualia {cli_cmd} arquivo.txt -p {plugin_id}")
