@@ -45,7 +45,9 @@ try:
     app.include_router(webhook_router)
     app.include_router(monitor_router)
 except ImportError:
-    pass
+    logging.getLogger("qualia.api").info(
+        "Extensions (webhooks, monitor) não disponíveis — dependências opcionais não instaladas"
+    )
 
 # Rotas
 from qualia.api.routes.health import router as health_router
