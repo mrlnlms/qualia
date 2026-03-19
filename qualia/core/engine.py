@@ -142,9 +142,9 @@ class QualiaCore:
                 and metadata.type in (PluginType.ANALYZER, PluginType.DOCUMENT)):
             missing = [f for f in metadata.provides if f not in result]
             if missing:
-                logger.warning(
-                    "Plugin '%s' declara provides=%s mas resultado não contém: %s",
-                    plugin_id, metadata.provides, missing,
+                raise ValueError(
+                    f"Plugin '{plugin_id}' declara provides={metadata.provides} "
+                    f"mas resultado não contém: {missing}"
                 )
 
         # Armazena no cache e no documento

@@ -539,10 +539,8 @@ class TestBasePluginValidation:
 class TestProvidesValidation:
     """Testes de validação do contrato de provides no engine"""
 
-    def test_provides_warning_on_missing_field(self, core, caplog):
-        """Engine emite warning se resultado não contém campo de provides"""
-        import logging
-
+    def test_provides_error_on_missing_field(self, core):
+        """Engine levanta ValueError se resultado não contém campo de provides"""
         plugin = MagicMock()
         plugin_meta = PluginMetadata(
             id="incomplete_plugin",
@@ -560,11 +558,8 @@ class TestProvidesValidation:
         core.registry["incomplete_plugin"] = plugin_meta
 
         doc = core.add_document("test", "texto")
-        with caplog.at_level(logging.WARNING, logger="qualia.core.engine"):
+        with pytest.raises(ValueError, match="field_b"):
             core.execute_plugin("incomplete_plugin", doc)
-
-        assert "field_b" in caplog.text
-        assert "incomplete_plugin" in caplog.text
 
     def test_no_warning_when_provides_complete(self, core, caplog):
         """Sem warning quando resultado contém todos os campos de provides"""
