@@ -408,7 +408,7 @@ class TeamsTranscriptCleaner(BaseDocumentPlugin):  # MUDANÇA: Herdar de Base
                 minutes = (duration_seconds % 3600) // 60
                 
                 metadata['duration'] = f"{hours}h {minutes}min"
-            except:
+            except Exception:
                 metadata['duration'] = None
         
         # Estatísticas gerais

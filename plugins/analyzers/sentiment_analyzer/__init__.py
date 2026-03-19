@@ -121,7 +121,7 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         if self._langdetect_available:
             try:
                 return self.langdetect.detect(text)
-            except:
+            except Exception:
                 pass
         
         # Fallback: detectar por palavras comuns

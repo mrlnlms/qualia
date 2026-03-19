@@ -258,7 +258,7 @@ API:
 - DependencyResolver ValueError tratado com mensagem descritiva
 
 CLI:
-- Sem bare except — todos os catches são tipados
+- Sem bare except — todos os catches são tipados (`except Exception`)
 - UTF-8 com fallback latin-1 em todos os comandos de leitura de arquivo
 - Exit code 1 em todos os erros (não mais return silencioso)
 

@@ -64,7 +64,7 @@ tests/            # pytest — rodar `pytest tests/ -v` pra contagem e status
 
 Tipos: `BaseAnalyzerPlugin`, `BaseDocumentPlugin`, `BaseVisualizerPlugin`.
 
-O core descobre plugins automaticamente em qualquer profundidade dentro de `plugins/` — basta ter `__init__.py` que exporte a classe. Organize como quiser (flat, por tipo, por domínio). Pastas com `_` no nome são ignoradas. Sem registro manual.
+O core descobre plugins automaticamente em qualquer profundidade dentro de `plugins/` — basta ter `__init__.py` que exporte a classe. Organize como quiser (flat, por tipo, por domínio). Pastas cujo nome começa com `_` são ignoradas (ex: `_templates`). Sem registro manual.
 
 **Existentes:** descobertos automaticamente. Ver `GET /plugins` ou `ls plugins/`.
 
