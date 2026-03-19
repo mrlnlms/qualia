@@ -61,7 +61,10 @@ class CacheManager:
             try:
                 with open(cache_file, 'rb') as f:
                     result = pickle.load(f)
-                # Atualizar ordem LRU
+                # Reintegrar no tracking se carregado do disco (pós-restart)
+                if cache_key not in self._access_order:
+                    self._access_order[cache_key] = None
+                    self._timestamps[cache_key] = cache_file.stat().st_mtime
                 self._access_order.move_to_end(cache_key, last=True)
                 self._hits += 1
                 return result

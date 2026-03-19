@@ -170,6 +170,63 @@ class TestTTLExpiration:
 
 
 # =============================================================================
+# PERSISTÊNCIA ENTRE INSTÂNCIAS (simulação de restart)
+# =============================================================================
+
+class TestCachePersistence:
+    """Cache em disco deve sobreviver a restart do processo."""
+
+    def test_cache_survives_new_instance(self, cache_dir):
+        """Dado gravado por instância A deve ser lido por instância B."""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "word_frequency", {"lang": "pt"}, {"total": 42})
+
+        # Verificar que .pkl existe
+        pkl_files = list(cache_dir.glob("*.pkl"))
+        assert len(pkl_files) == 1
+
+        # Nova instância (simula restart) — _access_order vazio
+        cache_b = CacheManager(cache_dir)
+        assert len(cache_b._access_order) == 0
+
+        # Deve recuperar o dado do disco
+        result = cache_b.get("doc1", "word_frequency", {"lang": "pt"})
+        assert result is not None
+        assert result["total"] == 42
+        assert cache_b._hits == 1
+
+        # Chave deve ter sido reintegrada no tracking
+        assert len(cache_b._access_order) == 1
+
+    def test_cache_miss_on_different_config(self, cache_dir):
+        """Config diferente não acha o dado mesmo com .pkl no disco."""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "p", {"a": 1}, {"v": 1})
+
+        cache_b = CacheManager(cache_dir)
+        result = cache_b.get("doc1", "p", {"a": 2})
+        assert result is None
+
+    def test_lru_works_after_reload(self, cache_dir):
+        """LRU eviction funciona corretamente com dados recarregados do disco."""
+        cache_a = CacheManager(cache_dir, max_size=2)
+        cache_a.set("d1", "p", {}, {"v": 1})
+        cache_a.set("d2", "p", {}, {"v": 2})
+
+        # Nova instância com max_size=2
+        cache_b = CacheManager(cache_dir, max_size=2)
+
+        # Recarregar ambos
+        cache_b.get("d1", "p", {})
+        cache_b.get("d2", "p", {})
+
+        # Adicionar terceiro — deve evictar d1 (LRU)
+        cache_b.set("d3", "p", {}, {"v": 3})
+        assert cache_b.get("d3", "p", {})["v"] == 3
+        assert len(cache_b._access_order) == 2
+
+
+# =============================================================================
 # STATS
 # =============================================================================
 
