@@ -2,12 +2,10 @@
 Testes dos webhooks do Qualia.
 
 Cobre WebhookProcessor, GenericWebhookProcessor e endpoints.
-
-Nota: analyze_text() em webhooks.py chama core.execute_plugin()
-diretamente (sem asyncio.to_thread), diferente dos endpoints
-principais da API. Inconsistência documentada, não corrigida aqui.
+analyze_text() usa asyncio.to_thread + wait_for(60s), consistente com rotas /analyze etc.
 """
 
+import asyncio
 import pytest
 from unittest.mock import MagicMock, AsyncMock, patch
 
@@ -244,3 +242,38 @@ class TestWebhookEdgeCases:
         # generico do process(), que re-wrapa como HTTPException 500
         assert "Invalid signature" in exc_info.value.detail
         assert proc.stats["total_errors"] == 1
+
+    async def test_webhook_timeout_returns_504(self, mock_core):
+        """Webhook lento deve retornar 504, não 500."""
+        mock_core.execute_plugin.side_effect = asyncio.TimeoutError()
+
+        proc = GenericWebhookProcessor()
+        proc.stats = {"total_received": 0, "total_processed": 0, "total_errors": 0, "last_processed": None}
+
+        with pytest.raises(HTTPException) as exc_info:
+            await proc.process({"text": "teste lento"}, {})
+
+        assert exc_info.value.status_code == 504
+        assert "timeout" in exc_info.value.detail.lower() or "60s" in exc_info.value.detail
+        assert proc.stats["total_errors"] == 1
+
+
+# =============================================================================
+# INTEGRATION — webhook → monitor tracking
+# =============================================================================
+
+class TestWebhookMonitorIntegration:
+    """Testa que webhook alimenta métricas do monitor via callback."""
+
+    def test_webhook_increments_monitor_stats(self, client):
+        """POST /webhook/custom deve incrementar metrics.webhook_stats do monitor."""
+        from qualia.api.monitor import metrics
+
+        before = metrics.webhook_stats.get("generic", 0)
+
+        response = client.post("/webhook/custom", json={"text": "integração teste"})
+        assert response.status_code == 200
+        assert response.json()["status"] == "success"
+
+        after = metrics.webhook_stats.get("generic", 0)
+        assert after > before, f"webhook_stats não incrementou: before={before}, after={after}"
