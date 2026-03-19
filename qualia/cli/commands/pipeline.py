@@ -35,7 +35,7 @@ def pipeline(document_path: str, config: str, output_dir: str):
     steps = []
     for step_data in pipeline_data.get('steps', []):
         step = PipelineStep(
-            plugin_id=step_data['plugin'],
+            plugin_id=step_data.get('plugin_id', step_data.get('plugin', '')),
             config=step_data.get('config', {}),
             output_name=step_data.get('output_name')
         )
@@ -91,29 +91,20 @@ def pipeline(document_path: str, config: str, output_dir: str):
                 
                 # Verificar tipo do plugin
                 if plugin_meta.type == PluginType.VISUALIZER:
-                    # Visualizadores precisam de dados de steps anteriores
-                    if results:
-                        # Pegar último resultado com word_frequencies
-                        data_for_viz = None
-                        for result in reversed(list(results.values())):
-                            if isinstance(result, dict) and 'word_frequencies' in result:
-                                data_for_viz = result
-                                break
-                        
-                        if data_for_viz:
-                            plugin_instance = core.get_plugin(step.plugin_id)
-                            viz_config = {**(step.config or {}), "output_format": "html"}
-                            viz_result = plugin_instance.render(data_for_viz, viz_config)
-                            # Salvar se output_dir especificado
-                            if output_dir and "html" in viz_result:
-                                viz_output = output_path / f"{step.output_name or step.plugin_id}.html"
-                                viz_output.write_text(viz_result["html"], encoding="utf-8")
-                                viz_result["output"] = str(viz_output)
-                            results[step.output_name or step.plugin_id] = viz_result
-                        else:
-                            raise ValueError(f"Nenhum dado de frequências encontrado para {step.plugin_id}")
-                    else:
+                    # Visualizadores usam último resultado como dados (alinhado com API)
+                    if not results:
                         raise ValueError(f"Visualizador {step.plugin_id} precisa de dados anteriores")
+                    last_result = list(results.values())[-1]
+                    if not isinstance(last_result, dict):
+                        raise ValueError(f"Resultado anterior não é dict para {step.plugin_id}")
+                    plugin_instance = core.get_plugin(step.plugin_id)
+                    viz_config = {**(step.config or {}), "output_format": "html"}
+                    viz_result = plugin_instance.render(last_result, viz_config)
+                    if output_dir and "html" in viz_result:
+                        viz_output = output_path / f"{step.output_name or step.plugin_id}.html"
+                        viz_output.write_text(viz_result["html"], encoding="utf-8")
+                        viz_result["output"] = str(viz_output)
+                    results[step.output_name or step.plugin_id] = viz_result
                 else:
                     # Outros plugins processam o documento
                     result = core.execute_plugin(
