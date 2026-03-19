@@ -1,13 +1,13 @@
 # Backlog — Qualia Core
 
-Última atualização: 2026-03-18
+Última atualização: 2026-03-19
 
 ## Pendente
 
 ### Higiene de código (análise Codex — 2026-03-18)
 
 - [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
-- [ ] **Arquivo .wrong sobrando** — `plugins/sentiment_analyzer/__init__.py.wrong` é resíduo de transição. Deletar.
+- [ ] **Arquivo .wrong sobrando** — `plugins/analyzers/sentiment_analyzer/__init__.py.wrong` é resíduo de transição. Deletar.
 - [ ] **print() em fallback de plugins** — `word_frequency/__init__.py:225` usa `print()` pra fallback de spaCy ao invés de `logger.warning()`. Revisar todos os plugins e trocar prints por logging.
 - [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
 - [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
@@ -32,6 +32,17 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 - Página de Workflow (pipeline builder visual) — quando plugins pesados chegarem, o Workflow é onde o pesquisador monta as transformações
 - Sessões de análise (múltiplos plugins no mesmo documento, resultados acumulando)
 
+### Novos tipos de plugin
+
+Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist de criação em `memory/project_plugin_type_creation.md`.
+
+- [ ] **Enricher** — Tipo novo. Transforma/enriquece dados estruturados sem analisar conteúdo textual. Interface: `_enrich_impl(self, data, config)`. Casos: validar CPF, normalizar telefone, detectar UF, derivar features temporais (is_weekend, hour, gap_hours). Mais simples dos 3 — começar por aqui.
+- [ ] **StatAnalyzer** — Tipo novo. Recebe DataFrame/dados tabulares, roda análises quantitativas (chi-square, teste de hipótese, power analysis, correlação). Interface: `_analyze_impl(self, data: DataFrame, config, context)`. Requer evolução do core pra aceitar DataFrame como entrada (hoje é Document-centric). Análises simples que operam em resultados de outros plugins (via context) cabem no Analyzer atual sem mudanças.
+- [ ] **Composer/Dashboard** — Tipo novo. Consome resultados de múltiplos analyzers + visualizers, monta visão consolidada (dashboard, relatório, PDF). Interface: `_compose_impl(self, results: Dict, config)`. Referência: `transcript-analyser-prototype/dash.pdf`. Mais complexo — depende de ter vários plugins funcionando.
+- [ ] **CLI `qualia type create`** — Sistematizar criação/deleção de tipos em comando. Gera os ~8 arquivos automaticamente (interface, base class, engine elif, loader exclusion, template, rota API). Implementar quando o primeiro tipo novo for criado (validar com caso real).
+
+**Nota:** ML não é tipo novo — é peso de dependência. Já resolvido pelo extra `[ml]` no pyproject.toml. Organização por pasta (`plugins/analyzers/ml/`).
+
 ### Ecossistema
 
 - **qualia-coding** — evoluir PoC pra integração completa (hoje só word_frequency)
@@ -50,11 +61,32 @@ Cada plugin novo = criar pasta em `plugins/`, implementar `meta()` e `_analyze_i
 
 ### Coverage
 
-776 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+792 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
 ## Concluído
+
+### Sprint 2026-03-19 (limpeza, reorganização e discovery recursivo)
+
+**Limpeza do repo:**
+- [x] Root limpo: removidos artefatos (cache 903pkl, __pycache__, .coverage, output/, data/, .DS_Store)
+- [x] Docs mortos movidos: configs/, DEPLOY.md, README_COMPLEMENTAR.md, KNOWN_ISSUES.md, .docx, session logs
+- [x] `qualia init` simplificado — só cria plugins/ e cache/
+- [x] `qualia visualize` sem -o gera em /tmp/qualia/ (não polui working directory)
+- [x] Auto-cleanup de artefatos pós-teste (conftest.py pytest_sessionfinish)
+
+**Plugin templates + CLI create:**
+- [x] Templates copiáveis em `plugins/_templates/` (analyzer.py, visualizer.py, document.py)
+- [x] Comando `qualia create <nome> <tipo>` — gera plugin a partir dos templates
+- [x] Opção `--dir` — cria plugins em subpastas (`qualia create x analyzer --dir analyzers`)
+- [x] `tools/` removido — templates e CLI são fonte única
+
+**Discovery recursivo:**
+- [x] PluginLoader.discover() com walk recursivo (rglob) — plugins em qualquer profundidade
+- [x] Pastas com `_` no nome ignoradas automaticamente
+- [x] Plugins organizados por tipo: analyzers/, documents/, visualizers/
+- [x] 792 testes passando
 
 ### Sprint 2026-03-18 (sessão completa — coverage, refactor, ecossistema, identidade)
 
