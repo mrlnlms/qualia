@@ -14,7 +14,7 @@
 
 ### Compatibilidade Python 3.14
 
-- [ ] **Testes async quebram no Python 3.14** — 37 testes em `test_webhooks.py` e `test_monitor.py` falham com `RuntimeError: There is no current event loop`. Python 3.14 removeu `asyncio.get_event_loop()` auto-create. Fix: migrar testes async pra usar `@pytest.mark.asyncio` ou `asyncio.run()`. Core/API/CLI/Plugins passam 100% no 3.14. Descoberto em validação de setup limpo (2026-03-19).
+- [x] **Testes async quebram no Python 3.14** — ~~37 testes falhavam~~ Corrigido: 37 métodos convertidos de `asyncio.get_event_loop().run_until_complete()` pra `async def` + `await`. 825 passed no 3.13, 824 passed no 3.14. (2026-03-19)
 
 ### Consolidação pós-refactor
 
