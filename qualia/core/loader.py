@@ -128,10 +128,13 @@ class PluginLoader:
 
                 except Exception as e:
                     logger.error(f"Erro ao carregar plugin {plugin_dir.name}: {e}")
+                    error_type, severity = self._classify_error(e)
                     self.discovery_errors.append({
                         "plugin": plugin_dir.name,
                         "error": str(e),
                         "path": str(plugin_dir),
+                        "type": error_type,
+                        "severity": severity,
                     })
 
         eager_count = len(self.loaded_plugins)
@@ -157,3 +160,21 @@ class PluginLoader:
                 return instance
 
         return None
+
+    @staticmethod
+    def _classify_error(exc: Exception) -> tuple:
+        """Classifica exceção por tipo e severidade.
+
+        Returns:
+            (type_str, severity_str) — severity é 'critical' ou 'warning'
+        """
+        if isinstance(exc, ImportError):
+            return "import_error", "critical"
+        elif isinstance(exc, SyntaxError):
+            return "syntax_error", "critical"
+        elif isinstance(exc, (OSError, FileNotFoundError)):
+            return "os_error", "critical"
+        elif isinstance(exc, ValueError):
+            return "value_error", "critical"
+        else:
+            return "unknown_error", "warning"

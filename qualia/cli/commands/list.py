@@ -10,20 +10,21 @@ from qualia.core import PluginType
 from .utils import get_core, console
 
 
-def _classify_error(error_msg: str) -> tuple:
-    """Classifica erro de discovery por tipo e sugere fix."""
-    msg = error_msg.lower()
-    if "no module named" in msg or "importerror" in msg:
-        module = error_msg.split("'")[-2] if "'" in error_msg else "desconhecido"
-        return "ImportError", f"pip install {module}"
-    elif "syntaxerror" in msg or "syntax" in msg:
-        return "SyntaxError", "Verificar código do plugin"
-    elif "oserror" in msg or "no such file" in msg or "filenotfounderror" in msg:
-        return "OSError", "Verificar arquivos/modelos necessários"
-    elif "valueerror" in msg:
-        return "ValueError", "Verificar meta() do plugin (id duplicado?)"
-    else:
-        return "Error", "Verificar log para detalhes"
+_SUGGESTIONS = {
+    "import_error": "pip install <módulo>",
+    "syntax_error": "Verificar código do plugin",
+    "os_error": "Verificar arquivos/modelos necessários",
+    "value_error": "Verificar meta() do plugin (id duplicado?)",
+    "unknown_error": "Verificar log para detalhes",
+}
+
+
+def _classify_error(err: dict) -> tuple:
+    """Extrai tipo e sugestão do error dict (usa campos type/severity do loader)."""
+    err_type = err.get("type", "unknown_error")
+    label = err_type.replace("_", " ").title()
+    suggestion = _SUGGESTIONS.get(err_type, "Verificar log para detalhes")
+    return label, suggestion
 
 
 def _run_check(core, type_filter: str):
@@ -59,7 +60,7 @@ def _run_check(core, type_filter: str):
         err_table.add_column("Sugestão", style="green")
 
         for err in errors:
-            err_type, suggestion = _classify_error(err["error"])
+            err_type, suggestion = _classify_error(err)
             err_table.add_row(
                 err["plugin"],
                 err_type,

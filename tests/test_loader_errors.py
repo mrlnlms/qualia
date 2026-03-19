@@ -86,3 +86,56 @@ class TestDiscoveryErrors:
         discovered2 = loader.discover()
         assert "ephemeral" not in discovered2
         assert loader.get_plugin("ephemeral") is None
+
+
+class TestDiscoveryErrorClassification:
+    """Erros de discovery devem ter severity e type."""
+
+    def test_import_error_classified(self):
+        """ImportError → type=import_error, severity=critical."""
+        import tempfile, shutil
+        tmp = Path(tempfile.mkdtemp())
+        plugin_dir = tmp / "bad_import"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text("import nao_existe_xyz_abc")
+        try:
+            loader = PluginLoader(tmp)
+            loader.discover()
+            assert len(loader.discovery_errors) == 1
+            err = loader.discovery_errors[0]
+            assert err["type"] == "import_error"
+            assert err["severity"] == "critical"
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_syntax_error_classified(self):
+        """SyntaxError → type=syntax_error, severity=critical."""
+        import tempfile, shutil
+        tmp = Path(tempfile.mkdtemp())
+        plugin_dir = tmp / "bad_syntax"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text("def broken(:\n")
+        try:
+            loader = PluginLoader(tmp)
+            loader.discover()
+            assert len(loader.discovery_errors) == 1
+            err = loader.discovery_errors[0]
+            assert err["type"] == "syntax_error"
+            assert err["severity"] == "critical"
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_error_has_all_fields(self):
+        """Error dict tem plugin, error, path, type, severity."""
+        import tempfile, shutil
+        tmp = Path(tempfile.mkdtemp())
+        plugin_dir = tmp / "broken"
+        plugin_dir.mkdir()
+        (plugin_dir / "__init__.py").write_text("raise ValueError('boom')")
+        try:
+            loader = PluginLoader(tmp)
+            loader.discover()
+            err = loader.discovery_errors[0]
+            assert set(err.keys()) >= {"plugin", "error", "path", "type", "severity"}
+        finally:
+            shutil.rmtree(tmp)
