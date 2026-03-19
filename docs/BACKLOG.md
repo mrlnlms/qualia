@@ -11,6 +11,7 @@
 - [x] **print() em fallback de plugins** — ~~word_frequency usa print()~~ Corrigido: spaCy cached no `__init__`, print→logger (2026-03-19).
 - [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer e teams_cleaner têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
 - [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
+- [ ] **Upload de arquivo faz buffering integral em memória** — `/transcribe` e `/pipeline` (com file) lêem o arquivo inteiro em memória (`await file.read()`), e o plugin de transcrição lê o tempfile de novo. Um upload de 25MB consome ~50MB por request. Sem guarda de tamanho antes do processamento. Para beta local-first com uso individual é aceitável, mas não escala pra concorrência. Fix: streaming upload ou limit de tamanho no endpoint.
 
 ### Compatibilidade Python 3.14
 
