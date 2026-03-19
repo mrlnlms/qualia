@@ -11,6 +11,7 @@ from .process import process
 from .visualize import visualize
 from .pipeline import pipeline
 from .init import init
+from .create import create
 from .watch import watch
 from .batch import batch
 from .export import export
@@ -51,6 +52,7 @@ cli.add_command(process)
 cli.add_command(visualize)
 cli.add_command(pipeline)
 cli.add_command(init)
+cli.add_command(create)
 
 # Registrar novos comandos
 cli.add_command(watch)
