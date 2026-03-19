@@ -161,6 +161,9 @@ async def custom_webhook(request: Request):
     except Exception:
         raise HTTPException(status_code=422, detail="Payload JSON inválido")
 
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=422, detail="Payload deve ser objeto JSON (não string, número ou array)")
+
     processor = processors[WebhookType.GENERIC]
     result = await processor.process(payload, {})
     
