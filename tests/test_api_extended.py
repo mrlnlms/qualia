@@ -28,6 +28,17 @@ from qualia.api.deps import get_core
 from qualia.core.interfaces import PluginMetadata, PluginType
 
 
+def _kaleido_functional():
+    """Testa se kaleido funciona (não só instalado)."""
+    try:
+        import kaleido  # noqa: F401
+        import plotly.graph_objects as go
+        go.Figure().to_image(format="png", width=1, height=1)
+        return True
+    except Exception:
+        return False
+
+
 def _mock_registry_entry(plugin_id, plugin_type_str):
     """Cria PluginMetadata fake pra mockar core.registry."""
     return PluginMetadata(
@@ -386,8 +397,12 @@ class TestProcessEndpoint:
 class TestVisualizeEndpoint:
     """Testa endpoint de visualizacao"""
 
+    @pytest.mark.skipif(
+        not _kaleido_functional(),
+        reason="Kaleido não funcional neste ambiente (segfault ou ausente)"
+    )
     def test_visualize_frequency_chart_plotly_png(self, client, word_freq_result):
-        """Gera grafico de frequencia em PNG"""
+        """Gera grafico de frequencia em PNG (requer kaleido funcional)"""
         response = client.post(
             "/visualize/frequency_chart_plotly",
             json={
@@ -401,12 +416,15 @@ class TestVisualizeEndpoint:
         assert data["status"] == "success"
         assert data["format"] == "png"
         assert data["encoding"] == "base64"
-        # Verificar que e base64 valido
         decoded = base64.b64decode(data["data"])
         assert len(decoded) > 0
 
+    @pytest.mark.skipif(
+        not _kaleido_functional(),
+        reason="Kaleido não funcional neste ambiente (segfault ou ausente)"
+    )
     def test_visualize_frequency_chart_plotly_svg(self, client, word_freq_result):
-        """Gera grafico de frequencia em SVG"""
+        """Gera grafico de frequencia em SVG (requer kaleido funcional)"""
         response = client.post(
             "/visualize/frequency_chart_plotly",
             json={
@@ -517,10 +535,10 @@ class TestPipelineEndpoint:
         assert response.status_code in [200, 422]
 
     def test_pipeline_analyzer_then_visualizer(self, client):
-        """Pipeline: word_frequency -> frequency_chart_plotly"""
+        """Pipeline: word_frequency -> frequency_chart_plotly (HTML default)"""
         steps = json.dumps([
             {"plugin_id": "word_frequency"},
-            {"plugin_id": "frequency_chart_plotly", "config": {"format": "png"}},
+            {"plugin_id": "frequency_chart_plotly"},
         ])
         text = "palavra repetida repetida tres tres tres quatro quatro quatro quatro"
         response = client.post(

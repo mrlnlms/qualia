@@ -81,7 +81,7 @@ qualia/api/
 | POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 422 config/tipo, 504 timeout 60s) |
 | POST | /process/{id} | Processamento de documento (404 plugin, 422 config/tipo, 504 timeout 60s) |
 | POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 422 config/tipo, 504 timeout 60s, 400 falha domínio) |
-| POST | /visualize/{id} | Gera visualização (PNG/SVG/HTML, 422 config/tipo, 504 timeout 60s) |
+| POST | /visualize/{id} | Gera visualização (HTML default, PNG/SVG se kaleido funcional, 422 config/tipo, 504 timeout 60s) |
 | POST | /pipeline | Executa sequência de plugins (fail-fast, encadeia texto entre steps) |
 | GET | /config/consolidated | Todos schemas + text_size rules |
 | POST | /config/resolve | Resolve config com text_size |
