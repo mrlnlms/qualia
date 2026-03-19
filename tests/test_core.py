@@ -178,10 +178,6 @@ class TestPluginTypes:
         assert "cleaned_document" in result or "clean_text" in result
         assert "metadata" in result
     
-    @pytest.mark.skip(reason="Visualizer cria arquivos reais")
-    def test_visualizer_plugin(self, core, temp_dir):
-        """Testa plugin visualizer"""
-        pass
 
 
 class TestErrorHandling:
