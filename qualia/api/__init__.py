@@ -21,7 +21,7 @@ from qualia.api.deps import set_core, set_extensions
 app = FastAPI(
     title="Qualia Core API",
     description="REST API for Qualia Core - Análise Qualitativa Framework",
-    version="0.1.0"
+    version="0.2.0-beta"
 )
 
 app.add_middleware(

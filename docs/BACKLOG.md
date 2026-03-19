@@ -9,7 +9,7 @@
 - [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
 - [x] **Arquivo .wrong sobrando** — ~~Deletar~~ Deletado (2026-03-19).
 - [x] **print() em fallback de plugins** — ~~word_frequency usa print()~~ Corrigido: spaCy cached no `__init__`, print→logger (2026-03-19).
-- [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
+- [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer e teams_cleaner têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
 - [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
 
 ### Compatibilidade Python 3.14
@@ -26,17 +26,15 @@
 Preparar terreno para crescimento do ecossistema (~30 plugins candidatos no ECOSYSTEM_MAP.md). Quando a base de plugins crescer significativamente, o sistema de `discovery_errors` precisa evoluir:
 
 - [ ] **Severidade nos erros** — Distinguir erro fatal (plugin não carrega) de warning (dependência opcional ausente, modelo faltando). Hoje tudo é um dict genérico com plugin/error/path.
-- [ ] **Classificação da causa** — Categorizar: ImportError (dep faltando), SyntaxError (código quebrado), OSError (modelo/recurso ausente), ValueError (meta inválida). Facilita triagem.
-- [ ] **CLI diagnóstico** — `qualia plugins --check` ou `qualia doctor` que roda discovery, lista plugins saudáveis vs quebrados, e sugere fix (ex: "pip install spacy" ou "python -m spacy download pt_core_news_sm").
+- [x] **Classificação da causa** — ~~Categorizar~~ Implementado em `qualia list --check`: classifica ImportError, SyntaxError, OSError, ValueError com sugestão de fix (2026-03-19).
+- [x] **CLI diagnóstico** — ~~`qualia plugins --check`~~ Implementado: `qualia list --check` mostra eager/lazy, status, erros com classificação (2026-03-19).
 - [ ] **Endpoint detalhado** — `/plugins/health` com status individual por plugin (loaded/failed/degraded), tempo de loading, e erros específicos.
 
-**Por que não agora:** Com 8 plugins num projeto local-first, o `discovery_errors` + `/health` atual é suficiente. Atacar quando o primeiro batch de plugins do transcript-analyser ou DeepVoC for migrado.
+**Parcialmente resolvido:** CLI diagnóstico e classificação de causa já implementados. Faltam: severidade nos erros e endpoint `/plugins/health`.
 
-### Não atacar: Superfície pública documentada (D)
+### ~~Não atacar: Superfície pública documentada (D)~~ Concluído
 
-Documentar quais interfaces são estáveis vs experimentais, quais plugins são core vs extras, quais deps são opcionais.
-
-**Por que não agora:** É trabalho de produto, não de engenharia. A arquitetura não muda. O TECHNICAL_STATE.md e este BACKLOG já cobrem o estado técnico. O único consumer externo hoje é o CodeMarker (mesmo autor). Quando houver consumer externo real, documentar contratos públicos vira prioridade.
+~~Documentar quais interfaces são estáveis vs experimentais.~~ Implementado: seção Stability no TECHNICAL_STATE.md com classificação por endpoint, core API, plugin, CLI e frontend (2026-03-19).
 
 ---
 
@@ -82,7 +80,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-797 testes (Python 3.13), 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+830 testes (Python 3.13), ~90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 

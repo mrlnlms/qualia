@@ -20,7 +20,7 @@ from ..interactive import start_menu
 
 
 @click.group(invoke_without_command=True)
-@click.version_option(version="0.1.0", prog_name="Qualia Core")
+@click.version_option(version="0.2.0-beta", prog_name="Qualia Core")
 @click.option('-l', '--list-commands', is_flag=True, help='Lista todos os comandos disponíveis')
 @click.pass_context
 def cli(ctx, list_commands):
