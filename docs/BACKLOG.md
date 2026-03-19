@@ -7,15 +7,36 @@
 ### Higiene de código (análise Codex — 2026-03-18)
 
 - [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
-- [ ] **Arquivo .wrong sobrando** — `plugins/analyzers/sentiment_analyzer/__init__.py.wrong` é resíduo de transição. Deletar.
-- [ ] **print() em fallback de plugins** — `word_frequency/__init__.py:225` usa `print()` pra fallback de spaCy ao invés de `logger.warning()`. Revisar todos os plugins e trocar prints por logging.
+- [x] **Arquivo .wrong sobrando** — ~~Deletar~~ Deletado (2026-03-19).
+- [x] **print() em fallback de plugins** — ~~word_frequency usa print()~~ Corrigido: spaCy cached no `__init__`, print→logger (2026-03-19).
 - [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
 - [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
+
+### Compatibilidade Python 3.14
+
+- [ ] **Testes async quebram no Python 3.14** — 37 testes em `test_webhooks.py` e `test_monitor.py` falham com `RuntimeError: There is no current event loop`. Python 3.14 removeu `asyncio.get_event_loop()` auto-create. Fix: migrar testes async pra usar `@pytest.mark.asyncio` ou `asyncio.run()`. Core/API/CLI/Plugins passam 100% no 3.14. Descoberto em validação de setup limpo (2026-03-19).
 
 ### Consolidação pós-refactor
 
 - [ ] **Coverage do pipeline.py** — Linhas 29, 100-101 (branch visualizer e timeout no loop) ainda sem cobertura. Pendente da rodada de coverage.
 - [ ] **base_plugins.py coverage** — Branches de type conversion (float/bool) em BaseAnalyzerPlugin e BaseDocumentPlugin sem cobertura (linhas 54, 56-59, 70, 87-88, 129, 162, 192, 194, 197, 201). São edge cases de config com tipos específicos.
+
+### Pré-beta: Discovery observabilidade (C)
+
+Preparar terreno para crescimento do ecossistema (~30 plugins candidatos no ECOSYSTEM_MAP.md). Quando a base de plugins crescer significativamente, o sistema de `discovery_errors` precisa evoluir:
+
+- [ ] **Severidade nos erros** — Distinguir erro fatal (plugin não carrega) de warning (dependência opcional ausente, modelo faltando). Hoje tudo é um dict genérico com plugin/error/path.
+- [ ] **Classificação da causa** — Categorizar: ImportError (dep faltando), SyntaxError (código quebrado), OSError (modelo/recurso ausente), ValueError (meta inválida). Facilita triagem.
+- [ ] **CLI diagnóstico** — `qualia plugins --check` ou `qualia doctor` que roda discovery, lista plugins saudáveis vs quebrados, e sugere fix (ex: "pip install spacy" ou "python -m spacy download pt_core_news_sm").
+- [ ] **Endpoint detalhado** — `/plugins/health` com status individual por plugin (loaded/failed/degraded), tempo de loading, e erros específicos.
+
+**Por que não agora:** Com 8 plugins num projeto local-first, o `discovery_errors` + `/health` atual é suficiente. Atacar quando o primeiro batch de plugins do transcript-analyser ou DeepVoC for migrado.
+
+### Não atacar: Superfície pública documentada (D)
+
+Documentar quais interfaces são estáveis vs experimentais, quais plugins são core vs extras, quais deps são opcionais.
+
+**Por que não agora:** É trabalho de produto, não de engenharia. A arquitetura não muda. O TECHNICAL_STATE.md e este BACKLOG já cobrem o estado técnico. O único consumer externo hoje é o CodeMarker (mesmo autor). Quando houver consumer externo real, documentar contratos públicos vira prioridade.
 
 ---
 
@@ -61,7 +82,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-792 testes, 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+797 testes (Python 3.13), 90% coverage. Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
