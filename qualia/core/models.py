@@ -4,38 +4,15 @@ Modelos de dados do Qualia Core — Document, ExecutionContext, Pipeline.
 """
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 
 @dataclass
 class Document:
-    """Single source of truth para todas as análises"""
+    """Documento efêmero — Qualia é stateless, sem acúmulo de estado."""
     id: str
     content: str
     metadata: Dict[str, Any] = field(default_factory=dict)
-    _analyses: Dict[str, Any] = field(default_factory=dict)
-    _variants: Dict[str, 'Document'] = field(default_factory=dict)
-    _cache: Dict[str, Any] = field(default_factory=dict)
-
-    def add_analysis(self, plugin_id: str, result: Dict[str, Any]) -> None:
-        """Adiciona resultado de análise ao documento"""
-        self._analyses[plugin_id] = {
-            'result': result,
-            'timestamp': datetime.now().isoformat()
-        }
-
-    def get_analysis(self, plugin_id: str) -> Optional[Dict[str, Any]]:
-        """Recupera resultado de análise específica"""
-        return self._analyses.get(plugin_id, {}).get('result')
-
-    def add_variant(self, name: str, variant_doc: 'Document') -> None:
-        """Adiciona variante do documento (ex: participants_only)"""
-        self._variants[name] = variant_doc
-
-    def get_variant(self, name: str) -> Optional['Document']:
-        """Recupera variante específica"""
-        return self._variants.get(name)
 
 
 @dataclass

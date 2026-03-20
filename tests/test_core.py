@@ -694,38 +694,6 @@ class TestInterfaces:
         assert deps == set()
 
 
-class TestDocumentMethods:
-    """Testes para Document.get_analysis, add_variant, get_variant (models.py lines 30, 34, 38)"""
-
-    def test_get_analysis(self):
-        """add_analysis + get_analysis retorna resultado correto"""
-        doc = Document(id="doc_methods", content="texto")
-        doc.add_analysis("plugin_a", {"data": 1})
-        result = doc.get_analysis("plugin_a")
-        assert result == {"data": 1}
-
-    def test_get_analysis_missing(self):
-        """get_analysis para plugin inexistente retorna None"""
-        doc = Document(id="doc_missing", content="texto")
-        result = doc.get_analysis("nonexistent")
-        assert result is None
-
-    def test_add_and_get_variant(self):
-        """add_variant + get_variant retorna documento variante"""
-        doc = Document(id="doc_original", content="texto original")
-        variant = Document(id="doc_clean", content="texto limpo")
-        doc.add_variant("clean", variant)
-        retrieved = doc.get_variant("clean")
-        assert retrieved is variant
-        assert retrieved.content == "texto limpo"
-
-    def test_get_variant_missing(self):
-        """get_variant para nome inexistente retorna None"""
-        doc = Document(id="doc_no_variant", content="texto")
-        result = doc.get_variant("nonexistent")
-        assert result is None
-
-
 class TestValidateAndConvert:
     """Testa _validate_and_convert com todas as branches de tipo."""
 
