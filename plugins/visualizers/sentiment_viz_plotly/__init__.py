@@ -83,9 +83,15 @@ class SentimentVizPlotly(BaseVisualizerPlugin):
 
         sentiment_stats = data.get("sentiment_stats", {})
         if sentiment_stats:
-            labels = list(sentiment_stats.keys())
-            values = list(sentiment_stats.values())
-            colors = [self._get_sentiment_color(1 if l == "positive" else -1 if l == "negative" else 0) for l in labels]
+            # Só contagens de sentenças no pie (não métricas como avg_polarity, polarity_std)
+            count_keys = [k for k in sentiment_stats if k.endswith("_sentences")]
+            if count_keys:
+                labels = count_keys
+                values = [sentiment_stats[k] for k in count_keys]
+            else:
+                labels = list(sentiment_stats.keys())
+                values = list(sentiment_stats.values())
+            colors = [self._get_sentiment_color(1 if "pos" in l else -1 if "neg" in l else 0) for l in labels]
             fig.add_trace(go.Pie(labels=labels, values=values, marker=dict(colors=colors)), row=2, col=1)
 
         sentences = data.get("sentence_sentiments", [])
@@ -167,8 +173,14 @@ class SentimentVizPlotly(BaseVisualizerPlugin):
 
         sentiment_stats = data.get("sentiment_stats", {})
         if sentiment_stats:
-            labels = list(sentiment_stats.keys())
-            values = list(sentiment_stats.values())
+            # Só contagens no pie (não métricas como avg_polarity, polarity_std)
+            count_keys = [k for k in sentiment_stats if k.endswith("_sentences")]
+            if count_keys:
+                labels = count_keys
+                values = [sentiment_stats[k] for k in count_keys]
+            else:
+                labels = list(sentiment_stats.keys())
+                values = list(sentiment_stats.values())
         else:
             labels, values = ["Sem dados"], [1]
 
@@ -176,7 +188,8 @@ class SentimentVizPlotly(BaseVisualizerPlugin):
         fig.add_trace(go.Pie(labels=labels, values=values, marker=dict(colors=colors)), row=1, col=1)
 
         metrics = {"Polaridade": polarity, "Subjetividade": subjectivity}
-        avg_polarity = data.get("avg_polarity")
+        # avg_polarity vive dentro de sentiment_stats, não no topo
+        avg_polarity = sentiment_stats.get("avg_polarity") if sentiment_stats else data.get("avg_polarity")
         if avg_polarity is not None:
             metrics["Média"] = avg_polarity
 

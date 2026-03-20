@@ -57,6 +57,7 @@ async def execute_pipeline(
 
     tmp_path = None
     all_results = []
+    accumulated_data = {}  # Acumula resultados de todos os steps pra visualizers
 
     try:
         current_text = text or ""
@@ -107,6 +108,8 @@ async def execute_pipeline(
             except asyncio.TimeoutError:
                 raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
             all_results.append({"plugin_id": plugin_id, "result": result})
+            if isinstance(result, dict):
+                accumulated_data.update(result)
 
             next_text = _extract_text_result(result)
             if next_text is not None:
@@ -166,10 +169,14 @@ async def execute_pipeline(
                         status_code=422,
                         detail=f"Visualizer '{plugin_id}' requires a previous step's result as data",
                     )
+                # Usar dados acumulados de todos os steps anteriores (não só o último)
+                viz_data = {**accumulated_data}
+                if isinstance(last_result, dict):
+                    viz_data.update(last_result)
                 viz_config = {**config_dict, "output_format": output_format}
                 try:
                     result = await asyncio.wait_for(
-                        asyncio.to_thread(plugin.render, last_result, viz_config),
+                        asyncio.to_thread(plugin.render, viz_data, viz_config),
                         timeout=60.0,
                     )
                 except asyncio.TimeoutError:
@@ -192,6 +199,8 @@ async def execute_pipeline(
                     current_text = next_text
 
             all_results.append({"plugin_id": plugin_id, "result": result})
+            if isinstance(result, dict):
+                accumulated_data.update(result)
             last_result = result
 
         await track("/pipeline")

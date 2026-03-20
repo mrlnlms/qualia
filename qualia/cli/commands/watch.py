@@ -38,8 +38,9 @@ class QualiaFileHandler(FileSystemEventHandler):
         }
         
     def on_created(self, event: FileCreatedEvent):
-        """Quando um novo arquivo é criado"""
+        """Quando um novo arquivo é criado — espera estabilização antes de processar."""
         if not event.is_directory:
+            self._wait_stable(event.src_path)
             self._process_file(event.src_path)
     
     def on_modified(self, event: FileModifiedEvent):
@@ -52,6 +53,26 @@ class QualiaFileHandler(FileSystemEventHandler):
                 time.sleep(0.5)
             self._process_file(event.src_path)
     
+    @staticmethod
+    def _wait_stable(file_path: str, checks: int = 3, interval: float = 0.5):
+        """Espera até que o arquivo pare de mudar (size/mtime estáveis)."""
+        path = Path(file_path)
+        prev_size, prev_mtime = -1, -1.0
+        stable = 0
+        for _ in range(checks * 3):  # máximo de tentativas
+            try:
+                st = path.stat()
+                if st.st_size == prev_size and st.st_mtime == prev_mtime:
+                    stable += 1
+                    if stable >= checks:
+                        return
+                else:
+                    stable = 0
+                    prev_size, prev_mtime = st.st_size, st.st_mtime
+            except OSError:
+                return  # arquivo sumiu — _process_file vai lidar
+            time.sleep(interval)
+
     def _process_file(self, file_path: str):
         """Processa um arquivo se corresponder ao padrão"""
         path = Path(file_path)

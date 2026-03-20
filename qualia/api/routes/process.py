@@ -17,6 +17,15 @@ async def process(plugin_id: str, request: ProcessRequest):
     """Execute a document processor plugin"""
     core = get_core()
     require_plugin_type(core, plugin_id, "document")
+
+    # Bloquear plugins de transcrição — precisam de file upload via /transcribe
+    meta = core.registry.get(plugin_id)
+    if meta and "transcription" in (meta.provides or []):
+        raise HTTPException(
+            status_code=422,
+            detail=f"Plugin '{plugin_id}' é de transcrição — use POST /transcribe/{plugin_id} com upload de arquivo.",
+        )
+
     try:
         validate_plugin_config(core, plugin_id, request.config)
 

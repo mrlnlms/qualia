@@ -86,12 +86,13 @@ def pipeline(document_path: str, config: str, output_dir: str):
     
     with Progress() as progress:
         task = progress.add_task(
-            "[cyan]Processando...", 
+            "[cyan]Processando...",
             total=len(steps)
         )
-        
+
         results = {}
         context = {}  # Context para compartilhar entre steps
+        accumulated_data = {}  # Acumula resultados pra visualizers
 
         # Validar que todos os plugins existem antes de executar
         for step in steps:
@@ -130,7 +131,11 @@ def pipeline(document_path: str, config: str, output_dir: str):
                             f"output_format '{output_format}' inválido. Aceitos: {', '.join(sorted(valid_formats))}"
                         )
                     viz_config["output_format"] = output_format
-                    viz_result = plugin_instance.render(last_result, viz_config)
+                    # Usar dados acumulados de todos os steps (não só o último)
+                    viz_data = {**accumulated_data}
+                    if isinstance(last_result, dict):
+                        viz_data.update(last_result)
+                    viz_result = plugin_instance.render(viz_data, viz_config)
                     if output_dir and "html" in viz_result:
                         viz_output = output_path / f"{step.output_name or step.plugin_id}.html"
                         viz_output.write_text(viz_result["html"], encoding="utf-8")
@@ -146,6 +151,8 @@ def pipeline(document_path: str, config: str, output_dir: str):
                     )
                     output_name = step.output_name or step.plugin_id
                     results[output_name] = result
+                    if isinstance(result, dict):
+                        accumulated_data.update(result)
 
                     # Adicionar ao context
                     context[output_name] = result
