@@ -917,11 +917,10 @@ class TestVisualizeCommand:
             params = call_args[0][1]
             assert params.get("output_format") == "html"
 
-    def test_visualize_auto_format_pdf(self, tmp_path):
-        """Formato auto detecta .pdf pela extensão"""
+    def test_visualize_auto_format_unknown_ext_falls_back_to_html(self, tmp_path):
+        """Extensão desconhecida (ex: .pdf) faz fallback para html"""
         from qualia.cli.commands.visualize import visualize as viz_cmd
         from qualia.core import PluginType
-        import base64 as b64_mod
 
         data_file = tmp_path / "freq.json"
         data_file.write_text(json.dumps({"word_frequencies": {"gato": 5}}))
@@ -939,11 +938,7 @@ class TestVisualizeCommand:
             mock_core.registry = {"wordcloud_d3": mock_plugin_meta}
 
             mock_instance = MagicMock()
-            mock_instance.render.return_value = {
-                "data": b64_mod.b64encode(b"%PDF-1.4 fake").decode(),
-                "encoding": "base64",
-                "format": "pdf",
-            }
+            mock_instance.render.return_value = {"html": "<html>test</html>"}
             mock_core.get_plugin.return_value = mock_instance
 
             result = runner.invoke(viz_cmd, [
@@ -954,7 +949,7 @@ class TestVisualizeCommand:
             assert result.exit_code == 0
             call_args = mock_instance.render.call_args
             params = call_args[0][1]
-            assert params.get("output_format") == "pdf"
+            assert params.get("output_format") == "html"
 
     def test_visualize_file_size_display(self, tmp_path):
         """Após sucesso com formato imagem, mostra tamanho do arquivo"""

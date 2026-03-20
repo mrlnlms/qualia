@@ -236,7 +236,7 @@ def validate_pipeline_config(data: Dict[str, Any]):
     console.print(f"  Steps: {len(steps)}")
     
     for i, step in enumerate(steps):
-        plugin_id = step.get('plugin')
+        plugin_id = step.get('plugin_id', step.get('plugin'))
         if not plugin_id:
             console.print(f"  [red]✗ Step {i+1}: plugin não especificado[/red]")
             continue

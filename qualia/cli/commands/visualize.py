@@ -22,7 +22,7 @@ from .utils import get_core, console, parse_params, load_config
 @click.option('--param', '-P', multiple=True,
               help='Parâmetros individuais (ex: -P colormap=viridis)')
 @click.option('--format', '-f',
-              type=click.Choice(['auto', 'png', 'svg', 'html', 'pdf']),
+              type=click.Choice(['auto', 'png', 'svg', 'html']),
               default='auto',
               help='Formato de saída (auto detecta pela extensão)')
 def visualize(data_path: str, plugin: str, output: str, config: str,
@@ -93,8 +93,6 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
                 format_ext = 'svg'
             elif ext in ['html', 'htm']:
                 format_ext = 'html'
-            elif ext == 'pdf':
-                format_ext = 'pdf'
             else:
                 format_ext = 'html'  # padrão
         else:

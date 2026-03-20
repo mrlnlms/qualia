@@ -106,7 +106,9 @@ def pipeline(document_path: str, config: str, output_dir: str):
                     if not isinstance(last_result, dict):
                         raise ValueError(f"Resultado anterior não é dict para {step.plugin_id}")
                     plugin_instance = core.get_plugin(step.plugin_id)
-                    viz_config = {**(step.config or {}), "output_format": "html"}
+                    viz_config = dict(step.config or {})
+                    output_format = viz_config.pop("format", "html")
+                    viz_config["output_format"] = output_format
                     viz_result = plugin_instance.render(last_result, viz_config)
                     if output_dir and "html" in viz_result:
                         viz_output = output_path / f"{step.output_name or step.plugin_id}.html"
