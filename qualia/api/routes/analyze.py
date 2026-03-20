@@ -6,7 +6,7 @@ import asyncio
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
-from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type
+from qualia.api.deps import get_core, track, validate_plugin_config, require_plugin_type, check_upload_size
 from qualia.api.schemas import AnalyzeRequest
 
 router = APIRouter()
@@ -59,7 +59,7 @@ async def analyze_file(
 
         validate_plugin_config(core, plugin_id, config_dict)
 
-        content = await file.read()
+        content = await check_upload_size(file)
         encoding_used = "utf-8"
         try:
             text = content.decode('utf-8')
