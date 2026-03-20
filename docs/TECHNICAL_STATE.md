@@ -21,10 +21,10 @@
 |---------|--------|-------|
 | test_cli_interactive.py | 126 | Handlers, menu, utils, wizards — módulo interactive completo |
 | test_cli_remaining.py | 89 | Init, list, watch, export, visualize, tutorials |
-| test_api_extended.py | 87 | Todos endpoints com variações, timeout, file upload, pipeline |
+| test_api_extended.py | 98 | Todos endpoints, timeout, file upload, pipeline, 413, /plugins/health |
 | test_cli_extended.py | 57 | Visualize, batch, export — happy paths e edge cases |
 | test_cli.py | 48 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
-| test_core.py | 44 | Discovery, documents, execution, cache básico |
+| test_core.py | 53 | Discovery, execution, cache, _validate_and_convert |
 | test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
 | test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
 | test_plugin_logic.py | 37 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
@@ -42,8 +42,8 @@
 | test_visualizer_execution.py | 22 | Execução real dos 3 visualizers + pipelines analyzer→visualizer |
 | test_thread_safety.py | 3 | Concorrência de plugin singletons (ThreadPoolExecutor) |
 | test_cache_pipeline.py | 3 | Cache hit/miss em pipelines repetidos |
-| test_loader_errors.py | 3 | Discovery errors acumulados e expostos |
-| test_loader_recursive.py | 8 | Discovery recursivo em profundidade |
+| test_loader_errors.py | 7 | Discovery errors acumulados, expostos, com severity/type |
+| test_loader_recursive.py | 10 | Discovery recursivo em profundidade + EAGER_LOAD |
 | test_word_frequency_spacy.py | 2 | Cache de modelo spaCy no __init__ |
 | test_engine_edges.py | 2 | Edge cases do engine |
 
@@ -75,12 +75,13 @@ qualia/api/
 |--------|----------|-----------|
 | GET | /health | Health check com contagem de plugins |
 | GET | /plugins | Lista plugins (filtro por tipo opcional) |
+| GET | /plugins/health | Status individual por plugin (loaded/pending, eager/lazy, errors) |
 | GET | /plugins/{id} | Info de plugin específico |
 | GET | /plugins/{id}/schema | Schema normalizado |
 | POST | /analyze/{id} | Análise de texto (404 plugin, 422 config/tipo, 504 timeout 60s) |
 | POST | /analyze/{id}/file | Análise de arquivo uploaded (UTF-8/latin-1, 422 config/tipo, 504 timeout 60s) |
 | POST | /process/{id} | Processamento de documento (404 plugin, 422 config/tipo, 504 timeout 60s) |
-| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 422 config/tipo, 504 timeout 60s, 400 falha domínio) |
+| POST | /transcribe/{id} | Transcrição áudio/vídeo (multipart, 413 >25MB, 422 config/tipo, 504 timeout 60s, 400 falha domínio) |
 | POST | /visualize/{id} | Gera visualização (HTML default, PNG/SVG se kaleido funcional, 422 config/tipo, 504 timeout 60s) |
 | POST | /pipeline | Executa sequência de plugins (fail-fast, encadeia texto entre steps) |
 | GET | /config/consolidated | Todos schemas + text_size rules |

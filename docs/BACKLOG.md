@@ -52,34 +52,30 @@
 - [x] **Pipeline API: valida tipo do plugin** — Steps com tipo não suportado (analyzer/document/visualizer) → 422.
 - [x] **11 testes com assertions ambíguas** — Todos `assert status_code in [...]` substituídos por status code exato. Zero assertions ambíguas restantes.
 
-### Higiene de código (análise Codex — 2026-03-18)
+### ~~Higiene de código (análise Codex — 2026-03-18)~~ Concluído
 
-- [ ] **Pipeline com duas verdades** — A API (`api/routes/pipeline.py`) e a CLI (`cli/commands/pipeline.py`) têm lógicas de pipeline divergentes. A CLI assume dados específicos (ex: `word_frequencies`), trata visualizer de forma legada, e não está alinhada ao contrato atual de BaseVisualizerPlugin pós-refactor. Unificar a semântica de pipeline entre core/API/CLI numa única lógica.
-- [x] **Arquivo .wrong sobrando** — ~~Deletar~~ Deletado (2026-03-19).
-- [x] **print() em fallback de plugins** — ~~word_frequency usa print()~~ Corrigido: spaCy cached no `__init__`, print→logger (2026-03-19).
-- [ ] **Blocos standalone em plugins** — word_frequency, sentiment_analyzer, readability_analyzer e teams_cleaner têm blocos `if __name__` com prints de teste. Mover pra scripts de teste ou remover (o template `create_plugin.py` já cobre isso).
-- [ ] **Heurística eager/lazy frágil** — `loader.py` usa `'__init__' in cls.__dict__` pra detectar se plugin tem `__init__` próprio (eager) ou não (lazy). Funciona mas é frágil como contrato de longo prazo. Considerar atributo explícito (ex: `EAGER_LOAD = True`).
-- [ ] **Upload de arquivo faz buffering integral em memória** — `/transcribe` e `/pipeline` (com file) lêem o arquivo inteiro em memória (`await file.read()`), e o plugin de transcrição lê o tempfile de novo. Um upload de 25MB consome ~50MB por request. Sem guarda de tamanho antes do processamento. Para beta local-first com uso individual é aceitável, mas não escala pra concorrência. Fix: streaming upload ou limit de tamanho no endpoint.
+- [x] **Pipeline unificado** — CLI aceita `plugin_id` key (compat com `plugin`), usa último resultado pra visualizer (não busca `word_frequencies`). Alinhado com API.
+- [x] **Arquivo .wrong sobrando** — Deletado (2026-03-19).
+- [x] **print() em fallback de plugins** — Corrigido: spaCy cached no `__init__`, print→logger (2026-03-19).
+- [x] **Blocos standalone em plugins** — Removidos dos 4 plugins (2026-03-19).
+- [x] **Heurística eager/lazy** — `EAGER_LOAD = True` atributo explícito, fallback pra `__init__` detection (2026-03-19).
+- [x] **Upload file size limit** — `check_upload_size()` em deps.py, 25MB limit, 413 em transcribe e pipeline (2026-03-19).
 
-### Compatibilidade Python 3.14
+### ~~Compatibilidade Python 3.14~~ Concluído
 
-- [x] **Testes async quebram no Python 3.14** — ~~37 testes falhavam~~ Corrigido: 37 métodos convertidos de `asyncio.get_event_loop().run_until_complete()` pra `async def` + `await`. 825 passed no 3.13, 824 passed no 3.14. (2026-03-19)
+- [x] **Testes async** — 37 métodos convertidos. CI matrix Python 3.13 + 3.14.
 
-### Consolidação pós-refactor
+### ~~Consolidação pós-refactor~~ Concluído
 
-- [ ] **Coverage do pipeline.py** — Linhas 29, 100-101 (branch visualizer e timeout no loop) ainda sem cobertura. Pendente da rodada de coverage.
-- [ ] **base_plugins.py coverage** — Branches de type conversion (float/bool) em BaseAnalyzerPlugin e BaseDocumentPlugin sem cobertura (linhas 54, 56-59, 70, 87-88, 129, 162, 192, 194, 197, 201). São edge cases de config com tipos específicos.
+- [x] **Coverage pipeline.py** — Testes de timeout step0 file+document e visualizer step (2026-03-19).
+- [x] **base_plugins.py coverage** — 9 testes `_validate_and_convert`: int, float, bool (string e non-string), exclude, defaults, unknown params, invalid conversion (2026-03-19).
 
-### Pré-beta: Discovery observabilidade (C)
+### ~~Pré-beta: Discovery observabilidade (C)~~ Concluído
 
-Preparar terreno para crescimento do ecossistema (~30 plugins candidatos no ECOSYSTEM_MAP.md). Quando a base de plugins crescer significativamente, o sistema de `discovery_errors` precisa evoluir:
-
-- [ ] **Severidade nos erros** — Distinguir erro fatal (plugin não carrega) de warning (dependência opcional ausente, modelo faltando). Hoje tudo é um dict genérico com plugin/error/path.
-- [x] **Classificação da causa** — ~~Categorizar~~ Implementado em `qualia list --check`: classifica ImportError, SyntaxError, OSError, ValueError com sugestão de fix (2026-03-19).
-- [x] **CLI diagnóstico** — ~~`qualia plugins --check`~~ Implementado: `qualia list --check` mostra eager/lazy, status, erros com classificação (2026-03-19).
-- [ ] **Endpoint detalhado** — `/plugins/health` com status individual por plugin (loaded/failed/degraded), tempo de loading, e erros específicos.
-
-**Parcialmente resolvido:** CLI diagnóstico e classificação de causa já implementados. Faltam: severidade nos erros e endpoint `/plugins/health`.
+- [x] **Severidade nos erros** — `_classify_error()` no loader: type (import_error, syntax_error, etc.) + severity (critical/warning). Campos incluídos no error dict.
+- [x] **Classificação da causa** — Implementado no loader (fonte) e simplificado na CLI.
+- [x] **CLI diagnóstico** — `qualia list --check` usa campos type/severity do loader.
+- [x] **Endpoint `/plugins/health`** — Status individual por plugin (loaded/pending, eager/lazy), errors com severity. (2026-03-19)
 
 ### ~~Não atacar: Superfície pública documentada (D)~~ Concluído
 
@@ -129,7 +125,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-835 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 834 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+858 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 857 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
 
 ---
 
