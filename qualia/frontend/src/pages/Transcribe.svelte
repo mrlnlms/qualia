@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { plugins, pluginsByType, navigate } from '../lib/stores.js';
   import { fetchPluginSchema, transcribe } from '../lib/api.js';
   import ParamForm from '../components/ParamForm.svelte';
@@ -34,6 +34,8 @@
       error = e.message || 'Failed to load plugin schema';
     }
   });
+
+  onDestroy(() => { if (loadingTimer) clearInterval(loadingTimer); });
 
   function startTimer(status) {
     loadingStatus = status;

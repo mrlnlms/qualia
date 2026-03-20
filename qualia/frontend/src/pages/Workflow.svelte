@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy } from 'svelte';
   import { plugins } from '../lib/stores.js';
   import { fetchPluginSchema, executePipeline } from '../lib/api.js';
   import {
@@ -153,6 +154,8 @@
     loadingTimer = null;
     loadingElapsed = 0;
   }
+
+  onDestroy(() => { if (loadingTimer) clearInterval(loadingTimer); });
 
   function fmtTime(s) {
     const m = Math.floor(s / 60);

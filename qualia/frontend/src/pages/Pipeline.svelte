@@ -1,4 +1,5 @@
 <script>
+  import { onDestroy } from 'svelte';
   import { plugins } from '../lib/stores.js';
   import { fetchPluginSchema, executePipeline } from '../lib/api.js';
   import ParamForm from '../components/ParamForm.svelte';
@@ -39,6 +40,8 @@
     loadingTimer = null;
     loadingElapsed = 0;
   }
+
+  onDestroy(() => { if (loadingTimer) clearInterval(loadingTimer); });
 
   async function addStep() {
     steps = [...steps, { id: crypto.randomUUID(), pluginId: '', schema: null, config: {} }];
