@@ -76,23 +76,29 @@ async def notify_streams():
     """Notify all active SSE streams of metric updates."""
     if not active_streams:
         return
-    
-    # Update uptime
-    metrics.uptime_seconds = time.time() - start_time
-    metrics.active_connections = len(active_streams)
-    
-    # Create event data
-    event_data = {
-        "timestamp": datetime.now().isoformat(),
-        "metrics": asdict(metrics)
-    }
-    
-    # Send to all active streams
+
+    # Snapshot metrics under lock
+    async with _metrics_lock:
+        metrics.uptime_seconds = time.time() - start_time
+        metrics.active_connections = len(active_streams)
+        event_data = {
+            "timestamp": datetime.now().isoformat(),
+            "metrics": asdict(metrics)
+        }
+
+    # Send fora do lock — I/O não deve segurar o lock
+    failed = []
     for stream in list(active_streams):
         try:
             await stream.put(json.dumps(event_data))
         except Exception:
-            active_streams.discard(stream)
+            failed.append(stream)
+
+    if failed:
+        async with _metrics_lock:
+            for stream in failed:
+                active_streams.discard(stream)
+            metrics.active_connections = len(active_streams)
 
 # SSE endpoint
 @router.get("/stream")
@@ -104,36 +110,34 @@ async def monitor_stream(request: Request):
     """
     async def event_generator():
         queue = asyncio.Queue()
-        active_streams.add(queue)
-        
-        try:
-            # Send initial data
+
+        # Add stream e snapshot inicial sob lock
+        async with _metrics_lock:
+            active_streams.add(queue)
             metrics.uptime_seconds = time.time() - start_time
             metrics.active_connections = len(active_streams)
-            
             initial_data = {
                 "timestamp": datetime.now().isoformat(),
                 "metrics": asdict(metrics)
             }
-            yield f"data: {json.dumps(initial_data)}\n\n"
-            
-            # Stream updates
+
+        yield f"data: {json.dumps(initial_data)}\n\n"
+
+        try:
             while True:
                 try:
-                    # Wait for update or timeout
                     data = await asyncio.wait_for(queue.get(), timeout=1.0)
                     yield f"data: {data}\n\n"
                 except asyncio.TimeoutError:
-                    # Send heartbeat
                     yield f": heartbeat\n\n"
-                    
-                # Check if client disconnected
+
                 if await request.is_disconnected():
                     break
-                    
+
         finally:
-            active_streams.discard(queue)
-            metrics.active_connections = len(active_streams)
+            async with _metrics_lock:
+                active_streams.discard(queue)
+                metrics.active_connections = len(active_streams)
     
     return StreamingResponse(
         event_generator(),
