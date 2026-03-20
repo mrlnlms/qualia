@@ -8,32 +8,29 @@ Nenhum item pendente.
 
 ---
 
-### ~~Code review Codex #8-#9 + stress tests (2026-03-20) — ~25 bugs, 68 testes novos~~ Concluído
+### ~~Code reviews Codex #8-#11 + stress tests (2026-03-20) — ~35 bugs, 95 testes novos~~ Concluído
 
-Duas rodadas Codex (#8 com prompt estruturado, #9 última passada) + bateria de stress tests. Último review zerou.
+4 rodadas Codex (#8 prompt estruturado, #9-#11 profundidade) + stress tests em duas frentes. 950 testes final.
 
-**Fixes principais:**
-- Cache CLI com hash do conteúdo (stale results), invalidação pós-restart (.cache_index.json), cache key canônica (set/Path/dict recursivo)
-- Upload streaming pra tempfile (OOM), transcribe 25MB na borda (413 cedo)
-- word_frequency by_segment/by_speaker implementados de verdade
-- Core valida range/options via ConfigRegistry, context propagado a analyzers e dependências
-- Pipeline: output_format canônico, format como alias, validação de formato na borda (422)
-- CLI: load_config valida dict, pipeline valida steps, config validate --plugin, double discovery removido
-- Batch/watch output sem colisão (path relativo), batch paralelo drena futures
-- sentiment_viz params mortos removidos, sentiment_analyzer language honesto
-- process.py divisão por zero com arquivo vazio
+**Fixes (seleção dos mais relevantes):**
+- Cache: doc_id com hash, invalidação pós-restart (.cache_index.json), key canônica (set/Path/dict), set mistos sorted por str
+- Upload: streaming pra tempfile (OOM), transcribe 25MB na borda (413)
+- Plugins: word_frequency by_segment/by_speaker implementados, sentiment_viz filtra contagens no pie
+- Engine: ConfigRegistry valida range/options, context propagado a analyzers e dependências, deps chegam a documents
+- Pipeline: acumula dados pra visualizer (não só último), output_format canônico, encadeamento unificado via extract_chained_text()
+- CLI: load_config valida dict, pipeline valida steps, config validate --plugin, process bloqueia transcription
+- Loader: carrega plugins como pacote real (submodule_search_locations + sys.modules)
+- Watch: estabilização de arquivo antes de processar (on_created e on_modified), output sem colisão
+- Segurança: open_file() sem shell=True no Windows, clear_cache() usa cache_dir do core
+- NLTK: warnings silenciados durante warm-up sem rede
 
-**Stress tests (40 testes):**
-- Cache concorrente (20 threads set/get/invalidate simultâneo)
-- Config fuzzing (50 configs aleatórias por plugin, nunca crash)
-- Textos extremos (vazio, emojis, 100KB, nulos, unicode — provides sempre cumprido)
-- API sob carga (20 requests simultâneos, mix de endpoints, bad requests nunca 500)
-- Pipeline combos (todas as combinações de analyzers, doc→analyzer, repetição sem estado vazando)
+**Stress tests (67 testes):**
+- Cache concorrente (20 threads), config fuzzing (50 configs aleatórias), textos extremos (13 variantes)
+- API sob carga (20 requests simultâneos), pipeline combos, sequências inválidas/quase-válidas
+- Paridade core vs API, cache restart real, lazy loading concorrente, context+deps+cache, integração sem mock
 
 **Mutation testing (tentativa):**
-- mutmut 3.x incompatível com a estrutura do projeto (plugins/ top-level + bootstrap no import)
-- mutmut 2.x muta in-place com race condition em .bak files
-- Decisão: não vale o investimento — 923 testes, 96% coverage, 9 reviews zerados, stress tests passando
+- mutmut 3.x/2.x incompatível com a estrutura do projeto (plugins/ top-level + bootstrap no import)
 - Detalhes em `docs/TECHNICAL_STATE.md` seção "Mutation testing"
 
 ### ~~Hardening beta (2026-03-19/20) — reviews #3 a #7, ~30 commits~~ Concluído
@@ -206,7 +203,7 @@ Nenhum item.
 
 ### Coverage
 
-923 testes (Python 3.13 + 3.14, kaleido funcional), ~96% coverage. 1 skip legítimo (PNG/SVG sem kaleido). Inclui 40 testes de stress (concorrência, fuzzing, textos extremos). 9 code reviews (3 Claude + 6 Codex), ~140 bugs corrigidos. Último review zerou.
+950 testes (Python 3.13 + 3.14), ~96% coverage. 1 skip legítimo (PNG/SVG sem kaleido). Inclui 67 testes de stress (concorrência, fuzzing, textos extremos, paridade core/API, integração). 11 code reviews (3 Claude + 8 Codex), ~155 bugs corrigidos. Último review zerou.
 
 ---
 

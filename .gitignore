@@ -53,3 +53,5 @@ htmlcov/
 *.docx
 *.xlsx
 *.pptx
+.mutmut-cache
+mutants/

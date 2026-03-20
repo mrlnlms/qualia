@@ -17,7 +17,7 @@
 
 ## Testes (rodar `pytest tests/ -v` pra contagem atual)
 
-923 testes, 1 skip legítimo, ~96% coverage. 9 code reviews (3 Claude + 6 Codex), ~140 bugs corrigidos.
+950 testes, 1 skip legítimo, ~96% coverage. 11 code reviews (3 Claude + 8 Codex), ~155 bugs corrigidos.
 
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
@@ -303,9 +303,9 @@ Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__i
 
 GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Trigger: push e PR na main
-- Matrix: Python 3.13 + 3.14, `pip install -e ".[all,dev]"`
-- `pytest tests/ -v --tb=short --cov=qualia --cov-report=term-missing`
-- Verifica startup da API
+- Matrix: Python 3.13 + 3.14 (`allow-prereleases: true`)
+- `pip install -e ".[all,dev]"`, `pytest tests/ -v --tb=short --cov=qualia --cov-report=term-missing`
+- Verifica startup da API (importa app + conta plugins)
 - Actions: `actions/checkout@v6`, `actions/setup-python@v6` (Node.js 24 ready)
 
 ## Mutation testing (tentativa 2026-03-20)
