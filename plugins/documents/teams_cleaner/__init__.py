@@ -1,4 +1,4 @@
-# plugins/teams_cleaner/__init__.py
+# plugins/documents/teams_cleaner/__init__.py
 """
 Plugin para limpeza e estruturação de transcrições do Microsoft Teams
 
@@ -9,11 +9,10 @@ o conteúdo para análise posterior.
 import re
 from typing import Dict, Any, List
 
-# MUDANÇA: Importar BaseDocumentPlugin
 from qualia.core import BaseDocumentPlugin, PluginMetadata, PluginType, Document
 
 
-class TeamsTranscriptCleaner(BaseDocumentPlugin):  # MUDANÇA: Herdar de Base
+class TeamsTranscriptCleaner(BaseDocumentPlugin):
     """
     Limpa e estrutura transcrições do Microsoft Teams
     
@@ -101,7 +100,6 @@ class TeamsTranscriptCleaner(BaseDocumentPlugin):  # MUDANÇA: Herdar de Base
             }
         )
     
-    # MUDANÇA: Renomear process para _process_impl
     def _process_impl(self, document: Document, config: Dict[str, Any], 
                       context: Dict[str, Any]) -> Dict[str, Any]:
         """

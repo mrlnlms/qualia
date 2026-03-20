@@ -1,4 +1,4 @@
-# plugins/word_frequency/__init__.py
+# plugins/analyzers/word_frequency/__init__.py
 """
 Plugin para análise de frequência de palavras em documentos
 
@@ -11,7 +11,6 @@ from collections import Counter
 import re
 import logging
 
-# MUDANÇA: Importar BaseAnalyzerPlugin ao invés de IAnalyzerPlugin
 from qualia.core import BaseAnalyzerPlugin, PluginMetadata, PluginType, Document
 
 logger = logging.getLogger(__name__)
@@ -166,7 +165,6 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             }
         )
     
-    # MUDANÇA: Renomear analyze para _analyze_impl
     def _analyze_impl(self, document: Document, config: Dict[str, Any], 
                       context: Dict[str, Any]) -> Dict[str, Any]:
         """
