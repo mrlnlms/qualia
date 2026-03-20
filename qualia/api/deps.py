@@ -59,7 +59,8 @@ UPLOAD_CHUNK_SIZE = 64 * 1024  # 64KB por chunk
 async def check_upload_size(file: UploadFile, max_size: int = None) -> bytes:
     """Lê upload em streaming e aborta com 413 se exceder limite.
 
-    Lê em chunks de 64KB — nunca carrega mais que max_size + 1 chunk na RAM.
+    Lê em chunks de 64KB — aborta assim que ultrapassa max_size sem ler o resto.
+    Para arquivos dentro do limite, acumula na RAM (necessário pra devolver bytes).
     """
     if max_size is None:
         max_size = MAX_UPLOAD_SIZE

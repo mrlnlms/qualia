@@ -53,10 +53,17 @@ async def analyze_file(
     """Execute an analyzer plugin on uploaded file"""
     core = get_core()
     require_plugin_type(core, plugin_id, "analyzer")
+
     try:
         config_dict = json.loads(config)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
+    try:
         context_dict = json.loads(context)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=422, detail=f"Context JSON inválido: {e}")
 
+    try:
         validate_plugin_config(core, plugin_id, config_dict)
 
         content = await check_upload_size(file)

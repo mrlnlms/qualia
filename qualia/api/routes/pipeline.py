@@ -180,17 +180,22 @@ async def execute_pipeline(
 
         await track("/pipeline")
 
+        if tmp_path:
+            Path(tmp_path).unlink(missing_ok=True)
+
         return {
             "status": "success",
             "pipeline": "API Pipeline",
             "steps_executed": len(all_results),
             "results": all_results,
         }
-    except HTTPException:
+    except HTTPException as he:
+        if he.status_code != 504 and tmp_path:
+            # Cleanup seguro — não deu timeout, thread não está mais lendo
+            Path(tmp_path).unlink(missing_ok=True)
         raise
     except Exception as e:
-        await track("/pipeline", error=str(e))
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
         if tmp_path:
             Path(tmp_path).unlink(missing_ok=True)
+        await track("/pipeline", error=str(e))
+        raise HTTPException(status_code=400, detail=str(e))

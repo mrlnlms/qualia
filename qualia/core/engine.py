@@ -131,7 +131,7 @@ class QualiaCore:
             raise ValueError(f"Tipo de plugin não suportado: {metadata.type.value}")
 
         # Valida contrato de provides (analyzers e documents)
-        if (result and isinstance(result, dict) and metadata.provides
+        if (result is not None and isinstance(result, dict) and metadata.provides
                 and metadata.type in (PluginType.ANALYZER, PluginType.DOCUMENT)):
             missing = [f for f in metadata.provides if f not in result]
             if missing:

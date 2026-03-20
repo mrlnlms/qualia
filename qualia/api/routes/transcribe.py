@@ -72,19 +72,24 @@ async def transcribe(
 
         await track(f"/transcribe/{plugin_id}", plugin_id)
 
+        Path(tmp_path).unlink(missing_ok=True)
+
         return {
             "status": "success",
             "plugin_id": plugin_id,
             "filename": file.filename,
             "result": result,
         }
-    except HTTPException:
+    except HTTPException as he:
+        if he.status_code != 504:
+            # Cleanup seguro — não deu timeout, thread não está mais lendo
+            Path(tmp_path).unlink(missing_ok=True)
         raise
     except asyncio.TimeoutError:
+        # Não deleta tempfile no timeout — thread órfã pode ainda estar lendo
         await track(f"/transcribe/{plugin_id}", plugin_id, "Timeout")
         raise HTTPException(status_code=504, detail="Transcrição excedeu timeout de 60s")
     except Exception as e:
+        Path(tmp_path).unlink(missing_ok=True)
         await track(f"/transcribe/{plugin_id}", plugin_id, str(e))
         raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        Path(tmp_path).unlink(missing_ok=True)
