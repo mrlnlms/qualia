@@ -200,7 +200,8 @@ class ConfigurationRegistry:
         if not isinstance(value, (int, float)):
             return None  # range só se aplica a numéricos
 
-        min_val, max_val = range_spec[0], range_spec[1]
+        min_val = range_spec[0] if len(range_spec) > 0 else None
+        max_val = range_spec[1] if len(range_spec) > 1 else None
 
         if min_val is not None and value < min_val:
             return f"'{key}': valor {value} abaixo do mínimo {min_val}"
