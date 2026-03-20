@@ -40,22 +40,21 @@ class QualiaFileHandler(FileSystemEventHandler):
     def on_created(self, event: FileCreatedEvent):
         """Quando um novo arquivo é criado — espera estabilização antes de processar."""
         if not event.is_directory:
-            self._wait_stable(event.src_path)
-            self._process_file(event.src_path)
-    
+            if self._wait_stable(event.src_path):
+                self._process_file(event.src_path)
+
     def on_modified(self, event: FileModifiedEvent):
-        """Quando um arquivo é modificado"""
+        """Quando um arquivo é modificado — espera estabilização antes de processar."""
         if not event.is_directory:
-            # Evitar reprocessar muito rápido
-            path = Path(event.src_path)
-            if path in self.processed_files:
-                # Esperar um pouco para evitar múltiplos eventos
-                time.sleep(0.5)
-            self._process_file(event.src_path)
-    
+            if self._wait_stable(event.src_path):
+                self._process_file(event.src_path)
+
     @staticmethod
-    def _wait_stable(file_path: str, checks: int = 3, interval: float = 0.5):
-        """Espera até que o arquivo pare de mudar (size/mtime estáveis)."""
+    def _wait_stable(file_path: str, checks: int = 3, interval: float = 0.5) -> bool:
+        """Espera até que o arquivo pare de mudar (size/mtime estáveis).
+
+        Returns True se estabilizou, False se não (próximo evento tenta de novo).
+        """
         path = Path(file_path)
         prev_size, prev_mtime = -1, -1.0
         stable = 0
@@ -65,13 +64,14 @@ class QualiaFileHandler(FileSystemEventHandler):
                 if st.st_size == prev_size and st.st_mtime == prev_mtime:
                     stable += 1
                     if stable >= checks:
-                        return
+                        return True
                 else:
                     stable = 0
                     prev_size, prev_mtime = st.st_size, st.st_mtime
             except OSError:
-                return  # arquivo sumiu — _process_file vai lidar
+                return False
             time.sleep(interval)
+        return False  # não estabilizou — pular, próximo modified tenta de novo
 
     def _process_file(self, file_path: str):
         """Processa um arquivo se corresponder ao padrão"""

@@ -392,7 +392,8 @@ class TestQualiaFileHandler:
 
             handler = QualiaFileHandler("word_frequency", {}, None, "*.txt")
 
-            with patch.object(handler, "_process_file") as mock_process:
+            with patch.object(handler, "_process_file") as mock_process, \
+                 patch.object(handler, "_wait_stable", return_value=True):
                 event = MagicMock()
                 event.is_directory = False
                 event.src_path = str(tmp_path / "novo.txt")
