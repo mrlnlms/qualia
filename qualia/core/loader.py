@@ -95,29 +95,25 @@ class PluginLoader:
                                            IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
 
                                 found_plugin = True
-                                self._plugin_classes[obj.__name__] = obj
                                 needs_eager = getattr(obj, 'EAGER_LOAD', None) is True or '__init__' in obj.__dict__
 
-                                if needs_eager:
-                                    # Warm-up na main thread (thread-safe)
-                                    instance = obj()
-                                    meta = instance.meta()
-                                    self.loaded_plugins[meta.id] = instance
-                                    self._plugin_classes[meta.id] = obj
-                                    logger.debug(f"Plugin {meta.id}: eager (has __init__)")
-                                else:
-                                    # Instância temporária só pra extrair metadata
-                                    instance = obj()
-                                    meta = instance.meta()
-                                    self._plugin_classes[meta.id] = obj
-                                    # NÃO guarda em loaded_plugins — lazy
-                                    logger.debug(f"Plugin {meta.id}: lazy")
+                                instance = obj()
+                                meta = instance.meta()
 
                                 if meta.id in discovered:
                                     raise ValueError(
                                         f"Plugin ID duplicado: '{meta.id}' em '{plugin_dir.name}' "
                                         f"(já registrado)"
                                     )
+
+                                # Só mutamos estado após validação
+                                if needs_eager:
+                                    self.loaded_plugins[meta.id] = instance
+                                    logger.debug(f"Plugin {meta.id}: eager (has __init__)")
+                                else:
+                                    logger.debug(f"Plugin {meta.id}: lazy")
+
+                                self._plugin_classes[meta.id] = obj
                                 discovered[meta.id] = meta
 
                         if not found_plugin:
