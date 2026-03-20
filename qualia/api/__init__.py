@@ -14,6 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pathlib import Path
 
+import os
+
 from qualia.core import QualiaCore
 from qualia.api.deps import set_core, set_extensions
 
@@ -24,9 +26,12 @@ app = FastAPI(
     version="0.2.0-beta"
 )
 
+_cors_origins = os.getenv("CORS_ALLOWED_ORIGINS", "*")
+_origins = [o.strip() for o in _cors_origins.split(",")] if _cors_origins != "*" else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
