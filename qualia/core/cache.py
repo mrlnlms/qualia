@@ -96,7 +96,11 @@ class CacheManager:
         return result
 
     def set(self, doc_id: str, plugin_id: str, config: Dict[str, Any], result: Dict[str, Any]) -> None:
-        """Armazena resultado no cache"""
+        """Armazena resultado no cache.
+
+        Lock cobre eviction + write + tracking atomicamente.
+        Pickle de resultados locais é rápido o suficiente para segurar o lock.
+        """
         cache_key = self._get_cache_key(doc_id, plugin_id, config)
         cache_file = self.cache_dir / f"{cache_key}.pkl"
 
@@ -107,16 +111,13 @@ class CacheManager:
                 while is_new and len(self._access_order) >= self.max_size:
                     self._evict_lru()
 
-        # File I/O fora do lock
-        with open(cache_file, 'wb') as f:
-            pickle.dump(result, f)
+            # File I/O + tracking sob o mesmo lock — garante atomicidade
+            with open(cache_file, 'wb') as f:
+                pickle.dump(result, f)
 
-        with self._lock:
-            # Atualizar tracking
             self._access_order[cache_key] = None
             self._access_order.move_to_end(cache_key, last=True)
             self._timestamps[cache_key] = time.time()
-            # Forward mapping + índices reversos
             self._key_metadata[cache_key] = (doc_id, plugin_id)
             self._doc_index.setdefault(doc_id, set()).add(cache_key)
             self._plugin_index.setdefault(plugin_id, set()).add(cache_key)

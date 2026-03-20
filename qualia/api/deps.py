@@ -53,8 +53,10 @@ def require_plugin_type(core: QualiaCore, plugin_id: str, *expected_types: str) 
         )
 
 
-async def check_upload_size(file: UploadFile, max_size: int = MAX_UPLOAD_SIZE) -> bytes:
+async def check_upload_size(file: UploadFile, max_size: int = None) -> bytes:
     """Lê conteúdo do upload e rejeita com 413 se exceder limite."""
+    if max_size is None:
+        max_size = MAX_UPLOAD_SIZE
     content = await file.read()
     if len(content) > max_size:
         size_mb = len(content) / (1024 * 1024)

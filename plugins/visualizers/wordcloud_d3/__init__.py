@@ -102,7 +102,7 @@ function draw(words) {{
     .text(function(d) {{ return d.text; }})
     .on("mouseover", function(event, d) {{
       tooltip.transition().duration(200).style("opacity", .9);
-      tooltip.html(d.text + ": " + d.count).style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 28) + "px");
+      tooltip.text(d.text + ": " + d.count).style("left", (event.pageX + 10) + "px").style("top", (event.pageY - 28) + "px");
     }})
     .on("mouseout", function() {{ tooltip.transition().duration(500).style("opacity", 0); }});
 }}

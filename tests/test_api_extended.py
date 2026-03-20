@@ -874,12 +874,17 @@ class TestPluginsHealth:
 # ============================================================================
 
 class TestUploadSizeLimit:
-    """Testa rejeição de uploads grandes com 413."""
+    """Testa rejeição de uploads grandes com 413.
 
-    def test_transcribe_file_too_large_returns_413(self, client):
+    Usa monkeypatch pra reduzir MAX_UPLOAD_SIZE a 1KB — evita criar
+    arquivos de 25MB e problemas de espaço em disco.
+    """
+
+    def test_transcribe_file_too_large_returns_413(self, client, monkeypatch):
         """Upload > MAX_UPLOAD_SIZE em transcribe retorna 413."""
-        from qualia.api.deps import MAX_UPLOAD_SIZE
-        fake_content = b"\x00" * (MAX_UPLOAD_SIZE + 1)
+        import qualia.api.deps as deps
+        monkeypatch.setattr(deps, "MAX_UPLOAD_SIZE", 1024)
+        fake_content = b"\x00" * 1025
         response = client.post(
             "/transcribe/transcription",
             files={"file": ("big.mp3", io.BytesIO(fake_content), "audio/mpeg")},
@@ -887,10 +892,11 @@ class TestUploadSizeLimit:
         )
         assert response.status_code == 413
 
-    def test_pipeline_file_too_large_returns_413(self, client):
+    def test_pipeline_file_too_large_returns_413(self, client, monkeypatch):
         """Upload > MAX_UPLOAD_SIZE em pipeline retorna 413."""
-        from qualia.api.deps import MAX_UPLOAD_SIZE
-        fake_content = b"\x00" * (MAX_UPLOAD_SIZE + 1)
+        import qualia.api.deps as deps
+        monkeypatch.setattr(deps, "MAX_UPLOAD_SIZE", 1024)
+        fake_content = b"\x00" * 1025
         steps = json.dumps([{"plugin_id": "transcription"}])
         response = client.post(
             "/pipeline",
@@ -1198,10 +1204,10 @@ class TestPipelineEdgeCases:
             # steps_list parse ok, mas core.loader.get_plugin retorna algo
             mock_plugin = MagicMock()
             mock_core.loader.get_plugin.return_value = mock_plugin
-            mock_core.registry.get.return_value = None  # first_is_document = False
+            mock_meta = MagicMock(type=MagicMock(value="analyzer"))
+            mock_core.registry.get.return_value = mock_meta
             mock_core.registry.__contains__ = MagicMock(return_value=True)
-            mock_core.registry.__getitem__ = MagicMock()
-            mock_core.registry.__getitem__.return_value = MagicMock(type=MagicMock(value="analyzer"))
+            mock_core.registry.__getitem__ = MagicMock(return_value=mock_meta)
             mock_core.get_config_registry.return_value = None
             mock_core.add_document.return_value = MagicMock()
             mock_core.execute_plugin.side_effect = RuntimeError("plugin explodiu")

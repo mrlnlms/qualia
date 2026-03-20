@@ -69,7 +69,12 @@ async def execute_pipeline(
 
         first_plugin_id = steps_list[0].get("plugin_id", "")
         first_meta = core.registry.get(first_plugin_id)
-        first_is_document = first_meta and first_meta.type.value == "document"
+
+        # 404 antes de qualquer lógica de tipo
+        if not first_meta:
+            raise HTTPException(status_code=404, detail=f"Plugin '{first_plugin_id}' not found")
+
+        first_is_document = first_meta.type.value == "document"
 
         if file and first_is_document:
             step0 = steps_list[0]
@@ -106,7 +111,7 @@ async def execute_pipeline(
 
             step_offset = 1
         elif file and not first_is_document:
-            plugin_type = first_meta.type.value if first_meta else "desconhecido"
+            plugin_type = first_meta.type.value
             raise HTTPException(
                 status_code=422,
                 detail=f"Arquivo enviado mas primeiro step '{first_plugin_id}' é '{plugin_type}', "

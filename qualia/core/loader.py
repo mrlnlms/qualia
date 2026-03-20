@@ -95,8 +95,14 @@ class PluginLoader:
                                 found_plugin = True
                                 needs_eager = getattr(obj, 'EAGER_LOAD', None) is True or '__init__' in obj.__dict__
 
-                                instance = obj()
-                                meta = instance.meta()
+                                if needs_eager:
+                                    # Eager: instancia de vez (warm-up de modelos na main thread)
+                                    instance = obj()
+                                    meta = instance.meta()
+                                else:
+                                    # Lazy: extrai metadata sem __init__ (evita side-effects)
+                                    bare = object.__new__(obj)
+                                    meta = bare.meta()
 
                                 if meta.id in discovered:
                                     raise ValueError(
@@ -104,7 +110,6 @@ class PluginLoader:
                                         f"(já registrado)"
                                     )
 
-                                # Só mutamos estado após validação
                                 if needs_eager:
                                     self.loaded_plugins[meta.id] = instance
                                     logger.debug(f"Plugin {meta.id}: eager (has __init__)")
