@@ -17,33 +17,36 @@
 
 ## Testes (rodar `pytest tests/ -v` pra contagem atual)
 
+923 testes, 1 skip legítimo, ~96% coverage. 9 code reviews (3 Claude + 6 Codex), ~140 bugs corrigidos.
+
 | Arquivo | Testes | Cobre |
 |---------|--------|-------|
 | test_cli_interactive.py | 126 | Handlers, menu, utils, wizards — módulo interactive completo |
+| test_api_extended.py | 110+ | Todos endpoints, timeout, file upload, pipeline, 413, /plugins/health, upload streaming |
 | test_cli_remaining.py | 89 | Init, list, watch, export, visualize, tutorials |
-| test_api_extended.py | 98 | Todos endpoints, timeout, file upload, pipeline, 413, /plugins/health |
-| test_cli_extended.py | 57 | Visualize, batch, export — happy paths e edge cases |
-| test_cli.py | 48 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
+| test_cli_extended.py | 70+ | Visualize, batch, export, load_config, pipeline config, get_core |
+| test_cli.py | 51+ | Comandos Click + formatters + make_doc_id |
 | test_core.py | 49 | Discovery, execution, cache, _validate_and_convert |
+| test_plugin_logic.py | 41+ | Lógica real: word_frequency (by_segment, by_speaker), readability, teams_cleaner, sentiment |
+| test_stress.py | 40 | Concorrência cache, config fuzzing, textos extremos, API sob carga, pipeline combos |
 | test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
 | test_config_registry.py | 40 | Normalização, validação, resolução, visão consolidada, rejeição tipo desconhecido |
-| test_plugin_logic.py | 37 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
-| test_cli_config_watch.py | 33 | Config validate/create/list, watch command, QualiaFileHandler |
+| test_cli_config_watch.py | 38+ | Config validate/create/list, watch command, recursive no collision |
+| test_cache_lru.py | 29+ | LRU eviction, TTL, stats, invalidação seletiva, invalidação pós-restart |
 | test_cache_deps.py | 30 | CacheManager hit/miss, DependencyResolver ciclos |
 | test_monitor.py | 27 | Metrics, track_request, track_webhook, SSE, dashboard, edge cases |
-| test_cache_lru.py | 26 | LRU eviction, TTL expiration, stats, backward compat, invalidação seletiva |
 | test_webhooks.py | 26 | WebhookProcessor, GenericWebhook, endpoints, timeout 504, integração webhook→monitor |
+| test_visualizer_execution.py | 24 | Execução real dos 3 visualizers + pipelines analyzer→visualizer + _serialize edge cases |
 | test_api.py | 18 | Endpoints REST: health, plugins, analyze, file upload |
 | test_transcription.py | 17 | Meta, validação, mocks Groq API |
 | test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
+| test_loader_recursive.py | 10 | Discovery recursivo em profundidade + EAGER_LOAD |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
-| test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
 | test_cli_plugins_check.py | 9 | `qualia list --check` diagnóstico de plugins, _classify_error branches |
-| test_visualizer_execution.py | 24 | Execução real dos 3 visualizers + pipelines analyzer→visualizer + _serialize edge cases |
+| test_loader_errors.py | 7 | Discovery errors acumulados, expostos, com severity/type |
+| test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
 | test_thread_safety.py | 3 | Concorrência de plugin singletons (ThreadPoolExecutor) |
 | test_cache_pipeline.py | 3 | Cache hit/miss em pipelines repetidos |
-| test_loader_errors.py | 7 | Discovery errors acumulados, expostos, com severity/type |
-| test_loader_recursive.py | 10 | Discovery recursivo em profundidade + EAGER_LOAD |
 | test_word_frequency_spacy.py | 2 | Cache de modelo spaCy no __init__ |
 | test_engine_edges.py | 2 | Edge cases do engine |
 
@@ -300,8 +303,21 @@ Bug corrigido: NLTK LazyCorpusLoader race condition — warm-up forçado no `__i
 
 GitHub Actions ativo em `.github/workflows/tests.yml`:
 - Trigger: push e PR na main
-- Python 3.13, `pip install -e ".[all,dev]"`, `pytest tests/ -v --cov=qualia`
+- Matrix: Python 3.13 + 3.14, `pip install -e ".[all,dev]"`
+- `pytest tests/ -v --tb=short --cov=qualia --cov-report=term-missing`
 - Verifica startup da API
+- Actions: `actions/checkout@v6`, `actions/setup-python@v6` (Node.js 24 ready)
+
+## Mutation testing (tentativa 2026-03-20)
+
+Testamos mutmut 3.5 e 2.5. Nenhum funcionou com a estrutura do projeto:
+
+- **mutmut 3.x**: copia pro `mutants/`, injeta trampolines em todos os .py. Problema: `api/__init__.py` faz bootstrap top-level que importa `QualiaCore()` — o trampoline crasheia com `KeyError: MUTANT_UNDER_TEST` antes do mutmut setar a env var. `also_copy=["plugins/"]` resolve o import de plugins, mas o bootstrap top-level é incompatível.
+- **mutmut 2.x**: muta in-place. Problema: race condition com `.bak` files em multiprocess — crasheia com `FileNotFoundError` e deixa mutantes ativos nos fontes (detectamos `or` → `and` no engine.py). Gerou 61 crash reports (Python/kaleido) no macOS.
+
+**Causa raiz**: `qualia/api/__init__.py` instancia `QualiaCore()` no top-level do módulo (bootstrap da API). O conftest importa `from qualia.api import app` no collection, antes do mutmut preparar o ambiente. Isso é incompatível com o mecanismo de trampolines do mutmut 3.x.
+
+**Decisão**: mutation testing não vale o investimento neste momento. 923 testes, 96% coverage, 9 reviews zerados, 40 stress tests — a confiança no código é alta por outros meios.
 
 ## Refactors recentes
 

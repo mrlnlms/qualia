@@ -8,6 +8,34 @@ Nenhum item pendente.
 
 ---
 
+### ~~Code review Codex #8-#9 + stress tests (2026-03-20) — ~25 bugs, 68 testes novos~~ Concluído
+
+Duas rodadas Codex (#8 com prompt estruturado, #9 última passada) + bateria de stress tests. Último review zerou.
+
+**Fixes principais:**
+- Cache CLI com hash do conteúdo (stale results), invalidação pós-restart (.cache_index.json), cache key canônica (set/Path/dict recursivo)
+- Upload streaming pra tempfile (OOM), transcribe 25MB na borda (413 cedo)
+- word_frequency by_segment/by_speaker implementados de verdade
+- Core valida range/options via ConfigRegistry, context propagado a analyzers e dependências
+- Pipeline: output_format canônico, format como alias, validação de formato na borda (422)
+- CLI: load_config valida dict, pipeline valida steps, config validate --plugin, double discovery removido
+- Batch/watch output sem colisão (path relativo), batch paralelo drena futures
+- sentiment_viz params mortos removidos, sentiment_analyzer language honesto
+- process.py divisão por zero com arquivo vazio
+
+**Stress tests (40 testes):**
+- Cache concorrente (20 threads set/get/invalidate simultâneo)
+- Config fuzzing (50 configs aleatórias por plugin, nunca crash)
+- Textos extremos (vazio, emojis, 100KB, nulos, unicode — provides sempre cumprido)
+- API sob carga (20 requests simultâneos, mix de endpoints, bad requests nunca 500)
+- Pipeline combos (todas as combinações de analyzers, doc→analyzer, repetição sem estado vazando)
+
+**Mutation testing (tentativa):**
+- mutmut 3.x incompatível com a estrutura do projeto (plugins/ top-level + bootstrap no import)
+- mutmut 2.x muta in-place com race condition em .bak files
+- Decisão: não vale o investimento — 923 testes, 96% coverage, 9 reviews zerados, stress tests passando
+- Detalhes em `docs/TECHNICAL_STATE.md` seção "Mutation testing"
+
 ### ~~Hardening beta (2026-03-19/20) — reviews #3 a #7, ~30 commits~~ Concluído
 
 Análise completa (4 agentes paralelos) + 4 code reviews Codex + fixes.
@@ -170,7 +198,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ## Parking lot
 
-- **Document stateful (`self.documents`)** — decidir se limpa (remove dead code) ou evolui (sessões, TTL/LRU). Design spaCy-inspired nunca usado na prática. Levantamento completo na seção "Referência" abaixo e em `memory/project_document_stateful.md`.
+Nenhum item.
 
 ---
 
@@ -178,7 +206,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-851 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 850 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos. Saldo líquido do code review #2: -580 linhas (mais remoção que adição). Contagem menor que 858 porque testes de `parse_plugin_list` (removido) e presets hardcoded foram eliminados.
+923 testes (Python 3.13 + 3.14, kaleido funcional), ~96% coverage. 1 skip legítimo (PNG/SVG sem kaleido). Inclui 40 testes de stress (concorrência, fuzzing, textos extremos). 9 code reviews (3 Claude + 6 Codex), ~140 bugs corrigidos. Último review zerou.
 
 ---
 
