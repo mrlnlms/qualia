@@ -59,7 +59,8 @@ class PluginLoader:
 
         Plugins com __init__ próprio → instanciados agora (main thread, thread-safe).
         Plugins sem __init__ próprio → classe guardada, instanciação deferida.
-        Metadata extraída de todos (via instância temporária pra lazy plugins).
+        Metadata extraída via object.__new__() pra lazy (sem __init__).
+        Convenção: meta() não deve depender de estado inicializado em __init__.
         """
         logger = logging.getLogger(__name__)
         discovered = {}
