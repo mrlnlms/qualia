@@ -80,8 +80,11 @@ class CacheManager:
         self._index_file.write_text(json.dumps(data))
 
     def _get_cache_key(self, doc_id: str, plugin_id: str, config: Dict[str, Any]) -> str:
-        """Gera chave única para cache"""
-        config_str = json.dumps(config, sort_keys=True)
+        """Gera chave única para cache. Tolerante a tipos não-JSON (Path, set, etc)."""
+        try:
+            config_str = json.dumps(config, sort_keys=True)
+        except (TypeError, ValueError):
+            config_str = repr(sorted(config.items()) if isinstance(config, dict) else config)
         content = f"{doc_id}:{plugin_id}:{config_str}"
         return hashlib.sha256(content.encode()).hexdigest()
 
