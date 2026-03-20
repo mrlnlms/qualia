@@ -4,6 +4,42 @@
 
 ## Pendente
 
+Nenhum item pendente.
+
+---
+
+### ~~Code review completo #2 (2026-03-19) — 36 achados, 20 fixes~~ Concluído
+
+Review ultrathink do projeto inteiro (core, API, CLI, frontend, plugins). 4 reviewers paralelos.
+
+**Críticos (4):**
+- [x] XSS no HTML export — `html.escape` em todas as interpolações
+- [x] Cache file I/O sob lock — pickle fora do lock, forward mapping O(1), reverse index na reintegração
+- [x] Loader duplicate ID check após mutação — movido para antes do store
+- [x] `show_config` criava QualiaCore sem discover — usa `get_core()` singleton
+
+**Importantes (14):**
+- [x] Dead interfaces IFilter/IComposer removidas (enum, classes, imports, CLI choices)
+- [x] `/analyze/file` sem `check_upload_size` — agora com limite 25MB
+- [x] API examples stale deletados (plugins renomeados, endpoints inexistentes, bare excepts)
+- [x] Visualize route tracking inconsistente — `validate_plugin_config` dentro do try/except
+- [x] `output_format` sem validação — agora `Literal["html", "png", "svg"]`
+- [x] API bind `0.0.0.0` → `127.0.0.1` (seguro para API local)
+- [x] Batch `UnboundLocalError` — `output_file` inicializado antes do if
+- [x] Pipeline CLI não encadeava texto entre steps — agora alinhado com API
+- [x] Frontend API error `.message` undefined — normalizado com `.detail` do FastAPI
+- [x] Frontend timer leak — `onDestroy` cleanup em 4 páginas
+- [x] Versão `v0.1` no Layout → `v0.2.0-beta`
+- [x] Sentiment viz fabricava dados — agora mostra "sem dados"
+- [x] `_validate_range` sem bounds check — defensivo para range_spec malformado
+- [x] `result or {}` no engine — `is not None` em vez de truthiness
+
+**Sugestões (4):**
+- [x] Unused imports removidos dos plugins
+- [x] Stale migration comments removidos
+- [x] Template provides comment corrigido
+- [x] Engine result None check preciso
+
 ### ~~Code review completo (2026-03-19) — Onda 1: Crashes em runtime~~ Concluído
 
 - [x] **CacheManager thread-safe** — `threading.Lock` em `get()`/`set()`/`invalidate()`/`clear()`/`stats()`. Risco de pickle documentado no docstring.
@@ -42,7 +78,7 @@
 ### ~~Code review completo (2026-03-19) — Pendente (menor prioridade)~~ Concluído
 
 - [x] **_validate_config extraído** — `_validate_and_convert()` helper compartilhado entre os 3 base plugins.
-- [x] **Branches mortas FILTER/COMPOSER removidas** — Engine agora tem fallback `else: raise ValueError`. Tipos FILTER/COMPOSER devolvidos quando tiverem base class.
+- [x] **Branches mortas FILTER/COMPOSER removidas** — Engine agora tem fallback `else: raise ValueError`. Tipos, interfaces e re-exports removidos completamente no code review #2.
 - [x] **Dead code stateful removido** — `self.documents`, `self.pipelines`, `get_document()`, `save_pipeline()` removidos. `add_document()` cria doc efêmero.
 - [x] **Plugin count >= 8 em testes** — 5 assertions atualizadas pra `>= 8`.
 - [x] **CI com Python 3.13 + 3.14** — Matrix strategy com `allow-prereleases: true`.
@@ -125,7 +161,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-858 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 857 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos.
+858 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 857 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos. Saldo líquido do code review #2: -466 linhas (mais remoção que adição).
 
 ---
 
