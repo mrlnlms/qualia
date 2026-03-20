@@ -39,12 +39,23 @@ def pipeline(document_path: str, config: str, output_dir: str):
         console.print("[red]Config do pipeline deve ter campo 'steps' (lista de steps)[/red]")
         raise SystemExit(1)
 
-    # Criar pipeline
+    # Validar e criar steps
     steps = []
-    for step_data in pipeline_data.get('steps', []):
+    for i, step_data in enumerate(pipeline_data['steps']):
+        if not isinstance(step_data, dict):
+            console.print(f"[red]Step {i}: deve ser objeto JSON, não {type(step_data).__name__}[/red]")
+            raise SystemExit(1)
+        plugin_id = step_data.get('plugin_id', step_data.get('plugin', ''))
+        if not plugin_id:
+            console.print(f"[red]Step {i}: 'plugin_id' obrigatório[/red]")
+            raise SystemExit(1)
+        step_config = step_data.get('config', {})
+        if not isinstance(step_config, dict):
+            console.print(f"[red]Step {i}: 'config' deve ser objeto JSON, não {type(step_config).__name__}[/red]")
+            raise SystemExit(1)
         step = PipelineStep(
-            plugin_id=step_data.get('plugin_id', step_data.get('plugin', '')),
-            config=step_data.get('config', {}),
+            plugin_id=plugin_id,
+            config=step_config,
             output_name=step_data.get('output_name')
         )
         steps.append(step)

@@ -189,11 +189,13 @@ def create(plugin: str, output: str, format: str):
 
 @config.command()
 @click.argument('config_file', type=click.Path(exists=True))
-def validate(config_file: str):
+@click.option('--plugin', '-p', default=None, help='Plugin para validar config contra (ex: word_frequency)')
+def validate(config_file: str, plugin: str):
     """Valida um arquivo de configuração
-    
+
     Exemplos:
         qualia config validate config.yaml
+        qualia config validate config.json --plugin word_frequency
         qualia config validate pipelines/meu_pipeline.yaml
     """
     config_path = Path(config_file)
@@ -217,9 +219,23 @@ def validate(config_file: str):
         if 'steps' in data and isinstance(data.get('steps'), list):
             console.print("  Tipo: [cyan]Pipeline[/cyan]")
             validate_pipeline_config(data)
+        elif plugin:
+            console.print(f"  Tipo: [cyan]Plugin Config ({plugin})[/cyan]")
+            core = get_core()
+            if plugin not in core.registry:
+                console.print(f"  [red]✗ Plugin '{plugin}' não encontrado[/red]")
+            else:
+                registry = core.get_config_registry()
+                if registry:
+                    valid, errors = registry.validate_config(plugin, data)
+                    if valid:
+                        console.print(f"  [green]✓ Config válida para {plugin}[/green]")
+                    else:
+                        for err in errors:
+                            console.print(f"  [red]✗ {err}[/red]")
         else:
             console.print("  Tipo: [cyan]Plugin Config[/cyan]")
-            # Poderia validar contra schema do plugin
+            console.print("  [dim]Use --plugin/-p para validar contra schema de um plugin específico[/dim]")
         
     except Exception as e:
         console.print(f"[red]✗ Arquivo inválido: {str(e)}[/red]")
