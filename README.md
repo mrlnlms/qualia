@@ -37,7 +37,7 @@ Múltiplos plugins podem fazer o mesmo tipo de análise (ex: dois sentiment anal
 
 ## Quick Start
 
-Python 3.9+. Tudo roda local — sem conta, sem cloud.
+Python 3.13+. Tudo roda local — sem conta, sem cloud.
 
 ```bash
 git clone https://github.com/mrlnlms/qualia-core.git
@@ -155,7 +155,7 @@ Consumers (scripts, notebooks, plugins do Obsidian, frontend web) escolhem quais
 
 ## Stack
 
-- **Core:** Python 3.9+
+- **Core:** Python 3.13+
 - **API:** FastAPI, Uvicorn, Pydantic
 - **CLI:** Click, Rich
 - **NLP:** TextBlob, NLTK, langdetect
@@ -175,6 +175,6 @@ Qualia Core é o motor. Outros projetos consomem a API:
 
 API REST + CLI + frontend web (Svelte, dark theme). CI via GitHub Actions com coverage.
 
-**Estágio atual:** Alpha (v0.1.0) — funcional para uso pessoal e experimentação.
+**Estágio atual:** Beta (v0.2.0-beta) — funcional, 851 testes, API + CLI + frontend.
 
 MIT
