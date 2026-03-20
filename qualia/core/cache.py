@@ -10,7 +10,7 @@ import threading
 import time
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 
 class CacheManager:
@@ -43,6 +43,8 @@ class CacheManager:
         # Índice reverso para invalidação seletiva
         self._doc_index: Dict[str, set] = {}
         self._plugin_index: Dict[str, set] = {}
+        # Forward mapping: cache_key → (doc_id, plugin_id) para O(1) em _remove_entry
+        self._key_metadata: Dict[str, Tuple[str, str]] = {}
 
     def _get_cache_key(self, doc_id: str, plugin_id: str, config: Dict[str, Any]) -> str:
         """Gera chave única para cache"""
@@ -56,71 +58,88 @@ class CacheManager:
         cache_file = self.cache_dir / f"{cache_key}.pkl"
 
         with self._lock:
-            if cache_file.exists():
-                # Reintegrar no tracking se carregado do disco (pós-restart)
-                if cache_key not in self._access_order:
-                    self._access_order[cache_key] = None
-                    self._timestamps[cache_key] = cache_file.stat().st_mtime
+            if not cache_file.exists():
+                self._misses += 1
+                return None
 
-                # Checar TTL (após reintegração — cobre também arquivos do disco)
-                if self.ttl > 0 and cache_key in self._timestamps:
-                    age = time.time() - self._timestamps[cache_key]
-                    if age > self.ttl:
-                        self._remove_entry(cache_key)
-                        self._misses += 1
-                        return None
+            # Reintegrar no tracking se carregado do disco (pós-restart)
+            if cache_key not in self._access_order:
+                self._access_order[cache_key] = None
+                self._timestamps[cache_key] = cache_file.stat().st_mtime
+                self._key_metadata[cache_key] = (doc_id, plugin_id)
+                self._doc_index.setdefault(doc_id, set()).add(cache_key)
+                self._plugin_index.setdefault(plugin_id, set()).add(cache_key)
 
-                try:
-                    with open(cache_file, 'rb') as f:
-                        result = pickle.load(f)
-                    self._access_order.move_to_end(cache_key, last=True)
-                    self._hits += 1
-                    return result
-                except Exception:
+            # Checar TTL (após reintegração — cobre também arquivos do disco)
+            if self.ttl > 0 and cache_key in self._timestamps:
+                age = time.time() - self._timestamps[cache_key]
+                if age > self.ttl:
                     self._remove_entry(cache_key)
+                    self._misses += 1
+                    return None
 
-            self._misses += 1
+        # File I/O fora do lock
+        try:
+            with open(cache_file, 'rb') as f:
+                result = pickle.load(f)
+        except Exception:
+            with self._lock:
+                self._remove_entry(cache_key)
+                self._misses += 1
             return None
+
+        with self._lock:
+            if cache_key in self._access_order:
+                self._access_order.move_to_end(cache_key, last=True)
+            self._hits += 1
+
+        return result
 
     def set(self, doc_id: str, plugin_id: str, config: Dict[str, Any], result: Dict[str, Any]) -> None:
         """Armazena resultado no cache"""
         cache_key = self._get_cache_key(doc_id, plugin_id, config)
+        cache_file = self.cache_dir / f"{cache_key}.pkl"
 
         with self._lock:
             # Evictar LRU se necessário
             if self.max_size > 0:
-                # Se a chave já existe, vai ser sobrescrita (não conta como nova)
                 is_new = cache_key not in self._access_order
                 while is_new and len(self._access_order) >= self.max_size:
                     self._evict_lru()
 
-            cache_file = self.cache_dir / f"{cache_key}.pkl"
-            with open(cache_file, 'wb') as f:
-                pickle.dump(result, f)
+        # File I/O fora do lock
+        with open(cache_file, 'wb') as f:
+            pickle.dump(result, f)
 
+        with self._lock:
             # Atualizar tracking
             self._access_order[cache_key] = None
             self._access_order.move_to_end(cache_key, last=True)
             self._timestamps[cache_key] = time.time()
-
-            # Registrar no índice reverso
+            # Forward mapping + índices reversos
+            self._key_metadata[cache_key] = (doc_id, plugin_id)
             self._doc_index.setdefault(doc_id, set()).add(cache_key)
             self._plugin_index.setdefault(plugin_id, set()).add(cache_key)
 
     def _remove_entry(self, cache_key: str) -> None:
-        """Remove uma entrada do cache (arquivo, tracking e índices)."""
+        """Remove uma entrada do cache (arquivo, tracking e índices). O(1) via forward mapping."""
         cache_file = self.cache_dir / f"{cache_key}.pkl"
         cache_file.unlink(missing_ok=True)
         self._timestamps.pop(cache_key, None)
         self._access_order.pop(cache_key, None)
-        for index in (self._doc_index, self._plugin_index):
-            empty_keys = []
-            for idx_key, key_set in index.items():
-                key_set.discard(cache_key)
-                if not key_set:
-                    empty_keys.append(idx_key)
-            for idx_key in empty_keys:
-                del index[idx_key]
+        ids = self._key_metadata.pop(cache_key, None)
+        if ids:
+            doc_id, plugin_id = ids
+            doc_set = self._doc_index.get(doc_id)
+            if doc_set:
+                doc_set.discard(cache_key)
+                if not doc_set:
+                    del self._doc_index[doc_id]
+            plugin_set = self._plugin_index.get(plugin_id)
+            if plugin_set:
+                plugin_set.discard(cache_key)
+                if not plugin_set:
+                    del self._plugin_index[plugin_id]
 
     def _evict_lru(self) -> None:
         """Remove a entrada menos recentemente usada"""
@@ -161,6 +180,7 @@ class CacheManager:
             self._evictions = 0
             self._doc_index.clear()
             self._plugin_index.clear()
+            self._key_metadata.clear()
 
     def stats(self) -> Dict[str, Any]:
         """Retorna estatísticas do cache"""
