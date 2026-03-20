@@ -7,8 +7,7 @@ o conteúdo para análise posterior.
 """
 
 import re
-from typing import Dict, Any, List, Tuple
-from datetime import datetime
+from typing import Dict, Any, List
 
 # MUDANÇA: Importar BaseDocumentPlugin
 from qualia.core import BaseDocumentPlugin, PluginMetadata, PluginType, Document

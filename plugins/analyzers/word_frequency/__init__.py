@@ -6,7 +6,7 @@ Este plugin conta palavras e gera estatísticas sobre vocabulário.
 Útil para análise exploratória de transcrições e documentos.
 """
 
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List
 from collections import Counter
 import re
 import logging

@@ -5,11 +5,10 @@ Analisa sentimento e subjetividade de textos em português e inglês.
 Usa TextBlob com suporte para PT-BR.
 """
 
-from typing import Dict, Any, Tuple, Optional
-from pathlib import Path
+from typing import Dict, Any
 import logging
 
-from qualia.core import PluginType, PluginMetadata, BaseAnalyzerPlugin, Document, ExecutionContext
+from qualia.core import PluginType, PluginMetadata, BaseAnalyzerPlugin, Document
 
 # Configurar logging
 logger = logging.getLogger(__name__)
