@@ -22,6 +22,7 @@ import base64
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 
+from fastapi import HTTPException, UploadFile
 from fastapi.testclient import TestClient
 from qualia.api import app
 from qualia.api.deps import get_core
@@ -1114,6 +1115,43 @@ class TestPipelineWithFile:
         assert "document" in error_text.lower()
         assert "word_frequency" in error_text
 
+    def test_pipeline_file_with_text_based_document_plugin(self, client):
+        """Pipeline com arquivo e document plugin sem transcription deve ler conteudo do arquivo.
+
+        Fix: quando file e enviado e step[0] e um document plugin que NAO tem
+        'transcription' em provides (ex: teams_cleaner), o conteudo do arquivo
+        deve ser carregado em document.content ao inves de ficar vazio.
+        """
+        teams_content = (
+            "[00:00:01] Teams System: joined\n"
+            "[00:00:02] Ana: texto importante para analise\n"
+            "[00:00:03] Ana: texto importante para analise\n"
+        )
+        fake_file = io.BytesIO(teams_content.encode("utf-8"))
+        steps = json.dumps([
+            {"plugin_id": "teams_cleaner"},
+            {"plugin_id": "word_frequency"},
+        ])
+        response = client.post(
+            "/pipeline",
+            files={"file": ("chat.txt", fake_file, "text/plain")},
+            data={"steps": steps},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["steps_executed"] == 2
+        # teams_cleaner deve ter processado o conteudo (nao string vazia)
+        cleaner_result = data["results"][0]["result"]
+        assert "cleaned_document" in cleaner_result
+        assert len(cleaner_result["cleaned_document"]) > 0
+        # word_frequency deve ter resultado com palavras do texto limpo
+        wf_result = data["results"][1]["result"]
+        assert "word_frequencies" in wf_result
+        # "texto" deve estar nas frequencias (veio do conteudo do arquivo)
+        assert "texto" in wf_result["word_frequencies"] or "importante" in wf_result["word_frequencies"]
+
 
 # ============================================================================
 # Readability analyzer (cobre mais branches do /analyze)
@@ -1560,3 +1598,77 @@ class TestHealthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Qualia Core API"
+
+
+# ============================================================================
+# check_upload_size — streaming para tempfile
+# ============================================================================
+
+class TestCheckUploadSize:
+    """Testa upload streaming para tempfile com hash e limite de tamanho."""
+
+    @pytest.mark.asyncio
+    async def test_check_upload_size_returns_upload_result(self):
+        """Retorna UploadResult com tmp_path, size e content_hash."""
+        from qualia.api.deps import check_upload_size, UploadResult
+        content = b"conteudo de teste para upload"
+        file = UploadFile(file=io.BytesIO(content), filename="test.txt")
+        result = await check_upload_size(file)
+        assert isinstance(result, UploadResult)
+        assert hasattr(result, "tmp_path")
+        assert hasattr(result, "size")
+        assert hasattr(result, "content_hash")
+        # Cleanup
+        Path(result.tmp_path).unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_check_upload_size_streams_to_file(self):
+        """Tempfile contém exatamente os dados enviados."""
+        from qualia.api.deps import check_upload_size
+        content = b"dados importantes que devem estar no disco"
+        file = UploadFile(file=io.BytesIO(content), filename="doc.txt")
+        result = await check_upload_size(file)
+        saved = Path(result.tmp_path).read_bytes()
+        assert saved == content
+        assert result.size == len(content)
+        # Cleanup
+        Path(result.tmp_path).unlink(missing_ok=True)
+
+    @pytest.mark.asyncio
+    async def test_check_upload_size_413_cleans_tempfile(self):
+        """Tempfile é deletado quando upload excede limite."""
+        from qualia.api.deps import check_upload_size
+        import tempfile
+        content = b"x" * 1000  # 1000 bytes
+        file = UploadFile(file=io.BytesIO(content), filename="big.bin")
+
+        # Capturar o path do tempfile criado
+        original_ntf = tempfile.NamedTemporaryFile
+        created_paths = []
+
+        def tracking_ntf(**kwargs):
+            tmp = original_ntf(**kwargs)
+            created_paths.append(tmp.name)
+            return tmp
+
+        with patch("qualia.api.deps.tempfile.NamedTemporaryFile", side_effect=tracking_ntf):
+            with pytest.raises(HTTPException) as exc_info:
+                await check_upload_size(file, max_size=500)
+            assert exc_info.value.status_code == 413
+
+        # Tempfile deve ter sido deletado
+        for p in created_paths:
+            assert not Path(p).exists(), f"Tempfile {p} não foi deletado após 413"
+
+    @pytest.mark.asyncio
+    async def test_check_upload_size_hash_correct(self):
+        """Hash retornado corresponde ao md5 do conteúdo (8 chars)."""
+        import hashlib
+        from qualia.api.deps import check_upload_size
+        content = b"texto para verificar hash md5"
+        expected_hash = hashlib.md5(content).hexdigest()[:8]
+        file = UploadFile(file=io.BytesIO(content), filename="hash_test.txt")
+        result = await check_upload_size(file)
+        assert result.content_hash == expected_hash
+        # Cleanup
+        Path(result.tmp_path).unlink(missing_ok=True)

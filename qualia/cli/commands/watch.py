@@ -14,19 +14,21 @@ from rich.panel import Panel
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileCreatedEvent, FileModifiedEvent
 
-from .utils import get_core, console, parse_params
+from .utils import get_core, console, parse_params, make_doc_id
 
 
 class QualiaFileHandler(FileSystemEventHandler):
     """Handler para processar arquivos quando detectados"""
     
-    def __init__(self, plugin_id: str, config: Dict[str, Any], 
-                 output_dir: Optional[Path] = None, 
-                 pattern: str = "*.txt"):
+    def __init__(self, plugin_id: str, config: Dict[str, Any],
+                 output_dir: Optional[Path] = None,
+                 pattern: str = "*.txt",
+                 watch_dir: Optional[Path] = None):
         self.plugin_id = plugin_id
         self.config = config
         self.output_dir = output_dir
         self.pattern = pattern
+        self.watch_dir = watch_dir
         self.core = get_core()
         self.processed_files = set()
         self.stats = {
@@ -72,7 +74,7 @@ class QualiaFileHandler(FileSystemEventHandler):
                 content = path.read_text(encoding='utf-8')
             except UnicodeDecodeError:
                 content = path.read_text(encoding='latin-1')
-            doc = self.core.add_document(path.stem, content)
+            doc = self.core.add_document(make_doc_id(path, content), content)
             
             # Executar plugin
             result = self.core.execute_plugin(
@@ -83,10 +85,17 @@ class QualiaFileHandler(FileSystemEventHandler):
             
             # Salvar resultado se output_dir especificado
             if self.output_dir:
-                output_path = self.output_dir / f"{path.stem}_result.json"
                 import json
-                output_path.write_text(json.dumps(result, indent=2))
-                console.print(f"[green]✓ Processado → {output_path}[/green]")
+                # Path relativo à pasta monitorada — evita colisão em modo recursivo
+                base = self.watch_dir or path.parent
+                try:
+                    rel = path.resolve().relative_to(base.resolve())
+                except ValueError:
+                    rel = Path(path.name)
+                safe_name = str(rel.with_suffix("")).replace("/", "_").replace("\\", "_")
+                output_file = self.output_dir / f"{safe_name}_result.json"
+                output_file.write_text(json.dumps(result, indent=2))
+                console.print(f"[green]✓ Processado → {output_file}[/green]")
             else:
                 console.print(f"[green]✓ Processado com sucesso[/green]")
             
@@ -140,7 +149,7 @@ def watch(folder: str, plugin: str, pattern: str, output_dir: str,
     
     # Criar handler e observer
     folder_path = Path(folder).resolve()
-    handler = QualiaFileHandler(plugin, params, output_path, pattern)
+    handler = QualiaFileHandler(plugin, params, output_path, pattern, watch_dir=folder_path)
     observer = Observer()
     observer.schedule(handler, str(folder_path), recursive=recursive)
     

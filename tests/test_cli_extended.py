@@ -10,7 +10,7 @@ import json
 import yaml
 import csv
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from click.testing import CliRunner
 
 from qualia.cli.commands import cli
@@ -288,6 +288,19 @@ class TestVisualizeCommand:
             "-o", str(output),
         ])
         assert "Gerando visualização" in result.output or "Erro" in result.output
+
+    def test_visualize_config_rejects_non_dict(self, runner, word_freq_data, tmp_path):
+        """Config contendo lista deve gerar erro amigável, não AttributeError"""
+        config_file = tmp_path / "bad_config.json"
+        config_file.write_text("[]")
+        result = runner.invoke(cli, [
+            "visualize", str(word_freq_data),
+            "-p", "wordcloud_d3",
+            "-c", str(config_file),
+        ])
+        # Deve reportar erro de config (não crash com AttributeError)
+        assert result.exit_code != 0 or "Erro" in result.output or "dict" in result.output.lower()
+        assert "AttributeError" not in (result.output or "")
 
 
 # =============================================================================
@@ -918,3 +931,198 @@ class TestBatchRemainingPaths:
             ])
             assert result.exit_code == 0
             assert "e mais" in result.output and "erros" in result.output
+
+    def test_batch_output_no_collision(self, tmp_path):
+        """Arquivos com mesmo stem em diretórios diferentes produzem output names diferentes"""
+        from qualia.cli.commands.batch import process_file
+
+        # Criar dois arquivos com mesmo nome mas em diretórios diferentes
+        dir_a = tmp_path / "projeto_a" / "reports"
+        dir_b = tmp_path / "projeto_b" / "reports"
+        dir_a.mkdir(parents=True)
+        dir_b.mkdir(parents=True)
+
+        (dir_a / "doc.txt").write_text("Texto do projeto alfa sobre gatos bonitos.")
+        (dir_b / "doc.txt").write_text("Texto do projeto beta sobre cachorros grandes.")
+
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        # Processar ambos a partir do diretório pai (tmp_path)
+        import os
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result_a = process_file(dir_a / "doc.txt", "word_frequency", {}, output_dir)
+            result_b = process_file(dir_b / "doc.txt", "word_frequency", {}, output_dir)
+        finally:
+            os.chdir(original_cwd)
+
+        assert result_a["status"] == "success"
+        assert result_b["status"] == "success"
+        # Output files devem ser diferentes (sem colisão)
+        assert result_a["output"] != result_b["output"]
+        # Ambos devem existir no disco
+        assert Path(result_a["output"]).exists()
+        assert Path(result_b["output"]).exists()
+
+
+# =============================================================================
+# FIX 4: batch -j N drains all futures on error
+# =============================================================================
+
+class TestBatchParallelDrain:
+
+    def test_batch_parallel_error_collects_all_results(self, runner, tmp_path):
+        """Com parallel>1 e erro, todos os resultados completos devem aparecer no resumo.
+
+        Fix: todas as futures sao coletadas (nao apenas ate o primeiro erro)
+        antes de montar o resumo.
+        """
+        # Criar 4 arquivos
+        for i in range(4):
+            (tmp_path / f"file_{i:02d}.txt").write_text(f"Conteudo do arquivo {i}.")
+
+        pattern = str(tmp_path / "*.txt")
+        output_dir = tmp_path / "drain_output"
+
+        call_count = 0
+
+        def mock_process(file_path, plugin_id, config, output_dir_arg=None):
+            nonlocal call_count
+            call_count += 1
+            # Segundo arquivo falha, resto sucesso
+            if "file_01" in str(file_path):
+                return {"file": file_path.name, "status": "error", "error": "Falha simulada"}
+            return {"file": file_path.name, "status": "success", "result": {}, "output": None}
+
+        with patch("qualia.cli.commands.batch.process_file", side_effect=mock_process):
+            result = runner.invoke(cli, [
+                "batch", pattern,
+                "-p", "word_frequency",
+                "-o", str(output_dir),
+                "-j", "2",
+                "--continue-on-error",
+            ])
+            assert result.exit_code == 0
+            # Deve mostrar 3 sucessos e 1 erro (todos coletados, nao apenas ate o erro)
+            assert "3" in result.output  # 3 sucessos
+            assert "1" in result.output  # 1 erro
+
+
+# =============================================================================
+# FIX 5: CLI load_config validates dict
+# =============================================================================
+
+class TestLoadConfigValidation:
+
+    def test_load_config_rejects_list(self, tmp_path):
+        """JSON contendo lista deve levantar BadParameter"""
+        import click
+        from qualia.cli.commands.utils import load_config
+
+        config_file = tmp_path / "list_config.json"
+        config_file.write_text("[]")
+
+        with pytest.raises(click.BadParameter, match="dict"):
+            load_config(config_file)
+
+    def test_load_config_rejects_string(self, tmp_path):
+        """JSON contendo string deve levantar BadParameter"""
+        import click
+        from qualia.cli.commands.utils import load_config
+
+        config_file = tmp_path / "string_config.json"
+        config_file.write_text('"hello"')
+
+        with pytest.raises(click.BadParameter, match="dict"):
+            load_config(config_file)
+
+    def test_load_config_accepts_dict(self, tmp_path):
+        """JSON contendo dict deve funcionar normalmente"""
+        from qualia.cli.commands.utils import load_config
+
+        config_file = tmp_path / "dict_config.json"
+        config_file.write_text('{"key": "value"}')
+
+        result = load_config(config_file)
+        assert result == {"key": "value"}
+
+    def test_load_config_rejects_yaml_list(self, tmp_path):
+        """YAML contendo lista tambem deve levantar BadParameter"""
+        import click
+        import yaml
+        from qualia.cli.commands.utils import load_config
+
+        config_file = tmp_path / "list_config.yaml"
+        config_file.write_text(yaml.dump([1, 2, 3]))
+
+        with pytest.raises(click.BadParameter, match="dict"):
+            load_config(config_file)
+
+
+# =============================================================================
+# FIX 7: CLI double discovery removed
+# =============================================================================
+
+class TestGetCoreNoDoubleDiscovery:
+
+    def test_get_core_no_double_discovery(self):
+        """get_core() nao deve chamar discover_plugins() separadamente.
+
+        Fix: QualiaCore.__init__ ja chama discover_plugins(), entao get_core()
+        nao deve chamar de novo.
+        """
+        import qualia.cli.commands.utils as utils_mod
+
+        # Resetar o singleton para forcar nova criacao
+        old_core = utils_mod._core
+        utils_mod._core = None
+
+        try:
+            with patch("qualia.cli.commands.utils.QualiaCore") as MockCore:
+                mock_instance = MagicMock()
+                MockCore.return_value = mock_instance
+
+                result = utils_mod.get_core()
+
+                # QualiaCore() foi chamado uma vez
+                MockCore.assert_called_once()
+                # discover_plugins NAO deve ter sido chamado separadamente
+                mock_instance.discover_plugins.assert_not_called()
+                assert result is mock_instance
+        finally:
+            utils_mod._core = old_core
+
+
+# =============================================================================
+# FIX: pipeline -c validates dict and requires steps
+# =============================================================================
+
+class TestPipelineConfigValidation:
+
+    def test_pipeline_config_rejects_list(self, runner, tmp_path):
+        """Pipeline config contendo lista deve falhar com SystemExit"""
+        text_file = tmp_path / "doc.txt"
+        text_file.write_text("Texto para pipeline.")
+        config_file = tmp_path / "list_pipeline.json"
+        config_file.write_text("[]")
+
+        result = runner.invoke(cli, [
+            "pipeline", str(text_file), "-c", str(config_file),
+        ])
+        assert result.exit_code != 0
+        assert "dict" in result.output.lower()
+
+    def test_pipeline_config_requires_steps_list(self, runner, tmp_path):
+        """Pipeline config sem campo 'steps' deve falhar com SystemExit"""
+        text_file = tmp_path / "doc.txt"
+        text_file.write_text("Texto para pipeline.")
+        config_file = tmp_path / "no_steps.json"
+        config_file.write_text(json.dumps({"name": "test"}))
+
+        result = runner.invoke(cli, [
+            "pipeline", str(text_file), "-c", str(config_file),
+        ])
+        assert result.exit_code != 0
+        assert "steps" in result.output.lower()

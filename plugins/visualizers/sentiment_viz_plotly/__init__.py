@@ -23,15 +23,6 @@ class SentimentVizPlotly(BaseVisualizerPlugin):
                     "options": ["dashboard", "gauge", "timeline", "distribution"],
                     "description": "Tipo de visualização",
                 },
-                "color_scheme": {
-                    "type": "str", "default": "default",
-                    "options": ["default", "colorblind", "pastel"],
-                    "description": "Esquema de cores",
-                },
-                "show_examples": {
-                    "type": "bool", "default": True,
-                    "description": "Mostrar exemplos de frases",
-                },
                 "output_format": {
                     "type": "str", "default": "html",
                     "options": self.get_supported_formats("plotly"),

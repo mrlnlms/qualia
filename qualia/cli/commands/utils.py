@@ -5,7 +5,9 @@ Utilitários compartilhados pelos comandos CLI
 
 from typing import Optional, Dict, Any
 from pathlib import Path
+import hashlib
 import json
+import click
 import yaml
 from rich.console import Console
 
@@ -19,21 +21,29 @@ _core: Optional[QualiaCore] = None
 
 
 def get_core() -> QualiaCore:
-    """Obtém instância do core com lazy loading"""
+    """Obtém instância do core com lazy loading.
+
+    QualiaCore.__init__ já chama discover_plugins() — não chamar de novo.
+    """
     global _core
     if _core is None:
-        _core = QualiaCore()
         with console.status("[bold green]Descobrindo plugins..."):
-            _core.discover_plugins()
+            _core = QualiaCore()
     return _core
 
 
 def load_config(config_path: Path) -> Dict[str, Any]:
-    """Carrega arquivo de configuração YAML ou JSON"""
+    """Carrega arquivo de configuração YAML ou JSON. Falha se não for dict."""
     if config_path.suffix in ['.yaml', '.yml']:
-        return yaml.safe_load(config_path.read_text())
+        data = yaml.safe_load(config_path.read_text())
     else:
-        return json.loads(config_path.read_text())
+        data = json.loads(config_path.read_text())
+    if not isinstance(data, dict):
+        raise click.BadParameter(
+            f"Config deve ser um objeto (dict), não {type(data).__name__}. "
+            f"Arquivo: {config_path}"
+        )
+    return data
 
 
 def parse_params(param_list: tuple) -> Dict[str, Any]:
@@ -60,6 +70,16 @@ def parse_params(param_list: tuple) -> Dict[str, Any]:
                 params[key] = value
                 
     return params
+
+
+def make_doc_id(file_path: Path, content: str) -> str:
+    """Gera doc_id com hash do conteúdo — evita cache stale quando arquivo muda.
+
+    Formato: {stem}_{hash[:8]} — legível e único por conteúdo.
+    Alinhado com a API que já inclui hash no doc_id.
+    """
+    content_hash = hashlib.md5(content.encode()).hexdigest()[:8]
+    return f"{file_path.stem}_{content_hash}"
 
 
 def display_result_pretty(plugin_name: str, result: Dict[str, Any]):

@@ -207,8 +207,12 @@ def validate(config_file: str):
             with open(config_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         
+        if not isinstance(data, dict):
+            console.print(f"[red]✗ Arquivo inválido: raiz deve ser objeto (dict), não {type(data).__name__}[/red]")
+            return
+
         console.print(f"[green]✓ Arquivo válido: {config_path.name}[/green]")
-        
+
         # Detectar tipo
         if 'steps' in data and isinstance(data.get('steps'), list):
             console.print("  Tipo: [cyan]Pipeline[/cyan]")

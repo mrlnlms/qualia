@@ -45,6 +45,39 @@ class CacheManager:
         self._plugin_index: Dict[str, set] = {}
         # Forward mapping: cache_key → (doc_id, plugin_id) para O(1) em _remove_entry
         self._key_metadata: Dict[str, Tuple[str, str]] = {}
+        # Reconstruir índices de entradas em disco (sobrevive a restart)
+        self._rebuild_index()
+
+    @property
+    def _index_file(self) -> Path:
+        return self.cache_dir / ".cache_index.json"
+
+    def _rebuild_index(self) -> None:
+        """Reconstruir índices reversos a partir do arquivo de índice em disco.
+
+        Sem isso, invalidate() após restart não encontra nenhuma entrada
+        porque _doc_index/_plugin_index estariam vazios.
+        """
+        if not self._index_file.exists():
+            return
+        try:
+            raw = json.loads(self._index_file.read_text())
+            for cache_key, (doc_id, plugin_id) in raw.items():
+                # Só reconstruir se o .pkl correspondente ainda existe
+                if (self.cache_dir / f"{cache_key}.pkl").exists():
+                    self._key_metadata[cache_key] = (doc_id, plugin_id)
+                    self._doc_index.setdefault(doc_id, set()).add(cache_key)
+                    self._plugin_index.setdefault(plugin_id, set()).add(cache_key)
+                    self._access_order[cache_key] = None
+                    self._timestamps[cache_key] = (self.cache_dir / f"{cache_key}.pkl").stat().st_mtime
+        except (json.JSONDecodeError, KeyError, TypeError):
+            # Índice corrompido — ignora, será reconstruído nas próximas operações
+            pass
+
+    def _save_index(self) -> None:
+        """Persiste o forward mapping em disco para sobreviver a restart."""
+        data = {k: list(v) for k, v in self._key_metadata.items()}
+        self._index_file.write_text(json.dumps(data))
 
     def _get_cache_key(self, doc_id: str, plugin_id: str, config: Dict[str, Any]) -> str:
         """Gera chave única para cache"""
@@ -121,6 +154,7 @@ class CacheManager:
             self._key_metadata[cache_key] = (doc_id, plugin_id)
             self._doc_index.setdefault(doc_id, set()).add(cache_key)
             self._plugin_index.setdefault(plugin_id, set()).add(cache_key)
+            self._save_index()
 
     def _remove_entry(self, cache_key: str) -> None:
         """Remove uma entrada do cache (arquivo, tracking e índices). O(1) via forward mapping."""
@@ -141,6 +175,7 @@ class CacheManager:
                 plugin_set.discard(cache_key)
                 if not plugin_set:
                     del self._plugin_index[plugin_id]
+        self._save_index()
 
     def _evict_lru(self) -> None:
         """Remove a entrada menos recentemente usada"""
@@ -182,6 +217,7 @@ class CacheManager:
             self._doc_index.clear()
             self._plugin_index.clear()
             self._key_metadata.clear()
+            self._index_file.unlink(missing_ok=True)
 
     def stats(self) -> Dict[str, Any]:
         """Retorna estatísticas do cache"""

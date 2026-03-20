@@ -417,3 +417,85 @@ class TestSentimentAnalyzer:
         result = sentiment._analyze_impl(doc, config, {})
         assert "sentence_sentiments" in result
         assert len(result["sentence_sentiments"]) > 0
+
+
+# =============================================================================
+# WORD FREQUENCY — by_segment e by_speaker
+# =============================================================================
+
+class TestWordFrequencySegmentSpeaker:
+
+    @pytest.fixture
+    def word_freq(self):
+        from plugins.analyzers.word_frequency import WordFrequencyAnalyzer
+        return WordFrequencyAnalyzer()
+
+    def test_word_frequency_by_segment(self, word_freq):
+        """by_segment=True divide texto por parágrafos e retorna resultados por segmento"""
+        text = (
+            "O gato sentou no tapete bonito.\n\n"
+            "O cachorro correu pelo parque grande.\n\n"
+            "O pássaro voou sobre a montanha alta."
+        )
+        doc = make_doc(text)
+        config = default_config(word_freq)
+        config["by_segment"] = True
+        config["min_word_length"] = 1
+        config["remove_stopwords"] = False
+        result = word_freq._analyze_impl(doc, config, {})
+        assert "segments" in result
+        assert len(result["segments"]) == 3
+        # Cada segmento tem campos de análise
+        for seg in result["segments"]:
+            assert "index" in seg
+            assert "preview" in seg
+            assert "word_frequencies" in seg
+            assert "total_words" in seg
+
+    def test_word_frequency_by_speaker(self, word_freq):
+        """by_speaker=True agrupa texto por speaker e retorna resultados por speaker"""
+        text = (
+            "Ana: O gato sentou no tapete bonito\n"
+            "Bruno: O cachorro correu pelo parque grande\n"
+            "Ana: O tapete é muito macio mesmo\n"
+        )
+        doc = make_doc(text)
+        config = default_config(word_freq)
+        config["by_speaker"] = True
+        config["min_word_length"] = 1
+        config["remove_stopwords"] = False
+        result = word_freq._analyze_impl(doc, config, {})
+        assert "by_speaker" in result
+        assert "Ana" in result["by_speaker"]
+        assert "Bruno" in result["by_speaker"]
+        # Ana tem resultados próprios
+        assert result["by_speaker"]["Ana"]["total_words"] > 0
+        assert result["by_speaker"]["Bruno"]["total_words"] > 0
+
+    def test_word_frequency_by_speaker_teams_format(self, word_freq):
+        """by_speaker=True com formato Teams [HH:MM:SS] Speaker: texto"""
+        text = (
+            "[10:23:45] Maria: Bom dia pessoal\n"
+            "[10:23:50] João: Bom dia Maria\n"
+            "[10:24:00] Maria: Vamos começar a reunião\n"
+        )
+        doc = make_doc(text)
+        config = default_config(word_freq)
+        config["by_speaker"] = True
+        config["min_word_length"] = 1
+        config["remove_stopwords"] = False
+        result = word_freq._analyze_impl(doc, config, {})
+        assert "by_speaker" in result
+        assert "Maria" in result["by_speaker"]
+        assert "João" in result["by_speaker"]
+        # Maria falou 2x, deve ter mais palavras
+        assert result["by_speaker"]["Maria"]["total_words"] > result["by_speaker"]["João"]["total_words"]
+
+    def test_word_frequency_by_segment_false(self, word_freq):
+        """by_segment=False (default) não inclui chave segments no resultado"""
+        text = "Primeiro parágrafo.\n\nSegundo parágrafo."
+        doc = make_doc(text)
+        config = default_config(word_freq)
+        config["by_segment"] = False
+        result = word_freq._analyze_impl(doc, config, {})
+        assert "segments" not in result

@@ -501,3 +501,39 @@ class TestFormatters:
         assert isinstance(panel, Panel)
         content = str(panel.renderable)
         assert "QUALIA" in content
+
+
+# =============================================================================
+# MAKE_DOC_ID (CLI utils)
+# =============================================================================
+
+class TestMakeDocId:
+
+    def test_make_doc_id_includes_hash(self):
+        """Mesmo filename + conteúdo diferente = doc_id diferente"""
+        from qualia.cli.commands.utils import make_doc_id
+        path = Path("relatorio.txt")
+        id1 = make_doc_id(path, "conteúdo versão 1")
+        id2 = make_doc_id(path, "conteúdo versão 2")
+        assert id1 != id2
+
+    def test_make_doc_id_same_content(self):
+        """Mesmo conteúdo = mesmo hash suffix, independente do path"""
+        from qualia.cli.commands.utils import make_doc_id
+        content = "texto idêntico para ambos"
+        id1 = make_doc_id(Path("a/relatorio.txt"), content)
+        id2 = make_doc_id(Path("b/relatorio.txt"), content)
+        # Mesmo stem + mesmo conteúdo = mesmo doc_id
+        assert id1 == id2
+        # Confirma que o hash suffix é igual
+        assert id1.split("_")[-1] == id2.split("_")[-1]
+
+    def test_make_doc_id_format(self):
+        """Resultado segue formato {stem}_{8chars}"""
+        from qualia.cli.commands.utils import make_doc_id
+        result = make_doc_id(Path("meu_arquivo.txt"), "qualquer conteúdo")
+        parts = result.rsplit("_", 1)
+        assert parts[0] == "meu_arquivo"
+        assert len(parts[1]) == 8
+        # Hash é hexadecimal
+        int(parts[1], 16)

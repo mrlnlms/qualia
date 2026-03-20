@@ -3,6 +3,7 @@
 import json
 import hashlib
 import asyncio
+from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
@@ -70,15 +71,18 @@ async def analyze_file(
     try:
         validate_plugin_config(core, plugin_id, config_dict)
 
-        content = await check_upload_size(file)
+        suffix = Path(file.filename).suffix if file.filename else ""
+        upload = await check_upload_size(file, suffix=suffix)
         encoding_used = "utf-8"
         try:
-            text = content.decode('utf-8')
+            text = Path(upload.tmp_path).read_text(encoding='utf-8')
         except UnicodeDecodeError:
-            text = content.decode('latin-1')
+            text = Path(upload.tmp_path).read_text(encoding='latin-1')
             encoding_used = "latin-1"
+        finally:
+            Path(upload.tmp_path).unlink(missing_ok=True)
 
-        doc = core.add_document(f"api_upload_{file.filename}_{hashlib.md5(text.encode()).hexdigest()[:8]}", text)
+        doc = core.add_document(f"api_upload_{file.filename}_{upload.content_hash}", text)
         try:
             result = await asyncio.wait_for(
                 asyncio.to_thread(core.execute_plugin, plugin_id, doc, config_dict, context_dict),

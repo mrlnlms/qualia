@@ -1,5 +1,9 @@
 """Dependências compartilhadas entre módulos de rota."""
 
+import hashlib
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Optional
 
 from fastapi import HTTPException, UploadFile
@@ -56,30 +60,57 @@ def require_plugin_type(core: QualiaCore, plugin_id: str, *expected_types: str) 
 UPLOAD_CHUNK_SIZE = 64 * 1024  # 64KB por chunk
 
 
-async def check_upload_size(file: UploadFile, max_size: int = None) -> bytes:
-    """Lê upload em streaming e aborta com 413 se exceder limite.
+@dataclass
+class UploadResult:
+    """Resultado de upload streamed para tempfile."""
+    tmp_path: str
+    size: int
+    content_hash: str  # md5 hex digest (8 chars)
 
-    Lê em chunks de 64KB — aborta assim que ultrapassa max_size sem ler o resto.
-    Para arquivos dentro do limite, acumula na RAM (necessário pra devolver bytes).
+
+async def check_upload_size(file: UploadFile, max_size: int = None, suffix: str = "") -> UploadResult:
+    """Lê upload em streaming direto pra tempfile — sem acumular em RAM.
+
+    Lê em chunks de 64KB, grava no disco e calcula hash incrementalmente.
+    Aborta assim que ultrapassa max_size sem ler o resto.
     """
     if max_size is None:
         max_size = MAX_UPLOAD_SIZE
-    chunks = []
+
+    hasher = hashlib.md5()
     total = 0
-    while True:
-        chunk = await file.read(UPLOAD_CHUNK_SIZE)
-        if not chunk:
-            break
-        total += len(chunk)
-        if total > max_size:
-            size_mb = total / (1024 * 1024)
-            limit_mb = max_size / (1024 * 1024)
-            raise HTTPException(
-                status_code=413,
-                detail=f"Arquivo muito grande: >{size_mb:.0f}MB. Limite: {limit_mb:.0f}MB."
-            )
-        chunks.append(chunk)
-    return b"".join(chunks)
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+
+    try:
+        while True:
+            chunk = await file.read(UPLOAD_CHUNK_SIZE)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > max_size:
+                tmp.close()
+                Path(tmp.name).unlink(missing_ok=True)
+                size_mb = total / (1024 * 1024)
+                limit_mb = max_size / (1024 * 1024)
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Arquivo muito grande: >{size_mb:.0f}MB. Limite: {limit_mb:.0f}MB."
+                )
+            hasher.update(chunk)
+            tmp.write(chunk)
+        tmp.close()
+    except HTTPException:
+        raise
+    except Exception:
+        tmp.close()
+        Path(tmp.name).unlink(missing_ok=True)
+        raise
+
+    return UploadResult(
+        tmp_path=tmp.name,
+        size=total,
+        content_hash=hasher.hexdigest()[:8],
+    )
 
 
 async def track(endpoint: str, plugin_id: str = None, error: str = None):

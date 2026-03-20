@@ -2,7 +2,6 @@
 
 import json
 import hashlib
-import tempfile
 import asyncio
 from pathlib import Path
 
@@ -92,19 +91,27 @@ async def execute_pipeline(
             config_dict = step0.get("config", {})
             validate_plugin_config(core, plugin_id, config_dict)
 
-            content = await check_upload_size(file)
             suffix = Path(file.filename).suffix if file.filename else ""
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                tmp.write(content)
-                tmp_path = tmp.name
+            upload = await check_upload_size(file, suffix=suffix)
+            tmp_path = upload.tmp_path
+
+            # Plugins de transcrição leem file_path; outros (teams_cleaner) leem content
+            is_transcription = "transcription" in (first_meta.provides or [])
+            if is_transcription:
+                doc_content = ""
+            else:
+                try:
+                    doc_content = Path(tmp_path).read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    doc_content = Path(tmp_path).read_text(encoding="latin-1")
 
             doc = core.add_document(
-                f"api_pipeline_file_{file.filename}_{hashlib.md5(content).hexdigest()[:8]}",
-                "",
+                f"api_pipeline_file_{file.filename}_{upload.content_hash}",
+                doc_content,
             )
             doc.metadata["file_path"] = tmp_path
             doc.metadata["original_filename"] = file.filename
-            doc.metadata["file_size"] = len(content)
+            doc.metadata["file_size"] = upload.size
 
             try:
                 result = await asyncio.wait_for(

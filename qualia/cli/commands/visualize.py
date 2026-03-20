@@ -10,7 +10,7 @@ from pathlib import Path
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from qualia.core import PluginType
-from .utils import get_core, console, parse_params
+from .utils import get_core, console, parse_params, load_config
 
 
 @click.command()
@@ -73,12 +73,8 @@ def visualize(data_path: str, plugin: str, output: str, config: str,
 
     # Carregar de arquivo se fornecido
     if config:
-        config_path = Path(config)
         try:
-            if config_path.suffix in ['.yaml', '.yml']:
-                params = yaml.safe_load(config_path.read_text())
-            else:
-                params = json.loads(config_path.read_text())
+            params = load_config(Path(config))
         except Exception as e:
             console.print(f"[red]Erro ao ler configuração: {str(e)}[/red]")
             raise SystemExit(1)

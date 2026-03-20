@@ -185,17 +185,15 @@ class TestCachePersistence:
         pkl_files = list(cache_dir.glob("*.pkl"))
         assert len(pkl_files) == 1
 
-        # Nova instância (simula restart) — _access_order vazio
+        # Nova instância (simula restart) — índice reconstruído do disco
         cache_b = CacheManager(cache_dir)
-        assert len(cache_b._access_order) == 0
+        assert len(cache_b._access_order) == 1  # reconstruído via _rebuild_index
 
         # Deve recuperar o dado do disco
         result = cache_b.get("doc1", "word_frequency", {"lang": "pt"})
         assert result is not None
         assert result["total"] == 42
         assert cache_b._hits == 1
-
-        # Chave deve ter sido reintegrada no tracking
         assert len(cache_b._access_order) == 1
 
     def test_cache_miss_on_different_config(self, cache_dir):
@@ -416,3 +414,49 @@ class TestCacheInvalidate:
         assert len(cm._access_order) == 0
         cm._evict_lru()
         assert cm.stats()["evictions"] == 0
+
+
+# =============================================================================
+# INVALIDATE AFTER RESTART (index persistence)
+# =============================================================================
+
+class TestInvalidateAfterRestart:
+    """Testes de invalidação após restart — depende de .cache_index.json."""
+
+    def test_invalidate_after_restart(self, cache_dir):
+        """invalidate(doc_id=...) funciona após criar nova instância (restart)"""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "plugin_a", {}, {"v": 1})
+        cache_a.set("doc2", "plugin_a", {}, {"v": 2})
+
+        # Nova instância simula restart — índice reconstruído do disco
+        cache_b = CacheManager(cache_dir)
+        cache_b.invalidate(doc_id="doc1")
+
+        assert cache_b.get("doc1", "plugin_a", {}) is None
+        assert cache_b.get("doc2", "plugin_a", {})["v"] == 2
+
+    def test_invalidate_by_plugin_after_restart(self, cache_dir):
+        """invalidate(plugin_id=...) funciona após restart"""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "plugin_a", {}, {"v": 1})
+        cache_a.set("doc1", "plugin_b", {}, {"v": 2})
+        cache_a.set("doc2", "plugin_a", {}, {"v": 3})
+
+        cache_b = CacheManager(cache_dir)
+        cache_b.invalidate(plugin_id="plugin_a")
+
+        assert cache_b.get("doc1", "plugin_a", {}) is None
+        assert cache_b.get("doc2", "plugin_a", {}) is None
+        assert cache_b.get("doc1", "plugin_b", {})["v"] == 2
+
+    def test_clear_removes_index_file(self, cache_dir):
+        """clear() deve remover .cache_index.json do disco"""
+        cache = CacheManager(cache_dir)
+        cache.set("doc1", "plugin_a", {}, {"v": 1})
+
+        index_file = cache_dir / ".cache_index.json"
+        assert index_file.exists()
+
+        cache.clear()
+        assert not index_file.exists()

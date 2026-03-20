@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
 from rich.table import Table
 
-from .utils import get_core, console, parse_params, load_config
+from .utils import get_core, console, parse_params, load_config, make_doc_id
 
 
 def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any], 
@@ -25,7 +25,7 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
             content = file_path.read_text(encoding='utf-8')
         except UnicodeDecodeError:
             content = file_path.read_text(encoding='latin-1')
-        doc = core.add_document(file_path.stem, content)
+        doc = core.add_document(make_doc_id(file_path, content), content)
         
         # Executar plugin
         result = core.execute_plugin(plugin_id, doc, config)
@@ -33,8 +33,12 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
         # Salvar se output_dir especificado
         output_file = None
         if output_dir:
-            # Incluir nome do diretório pai para evitar colisão de nomes
-            safe_name = f"{file_path.parent.name}_{file_path.stem}" if file_path.parent.name != "." else file_path.stem
+            # Path relativo completo como nome — evita colisão entre a/reports/doc.txt e b/reports/doc.txt
+            try:
+                rel = file_path.resolve().relative_to(Path.cwd())
+            except ValueError:
+                rel = file_path
+            safe_name = str(rel.with_suffix("")).replace("/", "_").replace("\\", "_")
             output_file = output_dir / f"{safe_name}_result.json"
             output_file.write_text(json.dumps(result, indent=2))
 
@@ -146,20 +150,15 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
             total=len(files)
         )
         
-        # Processar em paralelo se solicitado
-        # NOTA: com --parallel, todos os jobs são submetidos ao executor
-        # antes da coleta. Se --continue-on-error não estiver ativo, o break
-        # interrompe a coleta mas jobs já disparados continuam até completar.
         if parallel > 1:
             with ThreadPoolExecutor(max_workers=parallel) as executor:
-                # Submeter todos os trabalhos
                 future_to_file = {
                     executor.submit(
                         process_file, f, plugin, params, output_path
                     ): f for f in files
                 }
-                
-                # Coletar resultados conforme completam
+
+                hit_error = False
                 for future in as_completed(future_to_file):
                     result = future.result()
                     if result["status"] == "success":
@@ -167,8 +166,13 @@ def batch(pattern: str, plugin: str, output_dir: str, config: str,
                     else:
                         errors.append(result)
                         if not continue_on_error:
-                            break
+                            hit_error = True
                     progress.advance(task)
+
+                # Se parou por erro, cancelar pendentes e drenar
+                if hit_error:
+                    for f in future_to_file:
+                        f.cancel()
         else:
             # Processar sequencialmente
             for f in files:

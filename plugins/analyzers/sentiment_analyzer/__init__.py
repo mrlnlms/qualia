@@ -77,7 +77,7 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
             parameters={
                 "language": {
                     "type": "string",
-                    "description": "Idioma do texto (auto-detecta se não especificado)",
+                    "description": "Idioma para rótulos e interpretação (não altera o modelo de análise — TextBlob é language-agnostic)",
                     "default": "auto",
                     "options": ["auto", "pt", "en"]
                 },

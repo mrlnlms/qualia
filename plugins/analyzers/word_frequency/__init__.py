@@ -165,51 +165,97 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
             }
         )
     
-    def _analyze_impl(self, document: Document, config: Dict[str, Any], 
+    def _analyze_impl(self, document: Document, config: Dict[str, Any],
                       context: Dict[str, Any]) -> Dict[str, Any]:
         """
         Implementação da análise de frequência
-        
+
         Args:
             document: Documento a analisar
             config: Configurações (já validadas pela BaseClass)
             context: Contexto de execução
-            
+
         Returns:
             Dict com word_frequencies, vocabulary_size, top_words, etc.
         """
-        
-        # Obter texto do documento
-        text = document.content
-        
-        # Aplicar case sensitivity
+
+        # Análise global
+        result = self._analyze_text(document.content, config)
+
+        # Análise por segmento (parágrafos)
+        if config['by_segment']:
+            segments = self._split_segments(document.content)
+            result["segments"] = [
+                {"index": i, "preview": seg[:80], **self._analyze_text(seg, config)}
+                for i, seg in enumerate(segments)
+            ]
+
+        # Análise por speaker (formato "Speaker: texto")
+        if config['by_speaker']:
+            speaker_texts = self._split_by_speaker(document.content)
+            if speaker_texts:
+                result["by_speaker"] = {
+                    speaker: self._analyze_text(text, config)
+                    for speaker, text in speaker_texts.items()
+                }
+
+        return result
+
+    def _analyze_text(self, text: str, config: Dict[str, Any]) -> Dict[str, Any]:
+        """Análise de frequência num bloco de texto."""
         if not config['case_sensitive']:
             text = text.lower()
-        
-        # Tokenizar
+
         words = self._tokenize(text, config['tokenization'])
-        
-        # Filtrar palavras
         words = self._filter_words(words, config)
-        
-        # Contar frequências
         word_freq = Counter(words)
-        
-        # Preparar top words
         top_words = word_freq.most_common(config['max_words'])
-        
-        # Hapax legomena (palavras que aparecem apenas uma vez)
         hapax = [word for word, count in word_freq.items() if count == 1]
-        
-        # Retornar análise
+
         return {
             "word_frequencies": dict(top_words),
             "vocabulary_size": len(word_freq),
             "top_words": top_words,
             "hapax_legomena": hapax,
             "total_words": sum(word_freq.values()),
-            "parameters_used": config
+            "parameters_used": config,
         }
+
+    def _split_segments(self, text: str) -> List[str]:
+        """Divide texto em segmentos por parágrafo (linhas em branco)."""
+        segments = re.split(r'\n\s*\n', text)
+        return [seg.strip() for seg in segments if seg.strip()]
+
+    def _split_by_speaker(self, text: str) -> Dict[str, str]:
+        """Extrai texto por speaker — formatos Teams/transcrição.
+
+        Suporta:
+          - [HH:MM:SS] Speaker: texto
+          - Speaker (HH:MM:SS): texto
+          - Speaker: texto
+        """
+        speaker_texts: Dict[str, str] = {}
+        # Padrões ordenados por especificidade
+        patterns = [
+            r'^\[?\d{1,2}:\d{2}:\d{2}\]?\s*([^:]+):\s*(.+)$',
+            r'^([^(]+)\s*\(\d{1,2}:\d{2}:\d{2}\):\s*(.+)$',
+            r'^([^:]+):\s*(.+)$',
+        ]
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line:
+                continue
+            for pattern in patterns:
+                match = re.match(pattern, line)
+                if match:
+                    speaker = match.group(1).strip()
+                    utterance = match.group(2).strip()
+                    if speaker in speaker_texts:
+                        speaker_texts[speaker] += ' ' + utterance
+                    else:
+                        speaker_texts[speaker] = utterance
+                    break
+        return speaker_texts
     
     def _tokenize(self, text: str, method: str) -> List[str]:
         """

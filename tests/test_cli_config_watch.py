@@ -231,6 +231,22 @@ class TestConfigValidate:
         # O importante e nao crashar
         assert result.exit_code == 0 or "inválido" in result.output.lower()
 
+    def test_config_validate_rejects_list(self, tmp_path, runner):
+        """Config com raiz sendo lista deve reportar erro sobre dict"""
+        f = tmp_path / "list_config.json"
+        f.write_text("[]")
+        result = runner.invoke(cli, ["config", "validate", str(f)])
+        output_lower = result.output.lower()
+        assert "dict" in output_lower or "inválido" in output_lower or "objeto" in output_lower
+
+    def test_config_validate_accepts_dict(self, tmp_path, runner):
+        """Config com raiz sendo dict deve validar com sucesso"""
+        f = tmp_path / "dict_config.json"
+        f.write_text(json.dumps({"key": "value"}))
+        result = runner.invoke(cli, ["config", "validate", str(f)])
+        assert result.exit_code == 0
+        assert "válido" in result.output.lower() or "valid" in result.output.lower()
+
 
 # =============================================================================
 # CONFIG LIST
@@ -560,3 +576,42 @@ class TestQualiaFileHandler:
         event = DirCreatedEvent(str(tmp_path / "nova_pasta"))
         handler.on_created(event)
         assert handler.stats["processed"] == 0
+
+    def test_handler_recursive_no_collision(self, tmp_path):
+        """Dois arquivos com mesmo nome em subdirs diferentes produzem outputs diferentes.
+
+        Fix: output filename agora usa path relativo ao watch_dir,
+        entao sub1/doc.txt e sub2/doc.txt geram nomes distintos.
+        """
+        from qualia.cli.commands.watch import QualiaFileHandler
+
+        watch_dir = tmp_path / "watched"
+        sub1 = watch_dir / "sub1"
+        sub2 = watch_dir / "sub2"
+        sub1.mkdir(parents=True)
+        sub2.mkdir(parents=True)
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+
+        (sub1 / "doc.txt").write_text("Texto no subdiretorio um com palavras.")
+        (sub2 / "doc.txt").write_text("Texto no subdiretorio dois com frases.")
+
+        handler = QualiaFileHandler(
+            plugin_id="word_frequency",
+            config={},
+            output_dir=output_dir,
+            pattern="*.txt",
+            watch_dir=watch_dir,
+        )
+
+        handler._process_file(str(sub1 / "doc.txt"))
+        handler._process_file(str(sub2 / "doc.txt"))
+
+        assert handler.stats["processed"] == 2
+
+        # Verificar que os arquivos de resultado sao diferentes
+        result_files = list(output_dir.glob("*_result.json"))
+        assert len(result_files) == 2
+        # Nomes devem ser distintos (contem path relativo)
+        names = sorted(f.name for f in result_files)
+        assert names[0] != names[1]

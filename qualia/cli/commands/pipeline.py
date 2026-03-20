@@ -11,7 +11,7 @@ from pathlib import Path
 from rich.progress import Progress
 
 from qualia.core import PipelineConfig, PipelineStep, PluginType
-from .utils import get_core, console
+from .utils import get_core, console, make_doc_id
 
 
 @click.command()
@@ -30,7 +30,15 @@ def pipeline(document_path: str, config: str, output_dir: str):
         pipeline_data = yaml.safe_load(config_path.read_text())
     else:
         pipeline_data = json.loads(config_path.read_text())
-    
+
+    if not isinstance(pipeline_data, dict):
+        console.print(f"[red]Config do pipeline deve ser um objeto (dict), não {type(pipeline_data).__name__}[/red]")
+        raise SystemExit(1)
+
+    if not isinstance(pipeline_data.get('steps'), list):
+        console.print("[red]Config do pipeline deve ter campo 'steps' (lista de steps)[/red]")
+        raise SystemExit(1)
+
     # Criar pipeline
     steps = []
     for step_data in pipeline_data.get('steps', []):
@@ -53,7 +61,7 @@ def pipeline(document_path: str, config: str, output_dir: str):
         content = doc_path.read_text(encoding='utf-8')
     except UnicodeDecodeError:
         content = doc_path.read_text(encoding='latin-1')
-    doc = core.add_document(doc_path.stem, content)
+    doc = core.add_document(make_doc_id(doc_path, content), content)
     
     # Executar pipeline
     console.print(f"\n[bold]Executando pipeline '{pipeline_config.name}'...[/bold]")

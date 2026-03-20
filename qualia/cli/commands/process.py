@@ -9,7 +9,7 @@ import yaml
 from pathlib import Path
 
 from qualia.core import PluginType
-from .utils import get_core, console, load_config, parse_params
+from .utils import get_core, console, load_config, parse_params, make_doc_id
 
 
 @click.command()
@@ -39,7 +39,7 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
     except UnicodeDecodeError:
         content = doc_path.read_text(encoding='latin-1')
         console.print("[yellow]⚠ Arquivo não é UTF-8 — decodificado como latin-1. Caracteres podem estar incorretos.[/yellow]")
-    doc = core.add_document(doc_path.stem, content)
+    doc = core.add_document(make_doc_id(doc_path, content), content)
     
     # Configuração
     params = {}
