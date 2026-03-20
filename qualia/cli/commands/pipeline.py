@@ -118,7 +118,11 @@ def pipeline(document_path: str, config: str, output_dir: str):
                         raise ValueError(f"Resultado anterior não é dict para {step.plugin_id}")
                     plugin_instance = core.get_plugin(step.plugin_id)
                     viz_config = dict(step.config or {})
-                    output_format = viz_config.pop("format", "html")
+                    # output_format é canônico; format é alias backward-compatible
+                    if "output_format" in viz_config:
+                        output_format = viz_config.pop("output_format")
+                    else:
+                        output_format = viz_config.pop("format", "html")
                     viz_config["output_format"] = output_format
                     viz_result = plugin_instance.render(last_result, viz_config)
                     if output_dir and "html" in viz_result:

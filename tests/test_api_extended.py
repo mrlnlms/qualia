@@ -882,9 +882,9 @@ class TestUploadSizeLimit:
     """
 
     def test_transcribe_file_too_large_returns_413(self, client, monkeypatch):
-        """Upload > MAX_UPLOAD_SIZE em transcribe retorna 413."""
-        import qualia.api.deps as deps
-        monkeypatch.setattr(deps, "MAX_UPLOAD_SIZE", 1024)
+        """Upload > TRANSCRIPTION_MAX_SIZE em transcribe retorna 413."""
+        import qualia.api.routes.transcribe as transcribe_mod
+        monkeypatch.setattr(transcribe_mod, "TRANSCRIPTION_MAX_SIZE", 1024)
         fake_content = b"\x00" * 1025
         response = client.post(
             "/transcribe/transcription",
@@ -898,10 +898,10 @@ class TestUploadSizeLimit:
         import qualia.api.deps as deps
         monkeypatch.setattr(deps, "MAX_UPLOAD_SIZE", 1024)
         fake_content = b"\x00" * 1025
-        steps = json.dumps([{"plugin_id": "transcription"}])
+        steps = json.dumps([{"plugin_id": "teams_cleaner"}])
         response = client.post(
             "/pipeline",
-            files={"file": ("big.mp3", io.BytesIO(fake_content), "audio/mpeg")},
+            files={"file": ("big.txt", io.BytesIO(fake_content), "text/plain")},
             data={"steps": steps},
         )
         assert response.status_code == 413

@@ -92,11 +92,11 @@ async def execute_pipeline(
             validate_plugin_config(core, plugin_id, config_dict)
 
             suffix = Path(file.filename).suffix if file.filename else ""
-            upload = await check_upload_size(file, suffix=suffix)
-            tmp_path = upload.tmp_path
-
-            # Plugins de transcrição leem file_path; outros (teams_cleaner) leem content
             is_transcription = "transcription" in (first_meta.provides or [])
+            # Transcrição: limite 25MB da Groq na borda; outros: limite global
+            max_size = 25 * 1024 * 1024 if is_transcription else None
+            upload = await check_upload_size(file, max_size=max_size, suffix=suffix)
+            tmp_path = upload.tmp_path
             if is_transcription:
                 doc_content = ""
             else:
@@ -155,9 +155,13 @@ async def execute_pipeline(
                 )
 
             output_format = "html"
-            if plugin_type == "visualizer" and "format" in config_dict:
+            if plugin_type == "visualizer":
                 config_dict = {**config_dict}
-                output_format = config_dict.pop("format", "html")
+                # output_format é canônico; format é alias backward-compatible
+                if "output_format" in config_dict:
+                    output_format = config_dict.pop("output_format")
+                elif "format" in config_dict:
+                    output_format = config_dict.pop("format")
 
             validate_plugin_config(core, plugin_id, config_dict)
 

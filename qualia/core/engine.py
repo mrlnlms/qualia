@@ -87,7 +87,11 @@ class QualiaCore:
         plugin = self.get_plugin(plugin_id)
         metadata = self.registry[plugin_id]
 
-        # Valida configuração
+        # Valida configuração — ConfigRegistry (range, options) + plugin (chaves desconhecidas)
+        if self.config_registry and plugin_id in self.config_registry._schemas:
+            valid, errors = self.config_registry.validate_config(plugin_id, config)
+            if not valid:
+                raise ValueError(f"Configuração inválida: {'; '.join(errors)}")
         valid, error = plugin.validate_config(config)
         if not valid:
             raise ValueError(f"Configuração inválida: {error}")
@@ -117,7 +121,8 @@ class QualiaCore:
         dep_results = dict(exec_context.results)
 
         if metadata.type == PluginType.ANALYZER:
-            result = plugin.analyze(document, config, dep_results)
+            analyzer_context = {**(context or {}), **dep_results}
+            result = plugin.analyze(document, config, analyzer_context)
         elif metadata.type == PluginType.DOCUMENT:
             result = plugin.process(document, config, context or {})
         elif metadata.type == PluginType.VISUALIZER:

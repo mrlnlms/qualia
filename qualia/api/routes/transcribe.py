@@ -10,6 +10,9 @@ from qualia.api.deps import get_core, track, validate_plugin_config, require_plu
 
 router = APIRouter()
 
+# Limite de transcrição (Groq API: 25MB) — separado do limite global de upload
+TRANSCRIPTION_MAX_SIZE = 25 * 1024 * 1024
+
 
 @router.post("/transcribe/{plugin_id}")
 async def transcribe(
@@ -45,7 +48,7 @@ async def transcribe(
     validate_plugin_config(core, plugin_id, config_dict)
 
     suffix = Path(file.filename).suffix if file.filename else ""
-    upload = await check_upload_size(file, suffix=suffix)
+    upload = await check_upload_size(file, max_size=TRANSCRIPTION_MAX_SIZE, suffix=suffix)
     tmp_path = upload.tmp_path
 
     try:

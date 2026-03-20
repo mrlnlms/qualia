@@ -63,7 +63,7 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
         if 'cleaned_document' in result:
             original_len = result.get('original_length', len(content))
             cleaned_len = result.get('cleaned_length', len(result['cleaned_document']))
-            reduction = ((original_len - cleaned_len) / original_len) * 100
+            reduction = ((original_len - cleaned_len) / original_len) * 100 if original_len > 0 else 0
             
             console.print(f"\n[green]✓ Documento processado![/green]")
             console.print(f"  Original: {original_len} caracteres")
