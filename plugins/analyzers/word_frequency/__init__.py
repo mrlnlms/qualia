@@ -60,24 +60,31 @@ class WordFrequencyAnalyzer(BaseAnalyzerPlugin):
         Plugins são singletons compartilhados entre worker threads.
         O LazyCorpusLoader do NLTK não é thread-safe, então forçamos
         a resolução aqui — onde só existe uma thread.
+        Silencia warnings do NLTK durante download (ruidoso sem rede).
         """
         try:
             import nltk
-            # Só baixa se não estiver em cache local (evita tentativa de rede)
-            for resource in ('stopwords', 'punkt', 'punkt_tab'):
-                try:
-                    nltk.data.find(f'corpora/{resource}' if resource == 'stopwords' else f'tokenizers/{resource}')
-                except LookupError:
-                    nltk.download(resource, quiet=True)
-            self._nltk_available = True
+            # Silenciar NLTK durante warm-up (ruidoso sem rede)
+            nltk_logger = logging.getLogger('nltk')
+            prev_level = nltk_logger.level
+            nltk_logger.setLevel(logging.CRITICAL)
+            try:
+                for resource in ('stopwords', 'punkt', 'punkt_tab'):
+                    try:
+                        nltk_logger.setLevel(logging.CRITICAL)
+                        nltk.data.find(f'corpora/{resource}' if resource == 'stopwords' else f'tokenizers/{resource}')
+                    except LookupError:
+                        nltk.download(resource, quiet=True)
+                self._nltk_available = True
 
-            # Forçar LazyCorpusLoader a resolver agora (single-threaded)
-            from nltk.corpus import stopwords
-            for lang in ('portuguese', 'english', 'spanish'):
-                try:
-                    self._stopwords_cache[lang] = set(stopwords.words(lang))
-                except Exception:
-                    pass
+                from nltk.corpus import stopwords
+                for lang in ('portuguese', 'english', 'spanish'):
+                    try:
+                        self._stopwords_cache[lang] = set(stopwords.words(lang))
+                    except Exception:
+                        pass
+            finally:
+                nltk_logger.setLevel(prev_level)
         except ImportError:
             self._nltk_available = False
 

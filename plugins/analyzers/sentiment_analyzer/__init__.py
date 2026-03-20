@@ -50,11 +50,19 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         self._warm_up_nltk()
 
     def _warm_up_nltk(self):
-        """Baixa corpora do NLTK no __init__ (thread-safe — roda na main thread)"""
+        """Baixa corpora do NLTK no __init__ (thread-safe — roda na main thread).
+        Silencia warnings do NLTK durante download (ruidoso sem rede).
+        """
         try:
             import nltk
-            nltk.download('brown', quiet=True)
-            nltk.download('punkt', quiet=True)
+            nltk_logger = logging.getLogger('nltk')
+            prev_level = nltk_logger.level
+            nltk_logger.setLevel(logging.CRITICAL)
+            try:
+                nltk.download('brown', quiet=True)
+                nltk.download('punkt', quiet=True)
+            finally:
+                nltk_logger.setLevel(prev_level)
             self._nltk_ready = True
         except Exception:
             self._nltk_ready = True  # Não tentar de novo
