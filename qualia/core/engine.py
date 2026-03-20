@@ -113,7 +113,7 @@ class QualiaCore:
             for dep_id in execution_order:
                 if dep_id == plugin_id:
                     continue
-                dep_result = self.execute_plugin(dep_id, document, {})
+                dep_result = self.execute_plugin(dep_id, document, {}, context)
                 exec_context.add_result(dep_id, dep_result)
 
         # Executa o plugin baseado em seu tipo

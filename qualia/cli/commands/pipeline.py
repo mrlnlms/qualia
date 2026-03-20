@@ -123,6 +123,11 @@ def pipeline(document_path: str, config: str, output_dir: str):
                         output_format = viz_config.pop("output_format")
                     else:
                         output_format = viz_config.pop("format", "html")
+                    valid_formats = {"html", "png", "svg"}
+                    if output_format not in valid_formats:
+                        raise ValueError(
+                            f"output_format '{output_format}' inválido. Aceitos: {', '.join(sorted(valid_formats))}"
+                        )
                     viz_config["output_format"] = output_format
                     viz_result = plugin_instance.render(last_result, viz_config)
                     if output_dir and "html" in viz_result:

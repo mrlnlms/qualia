@@ -163,6 +163,15 @@ async def execute_pipeline(
                 elif "format" in config_dict:
                     output_format = config_dict.pop("format")
 
+                # Validar formato aceito — alinhado com /visualize (Literal["html","png","svg"])
+                valid_formats = {"html", "png", "svg"}
+                if output_format not in valid_formats:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"output_format '{output_format}' inválido para visualizer. "
+                               f"Aceitos: {', '.join(sorted(valid_formats))}",
+                    )
+
             validate_plugin_config(core, plugin_id, config_dict)
 
             if plugin_type == "visualizer":

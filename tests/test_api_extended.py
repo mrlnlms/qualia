@@ -1292,8 +1292,8 @@ class TestPipelineEdgeCases:
             "/pipeline",
             data={"text": text, "steps": steps},
         )
-        # pdf nao suportado pelo plugin -> 400 (erro no render)
-        assert response.status_code == 400
+        # pdf nao suportado -> 422 (validação de output_format na borda)
+        assert response.status_code == 422
 
     def test_pipeline_text_only_no_file(self, client):
         """Pipeline com texto e sem file para analyzer (linhas 135-144 text path)"""
