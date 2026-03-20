@@ -7,9 +7,7 @@ Fachada de re-exports — a implementação vive nos módulos internos.
 
 from qualia.core.interfaces import (
     IAnalyzerPlugin,
-    IComposerPlugin,
     IDocumentPlugin,
-    IFilterPlugin,
     IPlugin,
     IVisualizerPlugin,
     PluginMetadata,
@@ -29,10 +27,8 @@ __all__ = [
     'PluginMetadata',
     'IPlugin',
     'IAnalyzerPlugin',
-    'IFilterPlugin',
     'IVisualizerPlugin',
     'IDocumentPlugin',
-    'IComposerPlugin',
     'BaseAnalyzerPlugin',
     'BaseVisualizerPlugin',
     'BaseDocumentPlugin',

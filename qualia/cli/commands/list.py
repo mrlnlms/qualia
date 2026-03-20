@@ -75,7 +75,7 @@ def _run_check(core, type_filter: str):
 
 @click.command()
 @click.option('--type', '-t',
-              type=click.Choice(['all', 'analyzer', 'filter', 'visualizer', 'document', 'composer']),
+              type=click.Choice(['all', 'analyzer', 'visualizer', 'document']),
               default='all',
               help='Tipo de plugin para listar')
 @click.option('--detailed', '-d', is_flag=True, help='Mostrar informações detalhadas')

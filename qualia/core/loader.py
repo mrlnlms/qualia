@@ -13,9 +13,7 @@ from typing import Dict, Optional
 
 from qualia.core.interfaces import (
     IAnalyzerPlugin,
-    IComposerPlugin,
     IDocumentPlugin,
-    IFilterPlugin,
     IPlugin,
     IVisualizerPlugin,
     PluginMetadata,
@@ -91,8 +89,8 @@ class PluginLoader:
                                 continue
                             if (inspect.isclass(obj) and
                                 issubclass(obj, IPlugin) and
-                                obj not in [IPlugin, IAnalyzerPlugin, IFilterPlugin,
-                                           IVisualizerPlugin, IDocumentPlugin, IComposerPlugin]):
+                                obj not in [IPlugin, IAnalyzerPlugin,
+                                           IVisualizerPlugin, IDocumentPlugin]):
 
                                 found_plugin = True
                                 needs_eager = getattr(obj, 'EAGER_LOAD', None) is True or '__init__' in obj.__dict__

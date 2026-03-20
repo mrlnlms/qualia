@@ -12,10 +12,8 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 class PluginType(Enum):
     """Tipos de plugins que o Core pode orquestrar"""
     ANALYZER = "analyzer"
-    FILTER = "filter"
     VISUALIZER = "visualizer"
     DOCUMENT = "document"
-    COMPOSER = "composer"
 
 
 @dataclass
@@ -63,15 +61,6 @@ class IAnalyzerPlugin(IPlugin):
         pass
 
 
-class IFilterPlugin(IPlugin):
-    """Transforma ou filtra dados existentes"""
-
-    @abstractmethod
-    def filter(self, data: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
-        """Aplica transformação aos dados"""
-        pass
-
-
 class IVisualizerPlugin(IPlugin):
     """Renderiza dados em visualizações"""
 
@@ -93,10 +82,3 @@ class IDocumentPlugin(IPlugin):
         pass
 
 
-class IComposerPlugin(IPlugin):
-    """Combina múltiplas análises"""
-
-    @abstractmethod
-    def compose(self, analyses: Dict[str, Any], config: Dict[str, Any]) -> Dict[str, Any]:
-        """Combina resultados de múltiplas análises"""
-        pass
