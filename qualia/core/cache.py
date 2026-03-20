@@ -91,7 +91,7 @@ class CacheManager:
         if isinstance(obj, dict):
             return {str(k): CacheManager._canonicalize(v) for k, v in sorted(obj.items())}
         if isinstance(obj, (set, frozenset)):
-            return sorted(CacheManager._canonicalize(x) for x in obj)
+            return sorted((CacheManager._canonicalize(x) for x in obj), key=str)
         if isinstance(obj, (list, tuple)):
             return [CacheManager._canonicalize(x) for x in obj]
         if isinstance(obj, Path):

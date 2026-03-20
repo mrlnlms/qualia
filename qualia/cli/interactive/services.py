@@ -10,11 +10,12 @@ from ..formatters import console, format_success, format_warning, format_error
 
 
 def clear_cache():
-    """Limpa o cache"""
+    """Limpa o cache — usa o cache_dir real do core, não path relativo ao cwd."""
     # Late import to use the same name the tests patch on handlers module
     from qualia.cli.interactive.handlers import Confirm
     if Confirm.ask("Limpar todo o cache?"):
-        cache_dir = Path("cache")
+        from qualia.cli.commands.utils import get_core
+        cache_dir = get_core().cache.cache_dir
         if cache_dir.exists():
             shutil.rmtree(cache_dir)
             cache_dir.mkdir()
@@ -85,8 +86,8 @@ def verify_installation():
     else:
         console.print(format_error(Exception("Problema com comando qualia")))
 
-    # Verificar estrutura
-    required_dirs = ["qualia", "plugins", "configs", "results"]
+    # Verificar estrutura (dirs reais do projeto, não stale)
+    required_dirs = ["qualia", "plugins", "cache"]
     for dir_name in required_dirs:
         if Path(dir_name).exists():
             console.print(format_success(f"Diretório {dir_name}"))
@@ -95,11 +96,12 @@ def verify_installation():
 
 
 def open_file(filepath: str):
-    """Abre arquivo no sistema"""
+    """Abre arquivo no sistema — sem shell=True pra evitar injeção de comando."""
     import subprocess
+    import os
     if sys.platform == "darwin":
         subprocess.run(["open", filepath])
     elif sys.platform == "linux":
         subprocess.run(["xdg-open", filepath])
     elif sys.platform == "win32":
-        subprocess.run(["start", filepath], shell=True)
+        os.startfile(filepath)

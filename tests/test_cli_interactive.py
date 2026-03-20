@@ -385,16 +385,17 @@ class TestSettingsMenu:
 
     @patch("qualia.cli.interactive.handlers.Prompt.ask")
     @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
-    def test_clear_cache(self, mock_confirm, mock_prompt, handlers, tmp_path, monkeypatch):
+    def test_clear_cache(self, mock_confirm, mock_prompt, handlers, tmp_path):
         """Limpa cache com sucesso"""
-        monkeypatch.chdir(tmp_path)
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         (cache_dir / "item.dat").write_text("data")
 
+        mock_core = MagicMock()
+        mock_core.cache.cache_dir = cache_dir
         mock_prompt.side_effect = ["1", ""]
-        handlers.settings_menu()
-        # Cache dir deve existir mas vazio
+        with patch("qualia.cli.commands.utils.get_core", return_value=mock_core):
+            handlers.settings_menu()
         assert cache_dir.exists()
         assert list(cache_dir.iterdir()) == []
 
@@ -732,11 +733,11 @@ class TestOpenFile:
             handlers._open_file("/tmp/test.png")
             mock_run.assert_called_with(["xdg-open", "/tmp/test.png"])
 
-    @patch("subprocess.run")
-    def test_open_windows(self, mock_run, handlers):
-        with patch.object(sys, 'platform', 'win32'):
+    def test_open_windows(self, handlers):
+        with patch.object(sys, 'platform', 'win32'), \
+             patch("os.startfile", create=True) as mock_startfile:
             handlers._open_file("/tmp/test.png")
-            mock_run.assert_called_with(["start", "/tmp/test.png"], shell=True)
+            mock_startfile.assert_called_with("/tmp/test.png")
 
 
 # =============================================================================
@@ -1171,13 +1172,16 @@ class TestHandlerEdgeCases:
         # Não deve crashar
 
     @patch("qualia.cli.interactive.handlers.Confirm.ask", return_value=True)
-    def test_clear_cache_exists(self, mock_confirm, handlers, tmp_path, monkeypatch):
-        """_clear_cache quando diretório existe"""
-        monkeypatch.chdir(tmp_path)
+    def test_clear_cache_exists(self, mock_confirm, handlers, tmp_path):
+        """_clear_cache quando diretório existe — usa cache_dir do core"""
         cache_dir = tmp_path / "cache"
         cache_dir.mkdir()
         (cache_dir / "file.dat").write_text("data")
-        handlers._clear_cache()
+
+        mock_core = MagicMock()
+        mock_core.cache.cache_dir = cache_dir
+        with patch("qualia.cli.commands.utils.get_core", return_value=mock_core):
+            handlers._clear_cache()
         assert cache_dir.exists()
         assert not list(cache_dir.glob("*"))
 
