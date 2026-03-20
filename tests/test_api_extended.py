@@ -1488,35 +1488,17 @@ class TestVisualizeEdgeCases:
         error_text = str(data.get("detail", data.get("message", "")))
         assert "dados invalidos" in error_text.lower()
 
-    def test_visualize_other_format_returns_dict(self, client):
-        """Formato qualquer retorna dict do render (sem FileResponse)"""
-        with patch(
-            "qualia.api.routes.visualize.get_core"
-        ) as mock_get_core:
-            mock_core = MagicMock()
-            mock_get_core.return_value = mock_core
-            mock_core.registry = {
-                "frequency_chart_plotly": _mock_registry_entry("frequency_chart_plotly", "visualizer"),
-            }
-            mock_core.get_config_registry.return_value = None
-            mock_plugin = MagicMock()
-
-            mock_plugin.render.return_value = {"data": "AAAA", "encoding": "base64", "format": "pdf"}
-            mock_core.loader.get_plugin.return_value = mock_plugin
-
-            response = client.post(
-                "/visualize/frequency_chart_plotly",
-                json={
-                    "data": {"word_frequencies": {"a": 1}},
-                    "config": {},
-                    "output_format": "pdf",
-                },
-            )
-
-        assert response.status_code == 200
-        data = response.json()
-        assert data["status"] == "success"
-        assert data["format"] == "pdf"
+    def test_visualize_invalid_format_returns_422(self, client):
+        """Formato inválido retorna 422 (Literal validation: html, png, svg)"""
+        response = client.post(
+            "/visualize/frequency_chart_plotly",
+            json={
+                "data": {"word_frequencies": {"a": 1}},
+                "config": {},
+                "output_format": "pdf",
+            },
+        )
+        assert response.status_code == 422
 
 
 # ============================================================================

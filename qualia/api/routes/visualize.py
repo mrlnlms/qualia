@@ -18,12 +18,11 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
     """
     core = get_core()
     require_plugin_type(core, plugin_id, "visualizer")
-    validate_plugin_config(core, plugin_id, request.config)
-
-    config = {**request.config, "output_format": request.output_format or "html"}
-    plugin = core.loader.get_plugin(plugin_id)
 
     try:
+        validate_plugin_config(core, plugin_id, request.config)
+        config = {**request.config, "output_format": request.output_format or "html"}
+        plugin = core.loader.get_plugin(plugin_id)
         result = await asyncio.wait_for(
             asyncio.to_thread(plugin.render, request.data, config),
             timeout=60.0,
@@ -38,5 +37,4 @@ async def visualize(plugin_id: str, request: VisualizeRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     await track(f"/visualize/{plugin_id}", plugin_id)
-
     return {"status": "success", "plugin_id": plugin_id, **result}

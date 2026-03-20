@@ -1,7 +1,7 @@
 """Modelos Pydantic para request/response da API."""
 
 from pydantic import BaseModel, Field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Literal
 from fastapi import HTTPException
 
 
@@ -20,7 +20,7 @@ class ProcessRequest(BaseModel):
 class VisualizeRequest(BaseModel):
     data: Dict[str, Any] = Field(..., description="Data to visualize (usually from analyzer output)")
     config: Dict[str, Any] = Field(default_factory=dict, description="Visualization configuration")
-    output_format: str = Field("html", description="Output format: png, svg, html")
+    output_format: Literal["html", "png", "svg"] = Field("html", description="Output format: png, svg, html")
 
 
 class ConfigResolveRequest(BaseModel):
