@@ -40,3 +40,37 @@ class TestPluginsCheck:
         assert result.exit_code == 0
         assert "word_frequency" in result.output
         assert "wordcloud_d3" not in result.output
+
+
+class TestClassifyError:
+    """Testes unitários para _classify_error."""
+
+    def test_import_error(self):
+        from qualia.cli.commands.list import _classify_error
+        label, suggestion = _classify_error({"type": "import_error", "plugin": "x", "error": "No module named 'foo'"})
+        assert label == "Import Error"
+        assert "pip install" in suggestion
+
+    def test_syntax_error(self):
+        from qualia.cli.commands.list import _classify_error
+        label, suggestion = _classify_error({"type": "syntax_error", "plugin": "x", "error": "invalid syntax"})
+        assert label == "Syntax Error"
+        assert "código" in suggestion.lower()
+
+    def test_os_error(self):
+        from qualia.cli.commands.list import _classify_error
+        label, suggestion = _classify_error({"type": "os_error", "plugin": "x", "error": "File not found"})
+        assert label == "Os Error"
+        assert "arquivos" in suggestion.lower()
+
+    def test_value_error(self):
+        from qualia.cli.commands.list import _classify_error
+        label, suggestion = _classify_error({"type": "value_error", "plugin": "x", "error": "duplicate ID"})
+        assert label == "Value Error"
+        assert "meta()" in suggestion
+
+    def test_unknown_defaults(self):
+        from qualia.cli.commands.list import _classify_error
+        label, suggestion = _classify_error({"plugin": "x", "error": "Something weird"})
+        assert label == "Unknown Error"
+        assert "log" in suggestion.lower()

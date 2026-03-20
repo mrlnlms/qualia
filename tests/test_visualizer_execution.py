@@ -245,3 +245,53 @@ class TestVisualizerPipeline:
 
         assert "sentiment_viz_plotly" in results
         assert "html" in results["sentiment_viz_plotly"]
+
+
+class TestSerializeEdgeCases:
+    """Testes de coverage para _serialize() do BaseVisualizerPlugin."""
+
+    def test_unsupported_figure_type_raises(self):
+        """_serialize deve levantar TypeError para figura não suportada."""
+        from qualia.core.base_plugins import BaseVisualizerPlugin
+        from qualia.core import PluginMetadata, PluginType
+
+        class DummyViz(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="dummy_viz", name="Dummy", type=PluginType.VISUALIZER,
+                    version="1.0.0", description="", provides=[], requires=[],
+                    parameters={},
+                )
+
+            def _render_impl(self, data, config):
+                return 12345  # tipo não suportado
+
+            def _validate_data(self, data):
+                pass
+
+        viz = DummyViz()
+        with pytest.raises(TypeError, match="não suportado"):
+            viz.render({"some": "data"}, {})
+
+    def test_html_string_rejects_non_html_format(self):
+        """Plugin que retorna HTML string não pode serializar pra png."""
+        from qualia.core.base_plugins import BaseVisualizerPlugin
+        from qualia.core import PluginMetadata, PluginType
+
+        class HtmlViz(BaseVisualizerPlugin):
+            def meta(self):
+                return PluginMetadata(
+                    id="html_viz", name="HTML", type=PluginType.VISUALIZER,
+                    version="1.0.0", description="", provides=[], requires=[],
+                    parameters={},
+                )
+
+            def _render_impl(self, data, config):
+                return "<html><body>test</body></html>"
+
+            def _validate_data(self, data):
+                pass
+
+        viz = HtmlViz()
+        with pytest.raises(ValueError, match="não suportado"):
+            viz.render({"some": "data"}, {"output_format": "png"})
