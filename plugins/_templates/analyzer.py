@@ -49,7 +49,7 @@ class __CLASS_NAME__(BaseAnalyzerPlugin):
             # provides = campos que o dict de resultado DEVE conter.
             # Contrato: o engine valida que o resultado contém estes campos.
             # Outros plugins podem depender destes via requires=["campo"].
-            # Dois plugins NAO podem fornecer o mesmo campo (erro no startup).
+            # Múltiplos plugins podem declarar o mesmo campo — mas resolução automática de dependências requer provider único.
             provides=[
                 "analysis_result",  # TODO: mude para seus campos reais
             ],
