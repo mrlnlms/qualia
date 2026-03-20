@@ -53,18 +53,32 @@ def require_plugin_type(core: QualiaCore, plugin_id: str, *expected_types: str) 
         )
 
 
+UPLOAD_CHUNK_SIZE = 64 * 1024  # 64KB por chunk
+
+
 async def check_upload_size(file: UploadFile, max_size: int = None) -> bytes:
-    """Lê conteúdo do upload e rejeita com 413 se exceder limite."""
+    """Lê upload em streaming e aborta com 413 se exceder limite.
+
+    Lê em chunks de 64KB — nunca carrega mais que max_size + 1 chunk na RAM.
+    """
     if max_size is None:
         max_size = MAX_UPLOAD_SIZE
-    content = await file.read()
-    if len(content) > max_size:
-        size_mb = len(content) / (1024 * 1024)
-        raise HTTPException(
-            status_code=413,
-            detail=f"Arquivo muito grande: {size_mb:.1f}MB. Limite: {max_size // (1024 * 1024)}MB."
-        )
-    return content
+    chunks = []
+    total = 0
+    while True:
+        chunk = await file.read(UPLOAD_CHUNK_SIZE)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_size:
+            size_mb = total / (1024 * 1024)
+            limit_mb = max_size / (1024 * 1024)
+            raise HTTPException(
+                status_code=413,
+                detail=f"Arquivo muito grande: >{size_mb:.0f}MB. Limite: {limit_mb:.0f}MB."
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 
 async def track(endpoint: str, plugin_id: str = None, error: str = None):
