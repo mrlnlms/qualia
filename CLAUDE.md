@@ -113,6 +113,16 @@ O core descobre plugins automaticamente em qualquer profundidade dentro de `plug
 - **Estabilidade:** interfaces classificadas como stable/experimental em `docs/TECHNICAL_STATE.md` seção Stability
 - **Docs mortos:** ficam em `docs/morto/` (ignorado pelo git), docs ativos em `docs/`
 
+## Decisões arquiteturais (settled — não reabrir)
+
+1. **Stateless.** Document é efêmero — sem `_analyses`, `_variants`, `_cache`. Dead code stateful foi removido. Se encontrar referências, são resíduos a limpar.
+2. **Sem perfis de domínio.** ConfigurationRegistry normaliza/valida/calibra, mas perfis são do consumer.
+3. **Pipeline chaining adiado.** `execute_pipeline()` no engine passa o documento original pra todos os steps. A API faz chaining de texto. Unificar quando houver caso de uso real.
+4. **CORS configurável.** `CORS_ALLOWED_ORIGINS` env var, default `*`. Em produção o operador restringe.
+5. **Três tipos de plugin, ponto.** ANALYZER, DOCUMENT, VISUALIZER. IFilterPlugin e IComposerPlugin foram removidos. Não reintroduzir.
+6. **ConfigRegistry rejeita tipos desconhecidos.** `_validate_type` retorna erro para tipos fora do mapa (int, float, bool, str, list, dict).
+7. **API bind 127.0.0.1.** Docker usa 0.0.0.0 no CMD. O `__main__.py` usa 127.0.0.1. Intencional.
+
 ## Ecossistema
 
 - **Qualia Engine** (este repo) — API REST, motor agnóstico

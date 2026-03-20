@@ -24,9 +24,9 @@
 | test_api_extended.py | 98 | Todos endpoints, timeout, file upload, pipeline, 413, /plugins/health |
 | test_cli_extended.py | 57 | Visualize, batch, export — happy paths e edge cases |
 | test_cli.py | 48 | Comandos Click: list, analyze, pipeline, batch, export, config, inspect, process + formatters |
-| test_core.py | 53 | Discovery, execution, cache, _validate_and_convert |
+| test_core.py | 49 | Discovery, execution, cache, _validate_and_convert |
 | test_cli_final.py | 40 | Pipeline avançado, interactive/utils, commands/__init__ |
-| test_config_registry.py | 39 | Normalização, validação, resolução, visão consolidada |
+| test_config_registry.py | 40 | Normalização, validação, resolução, visão consolidada, rejeição tipo desconhecido |
 | test_plugin_logic.py | 37 | Lógica real: word_frequency, readability, teams_cleaner, sentiment |
 | test_cli_config_watch.py | 33 | Config validate/create/list, watch command, QualiaFileHandler |
 | test_cache_deps.py | 30 | CacheManager hit/miss, DependencyResolver ciclos |
@@ -38,8 +38,8 @@
 | test_pragmatic.py | 17 | Contratos de plugin, pipeline, usage real |
 | test_async.py | 9 | Concorrência, event loop, pipeline errors |
 | test_performance.py | 5 | Startup <500ms, execução <100ms, cache hit vs miss |
-| test_cli_plugins_check.py | 4 | `qualia list --check` diagnóstico de plugins |
-| test_visualizer_execution.py | 22 | Execução real dos 3 visualizers + pipelines analyzer→visualizer |
+| test_cli_plugins_check.py | 9 | `qualia list --check` diagnóstico de plugins, _classify_error branches |
+| test_visualizer_execution.py | 24 | Execução real dos 3 visualizers + pipelines analyzer→visualizer + _serialize edge cases |
 | test_thread_safety.py | 3 | Concorrência de plugin singletons (ThreadPoolExecutor) |
 | test_cache_pipeline.py | 3 | Cache hit/miss em pipelines repetidos |
 | test_loader_errors.py | 7 | Discovery errors acumulados, expostos, com severity/type |
