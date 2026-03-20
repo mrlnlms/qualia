@@ -31,7 +31,13 @@ def process(document_path: str, plugin: str, config: str, save_as: str, param):
     if plugin_meta.type != PluginType.DOCUMENT:
         console.print(f"[red]'{plugin}' não é um processador de documentos![/red]")
         raise SystemExit(1)
-    
+
+    # Plugins de transcrição precisam de file_path em metadata — não suportado pela CLI process
+    if "transcription" in (plugin_meta.provides or []):
+        console.print(f"[red]'{plugin}' é um plugin de transcrição — use a API POST /transcribe/{plugin} com upload de arquivo.[/red]")
+        console.print("[dim]qualia process é para plugins text-based (ex: teams_cleaner).[/dim]")
+        raise SystemExit(1)
+
     # Ler documento
     doc_path = Path(document_path)
     try:

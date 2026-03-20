@@ -125,7 +125,8 @@ class QualiaCore:
             analyzer_context = {**(context or {}), **dep_results}
             result = plugin.analyze(document, config, analyzer_context)
         elif metadata.type == PluginType.DOCUMENT:
-            result = plugin.process(document, config, context or {})
+            document_context = {**(context or {}), **dep_results}
+            result = plugin.process(document, config, document_context)
         elif metadata.type == PluginType.VISUALIZER:
             # Monta dados combinados de todas as dependências
             data = {}

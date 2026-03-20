@@ -6,6 +6,7 @@ Auto-descoberta e carregamento de plugins com instanciação eager/lazy.
 import importlib.util
 import inspect
 import logging
+import sys
 import threading
 import time
 from pathlib import Path
@@ -76,12 +77,17 @@ class PluginLoader:
         for plugin_dir in self._find_plugin_dirs():
                 try:
                     t0 = time.perf_counter()
+                    # Nome único derivado do path relativo (evita colisão entre plugins em subpastas)
+                    rel = plugin_dir.relative_to(self.plugins_dir)
+                    module_name = "qualia_plugin_" + ".".join(rel.parts)
                     spec = importlib.util.spec_from_file_location(
-                        plugin_dir.name,
-                        plugin_dir / "__init__.py"
+                        module_name,
+                        plugin_dir / "__init__.py",
+                        submodule_search_locations=[str(plugin_dir)],
                     )
                     if spec and spec.loader:
                         module = importlib.util.module_from_spec(spec)
+                        sys.modules[module_name] = module
                         spec.loader.exec_module(module)
 
                         found_plugin = False

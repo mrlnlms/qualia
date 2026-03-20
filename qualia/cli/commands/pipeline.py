@@ -11,6 +11,7 @@ from pathlib import Path
 from rich.progress import Progress
 
 from qualia.core import PipelineConfig, PipelineStep, PluginType
+from qualia.core.models import extract_chained_text
 from .utils import get_core, console, make_doc_id
 
 
@@ -149,14 +150,9 @@ def pipeline(document_path: str, config: str, output_dir: str):
                     # Adicionar ao context
                     context[output_name] = result
 
-                    # Encadear texto: se resultado contém texto processado, usar como input do próximo step
-                    if isinstance(result, dict):
-                        chained_text = (
-                            result.get("cleaned_document")
-                            or result.get("processed_text")
-                            or result.get("transcription")
-                        )
-                        if chained_text:
+                    # Encadear texto: prioridade canônica (transcription > cleaned_document > processed_text)
+                    chained_text = extract_chained_text(result)
+                    if chained_text:
                             doc = core.add_document(f"{doc.id}_{output_name}", chained_text)
                 
                 progress.advance(task)

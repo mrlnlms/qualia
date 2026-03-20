@@ -8,28 +8,14 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
 from qualia.api.deps import get_core, track, validate_plugin_config, check_upload_size
+from qualia.core.models import extract_chained_text
 
 router = APIRouter()
 
 
 def _extract_text_result(result):
-    """Extrai texto encadeável de resultados de analyzer/document.
-
-    Prioridade (primeiro encontrado vence):
-      1. transcription — plugins de transcrição (e.g. transcription)
-      2. cleaned_document — plugins de limpeza (e.g. teams_cleaner)
-      3. processed_text — plugins de processamento genérico
-
-    Se um plugin retornar múltiplos desses campos, apenas o de maior
-    prioridade será usado para encadear ao próximo step.
-    """
-    if isinstance(result, str):
-        return result
-    if isinstance(result, dict):
-        for key in ("transcription", "cleaned_document", "processed_text"):
-            if key in result and isinstance(result[key], str):
-                return result[key]
-    return None
+    """Wrapper local — delega pra helper canônico em core.models."""
+    return extract_chained_text(result)
 
 
 @router.post("/pipeline")

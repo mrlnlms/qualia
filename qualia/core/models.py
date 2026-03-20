@@ -31,6 +31,25 @@ class ExecutionContext:
         return {dep: self.results.get(dep) for dep in dependencies if dep in self.results}
 
 
+def extract_chained_text(result) -> Optional[str]:
+    """Extrai texto encadeável de resultado de plugin.
+
+    Prioridade canônica (primeiro encontrado vence):
+      1. transcription — plugins de transcrição
+      2. cleaned_document — plugins de limpeza
+      3. processed_text — processamento genérico
+
+    Usada por API e CLI para manter a mesma regra de encadeamento.
+    """
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        for key in ("transcription", "cleaned_document", "processed_text"):
+            if key in result and isinstance(result[key], str):
+                return result[key]
+    return None
+
+
 @dataclass
 class PipelineStep:
     """Configuração de um passo no pipeline"""
