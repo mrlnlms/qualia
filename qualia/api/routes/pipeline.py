@@ -60,6 +60,16 @@ async def execute_pipeline(
     if not steps_list:
         raise HTTPException(status_code=422, detail="Pipeline must have at least one step")
 
+    # Validar estrutura de todos os steps antes de executar
+    for i, step in enumerate(steps_list):
+        if not isinstance(step, dict):
+            raise HTTPException(status_code=422, detail=f"Step {i} deve ser um objeto JSON")
+        if "plugin_id" not in step or not step["plugin_id"]:
+            raise HTTPException(status_code=422, detail=f"Step {i} requer 'plugin_id'")
+        step_config = step.get("config", {})
+        if not isinstance(step_config, dict):
+            raise HTTPException(status_code=422, detail=f"Step {i}: config deve ser um objeto JSON")
+
     tmp_path = None
     all_results = []
 
@@ -67,7 +77,7 @@ async def execute_pipeline(
         current_text = text or ""
         step_offset = 0
 
-        first_plugin_id = steps_list[0].get("plugin_id", "")
+        first_plugin_id = steps_list[0]["plugin_id"]
         first_meta = core.registry.get(first_plugin_id)
 
         # 404 antes de qualquer lógica de tipo

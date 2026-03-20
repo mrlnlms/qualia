@@ -58,10 +58,14 @@ async def analyze_file(
         config_dict = json.loads(config)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
+    if not isinstance(config_dict, dict):
+        raise HTTPException(status_code=422, detail="Config deve ser um objeto JSON, não array/string/número")
     try:
         context_dict = json.loads(context)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"Context JSON inválido: {e}")
+    if not isinstance(context_dict, dict):
+        raise HTTPException(status_code=422, detail="Context deve ser um objeto JSON, não array/string/número")
 
     try:
         validate_plugin_config(core, plugin_id, config_dict)

@@ -30,6 +30,8 @@ async def transcribe(
         config_dict = json.loads(config)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=422, detail=f"Config JSON inválido: {e}")
+    if not isinstance(config_dict, dict):
+        raise HTTPException(status_code=422, detail="Config deve ser um objeto JSON, não array/string/número")
 
     require_plugin_type(core, plugin_id, "document")
 
