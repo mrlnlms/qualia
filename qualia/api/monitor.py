@@ -42,31 +42,34 @@ metrics = Metrics()
 start_time = time.time()
 request_times = deque(maxlen=100)  # Last 100 request timestamps
 active_streams = set()  # Active SSE connections
+_metrics_lock = asyncio.Lock()
 
 # Middleware to track metrics
 async def track_request(endpoint: str, plugin_id: str = None, error: str = None):
     """Track API request for metrics."""
-    metrics.requests_total += 1
-    request_times.append(time.time())
-    
-    if plugin_id:
-        metrics.plugin_usage[plugin_id] += 1
-    
-    if error:
-        metrics.errors_total += 1
-        metrics.last_error = f"{endpoint}: {error}"
-    
-    # Calculate requests per minute
-    now = time.time()
-    recent_requests = sum(1 for t in request_times if now - t <= 60)
-    metrics.requests_per_minute = recent_requests
-    
-    # Notify active streams
+    async with _metrics_lock:
+        metrics.requests_total += 1
+        request_times.append(time.time())
+
+        if plugin_id:
+            metrics.plugin_usage[plugin_id] += 1
+
+        if error:
+            metrics.errors_total += 1
+            metrics.last_error = f"{endpoint}: {error}"
+
+        # Calculate requests per minute
+        now = time.time()
+        recent_requests = sum(1 for t in request_times if now - t <= 60)
+        metrics.requests_per_minute = recent_requests
+
+    # Notify active streams (fora do lock — notify_streams tem seu próprio fluxo)
     await notify_streams()
 
 async def track_webhook(webhook_type: str):
     """Track webhook activity."""
-    metrics.webhook_stats[webhook_type] += 1
+    async with _metrics_lock:
+        metrics.webhook_stats[webhook_type] += 1
     await notify_streams()
 
 async def notify_streams():

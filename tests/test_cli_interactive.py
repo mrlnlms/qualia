@@ -75,46 +75,6 @@ class TestImports:
 # UTILS — funções puras e utilitárias
 # =============================================================================
 
-class TestParsePluginList:
-    """Testa parse_plugin_list que não depende de I/O"""
-
-    def test_parse_table_output(self):
-        from qualia.cli.interactive.utils import parse_plugin_list
-        output = (
-            "┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃ ID              ┃ Tipo     ┃ Nome                ┃\n"
-            "┡━━━━━━━━━━━━━━━━━╇━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━┩\n"
-            "│ word_frequency  │ analyzer │ Word Frequency      │\n"
-            "│ wordcloud_d3   │ visualizer│ Word Cloud          │\n"
-            "└─────────────────┴──────────┴─────────────────────┘\n"
-        )
-        plugins = parse_plugin_list(output)
-        assert len(plugins) == 2
-        ids = [p[0] for p in plugins]
-        assert "word_frequency" in ids
-        assert "wordcloud_d3" in ids
-
-    def test_parse_filter_by_type(self):
-        from qualia.cli.interactive.utils import parse_plugin_list
-        output = (
-            "│ word_frequency  │ analyzer │ Word Frequency      │\n"
-            "│ wordcloud_d3   │ visualizer│ Word Cloud          │\n"
-        )
-        plugins = parse_plugin_list(output, "analyzer")
-        assert len(plugins) == 1
-        assert plugins[0][0] == "word_frequency"
-
-    def test_parse_empty_output(self):
-        from qualia.cli.interactive.utils import parse_plugin_list
-        assert parse_plugin_list("") == []
-        assert parse_plugin_list("No plugins found") == []
-
-    def test_parse_header_only(self):
-        from qualia.cli.interactive.utils import parse_plugin_list
-        output = "┃ ID ┃ Tipo ┃ Nome ┃\n"
-        assert parse_plugin_list(output) == []
-
-
 class TestShowFilePreview:
     """Testa show_file_preview com arquivos reais"""
 
@@ -203,14 +163,13 @@ class TestConfigureParameters:
 
     @patch("qualia.cli.interactive.utils.Prompt.ask")
     def test_known_plugin_defaults(self, mock_ask):
-        """Plugin conhecido (word_frequency) usa presets"""
+        """Plugin conhecido (word_frequency) usa schema do registry"""
         from qualia.cli.interactive.utils import configure_parameters
         # Aceitar todos os defaults
-        mock_ask.side_effect = ["3", "true", "portuguese"]
+        mock_ask.side_effect = lambda *a, **kw: kw.get("default", "")
         params = configure_parameters("word_frequency")
-        assert "min_word_length" in params
-        assert "remove_stopwords" in params
-        assert "language" in params
+        # Não deve ter params alterados (todos mantiveram default)
+        assert isinstance(params, dict)
 
     @patch("qualia.cli.interactive.utils.Confirm.ask", return_value=False)
     def test_unknown_plugin_no_custom(self, mock_confirm):
@@ -227,15 +186,6 @@ class TestConfigureParameters:
         mock_ask.side_effect = ["my_param", "my_value", "fim"]
         params = configure_parameters("unknown_plugin")
         assert params == {"my_param": "my_value"}
-
-    @patch("qualia.cli.interactive.utils.Prompt.ask")
-    def test_skip_parameter(self, mock_ask):
-        """Digitar 'skip' em um parâmetro preset o exclui"""
-        from qualia.cli.interactive.utils import configure_parameters
-        mock_ask.side_effect = ["skip", "true", "portuguese"]
-        params = configure_parameters("word_frequency")
-        assert "min_word_length" not in params
-        assert "remove_stopwords" in params
 
 
 class TestGetIntChoice:

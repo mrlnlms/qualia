@@ -106,98 +106,63 @@ def _choose_file_from_recent(recent_files: List[str]) -> Optional[str]:
     return recent[idx - 1]
 
 
-def parse_plugin_list(output: str, plugin_type: str = "all") -> List[Tuple[str, str, str]]:
-    """
-    Analisa a saída do comando 'qualia list' e retorna lista de (id, nome, descrição)
-    """
-    plugins = []
-    lines = output.split('\n')
-    
-    # Procurar por linhas da tabela (que contêm │)
-    for line in lines:
-        # Pular linhas de borda e cabeçalho
-        if any(char in line for char in ['━', '┏', '┓', '┗', '┛', '┃', '┡', '┩', '└', '┴', '─']):
-            continue
-        
-        if 'ID' in line and 'Tipo' in line:  # Cabeçalho
-            continue
-            
-        if '│' in line:
-            parts = [p.strip() for p in line.split('│') if p.strip()]
-            
-            if len(parts) >= 3:
-                plugin_id = parts[0]
-                plugin_type_found = parts[1]
-                plugin_name = parts[2]
-                
-                # Validar ID
-                if plugin_id and len(plugin_id) > 1:
-                    # Filtrar por tipo se necessário
-                    if plugin_type == "all" or plugin_type.lower() in plugin_type_found.lower():
-                        plugins.append((plugin_id, plugin_name, plugin_type_found))
-    
-    return plugins
-
-
 def choose_plugin(plugin_type: str = "all") -> Optional[str]:
-    """Escolhe um plugin do tipo especificado"""
-    success, output, error = run_qualia_command(
-        ["list"] + (["-t", plugin_type] if plugin_type != "all" else [])
-    )
-    
-    if not success:
-        console.print(f"[red]Erro ao listar plugins: {error}[/red]")
+    """Escolhe um plugin do tipo especificado, lendo direto do registry."""
+    from qualia.cli.commands.utils import get_core
+    from qualia.core.interfaces import PluginType
+
+    try:
+        core = get_core()
+    except Exception as e:
+        console.print(f"[red]Erro ao carregar core: {e}[/red]")
         return None
-    
-    plugins = parse_plugin_list(output, plugin_type)
-    
-    if not plugins:
+
+    if plugin_type == "all":
+        plugin_list = list(core.registry.values())
+    else:
+        try:
+            pt = PluginType(plugin_type)
+        except ValueError:
+            console.print(f"[red]Tipo desconhecido: {plugin_type}[/red]")
+            return None
+        plugin_list = [p for p in core.registry.values() if p.type == pt]
+
+    if not plugin_list:
         console.print(f"[red]Nenhum {plugin_type} encontrado![/red]")
-        console.print("[yellow]Verifique se os plugins estão instalados corretamente.[/yellow]")
         return None
-    
+
     console.print(f"\n[bold]Escolha um {plugin_type}:[/bold]")
-    for i, (plugin_id, plugin_name, plugin_type_str) in enumerate(plugins, 1):
-        console.print(f"{i}. [cyan]{plugin_id}[/cyan] - {plugin_name} [dim]({plugin_type_str})[/dim]")
-    
-    idx = get_int_choice("Escolha", 1, len(plugins))
-    return plugins[idx-1][0]
+    for i, meta in enumerate(sorted(plugin_list, key=lambda p: p.id), 1):
+        console.print(f"{i}. [cyan]{meta.id}[/cyan] - {meta.name} [dim]({meta.type.value})[/dim]")
+
+    idx = get_int_choice("Escolha", 1, len(plugin_list))
+    return sorted(plugin_list, key=lambda p: p.id)[idx - 1].id
 
 
 def configure_parameters(plugin: str, context: str = "general") -> Dict[str, str]:
-    """Configura parâmetros para um plugin"""
+    """Configura parâmetros para um plugin, lendo schema do registry."""
+    from qualia.cli.commands.utils import get_core
+
     console.print(f"\n[bold]Configurar {plugin}[/bold]")
-    
-    # Configurações predefinidas
-    presets = {
-        "word_frequency": {
-            "min_word_length": ("Tamanho mínimo de palavra", "3"),
-            "remove_stopwords": ("Remover palavras comuns", "true"),
-            "language": ("Idioma", "portuguese")
-        },
-        "teams_cleaner": {
-            "remove_timestamps": ("Remover timestamps", "false"),
-            "merge_consecutive": ("Mesclar falas consecutivas", "true")
-        },
-        "wordcloud_d3": {
-            "colormap": ("Esquema de cores", "viridis"),
-            "background_color": ("Cor de fundo", "white"),
-            "max_words": ("Máximo de palavras", "100")
-        },
-        "frequency_chart_plotly": {
-            "chart_type": ("Tipo de gráfico", "bar"),
-            "top_n": ("Número de itens", "20")
-        }
-    }
-    
     params = {}
-    
-    if plugin in presets:
-        console.print("[dim]Parâmetros disponíveis:[/dim]")
-        for param, (desc, default) in presets[plugin].items():
-            value = Prompt.ask(f"{desc}", default=default)
-            if value.lower() != "skip":
-                params[param] = value
+
+    try:
+        core = get_core()
+        meta = core.registry.get(plugin)
+    except Exception:
+        meta = None
+
+    if meta and meta.parameters:
+        console.print("[dim]Parâmetros disponíveis (Enter para default):[/dim]")
+        for param_name, spec in meta.parameters.items():
+            desc = spec.get("description", param_name)
+            default = str(spec.get("default", ""))
+            options = spec.get("options")
+
+            hint = f" [{'/'.join(str(o) for o in options)}]" if options else ""
+            value = Prompt.ask(f"{desc}{hint}", default=default)
+            if value != default:
+                params[param_name] = value
     else:
         if Confirm.ask("Deseja adicionar parâmetros customizados?"):
             console.print("[dim]Digite 'fim' quando terminar[/dim]")
@@ -207,7 +172,7 @@ def configure_parameters(plugin: str, context: str = "general") -> Dict[str, str
                     break
                 param_value = Prompt.ask(f"Valor para {param_name}")
                 params[param_name] = param_value
-    
+
     return params
 
 

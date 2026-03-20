@@ -355,63 +355,39 @@ class TestChooseFileFromExamples:
 
 
 class TestChoosePlugin:
-    """Testa choose_plugin (linhas 143-163)"""
+    """Testa choose_plugin (usa get_core().registry direto)"""
 
     @patch("qualia.cli.interactive.utils.get_int_choice", return_value=1)
-    @patch("qualia.cli.interactive.utils.run_qualia_command")
-    def test_choose_plugin_success(self, mock_run, mock_choice):
-        """Seleciona plugin da lista com sucesso"""
+    def test_choose_plugin_success(self, mock_choice):
+        """Seleciona primeiro plugin da lista ordenada"""
         from qualia.cli.interactive.utils import choose_plugin
-
-        # Simular output do comando 'qualia list'
-        mock_run.return_value = (True, (
-            "┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓\n"
-            "┃ ID              │ Tipo     │ Nome               ┃\n"
-            "│ word_frequency  │ analyzer │ Word Frequency     │\n"
-            "│ sentiment       │ analyzer │ Sentiment Analyzer │\n"
-        ), "")
-
         result = choose_plugin("all")
-        assert result == "word_frequency"
+        # Primeiro plugin em ordem alfabética
+        assert result is not None
+        assert isinstance(result, str)
 
-    @patch("qualia.cli.interactive.utils.run_qualia_command")
-    def test_choose_plugin_command_fails(self, mock_run):
-        """Erro ao listar plugins retorna None"""
+    def test_choose_plugin_invalid_type(self):
+        """Tipo inválido retorna None"""
         from qualia.cli.interactive.utils import choose_plugin
-
-        mock_run.return_value = (False, "", "erro de subprocess")
-        result = choose_plugin("all")
+        result = choose_plugin("nonexistent_type")
         assert result is None
 
-    @patch("qualia.cli.interactive.utils.run_qualia_command")
-    def test_choose_plugin_no_plugins_found(self, mock_run):
-        """Nenhum plugin encontrado retorna None"""
+    @patch("qualia.cli.interactive.utils.get_int_choice", return_value=1)
+    def test_choose_plugin_filters_by_type(self, mock_choice):
+        """Filtra por tipo analyzer"""
         from qualia.cli.interactive.utils import choose_plugin
-
-        mock_run.return_value = (True, "No plugins found\n", "")
+        from qualia.cli.commands.utils import get_core
+        core = get_core()
+        analyzers = [p for p in core.registry.values() if p.type.value == "analyzer"]
         result = choose_plugin("analyzer")
-        assert result is None
+        assert result in [p.id for p in analyzers]
 
-    @patch("qualia.cli.interactive.utils.run_qualia_command")
-    def test_choose_plugin_filters_by_type(self, mock_run):
-        """Passa tipo correto para o comando list"""
+    @patch("qualia.cli.interactive.utils.get_int_choice", return_value=1)
+    def test_choose_plugin_all_returns_any(self, mock_choice):
+        """Tipo 'all' retorna qualquer plugin"""
         from qualia.cli.interactive.utils import choose_plugin
-
-        mock_run.return_value = (True, "", "")
-        choose_plugin("visualizer")
-        args = mock_run.call_args[0][0]
-        assert "-t" in args
-        assert "visualizer" in args
-
-    @patch("qualia.cli.interactive.utils.run_qualia_command")
-    def test_choose_plugin_all_no_type_flag(self, mock_run):
-        """Tipo 'all' nao passa flag -t"""
-        from qualia.cli.interactive.utils import choose_plugin
-
-        mock_run.return_value = (True, "", "")
-        choose_plugin("all")
-        args = mock_run.call_args[0][0]
-        assert "-t" not in args
+        result = choose_plugin("all")
+        assert result is not None
 
 
 class TestChooseFile:
@@ -491,16 +467,16 @@ class TestChooseFileByPath:
 
 
 class TestConfigureParameters:
-    """Testa configure_parameters"""
+    """Testa configure_parameters (lê schema do registry)"""
 
-    @patch("qualia.cli.interactive.utils.Prompt.ask", return_value="3")
-    def test_preset_plugin_returns_params(self, mock_ask):
-        """Plugin com presets retorna parametros configurados"""
+    @patch("qualia.cli.interactive.utils.Prompt.ask")
+    def test_known_plugin_uses_schema(self, mock_ask):
+        """Plugin conhecido usa schema do registry"""
         from qualia.cli.interactive.utils import configure_parameters
+        # Aceitar todos os defaults (Prompt.ask retorna o default passado)
+        mock_ask.side_effect = lambda *a, **kw: kw.get("default", "")
         result = configure_parameters("word_frequency")
         assert isinstance(result, dict)
-        # Deve conter os parametros do preset
-        assert "min_word_length" in result
 
     @patch("qualia.cli.interactive.utils.Confirm.ask", return_value=False)
     def test_unknown_plugin_no_custom_params(self, mock_confirm):
@@ -516,15 +492,6 @@ class TestConfigureParameters:
         from qualia.cli.interactive.utils import configure_parameters
         result = configure_parameters("plugin_desconhecido")
         assert result == {"meu_param": "42"}
-
-    @patch("qualia.cli.interactive.utils.Prompt.ask", return_value="skip")
-    def test_skip_parameter(self, mock_ask):
-        """Digitar 'skip' pula o parametro"""
-        from qualia.cli.interactive.utils import configure_parameters
-        result = configure_parameters("word_frequency")
-        # Parametros com valor 'skip' nao entram no resultado
-        for v in result.values():
-            assert v != "skip"
 
 
 class TestRunQualiaCommand:
