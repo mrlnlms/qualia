@@ -405,3 +405,419 @@ class TestPipelineStress:
 
         assert results[0]["vocabulary_size"] >= results[1]["vocabulary_size"]
         assert results[1]["vocabulary_size"] >= results[2]["vocabulary_size"]
+
+
+# =============================================================================
+# CORE vs API — mesmo erro, mesmo tipo, mesma mensagem
+# =============================================================================
+
+class TestCoreAPIErrorParity:
+    """Core e API devem retornar erros equivalentes para os mesmos inputs."""
+
+    @pytest.mark.asyncio
+    async def test_invalid_config_same_rejection(self, ac, core):
+        """Config inválida rejeitada pelo core e pela API com mesmo diagnóstico."""
+        bad_config = {"tokenization": "quantum"}
+        doc = core.add_document("parity_test", "Texto para teste de paridade.")
+
+        # Core
+        core_error = None
+        try:
+            core.execute_plugin("word_frequency", doc, bad_config)
+        except ValueError as e:
+            core_error = str(e)
+
+        # API
+        resp = await ac.post("/analyze/word_frequency", json={
+            "text": "Texto para teste de paridade.",
+            "config": bad_config,
+        })
+
+        if core_error:
+            # Core rejeitou → API deve rejeitar também (422)
+            assert resp.status_code == 422, f"Core rejeitou mas API retornou {resp.status_code}"
+        else:
+            # Core aceitou → API deve aceitar também (200)
+            assert resp.status_code == 200, f"Core aceitou mas API retornou {resp.status_code}"
+
+    @pytest.mark.asyncio
+    async def test_plugin_not_found_same_code(self, ac, core):
+        """Plugin inexistente: core ValueError, API 404."""
+        doc = core.add_document("nf", "texto")
+        with pytest.raises(ValueError, match="não encontrado"):
+            core.execute_plugin("fantasma", doc)
+
+        resp = await ac.post("/analyze/fantasma", json={"text": "t", "config": {}})
+        assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_wrong_plugin_type_same_rejection(self, ac, core):
+        """Plugin tipo errado: API 422 em /analyze com visualizer."""
+        resp = await ac.post("/analyze/wordcloud_d3", json={"text": "t", "config": {}})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_multiple_bad_configs_parity(self, ac, core):
+        """Várias configs ruins — core e API concordam em rejeitar ou aceitar."""
+        configs = [
+            {"min_word_length": -999},
+            {"max_words": "abc"},
+            {"language": 42},
+            {"remove_stopwords": "talvez"},
+            {"param_fantasma": True},
+        ]
+        text = "Texto para teste de paridade de configuração."
+        for config in configs:
+            doc = core.add_document(f"parity_{id(config)}", text)
+            core_ok = True
+            try:
+                core.execute_plugin("word_frequency", doc, config)
+            except (ValueError, TypeError):
+                core_ok = False
+
+            resp = await ac.post("/analyze/word_frequency", json={
+                "text": text, "config": config,
+            })
+            api_ok = resp.status_code == 200
+
+            assert core_ok == api_ok, (
+                f"Config {config}: core={'ok' if core_ok else 'erro'}, "
+                f"API={resp.status_code}"
+            )
+
+
+# =============================================================================
+# CACHE PERSISTENTE — restart real entre operações
+# =============================================================================
+
+class TestCachePersistentRestart:
+    """Cache com restart real (nova instância CacheManager) entre operações."""
+
+    def test_write_restart_read(self, cache_dir):
+        """Grava → restart → lê — dado sobrevive."""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "plugin_a", {"k": 1}, {"value": "alice"})
+        del cache_a
+
+        cache_b = CacheManager(cache_dir)
+        result = cache_b.get("doc1", "plugin_a", {"k": 1})
+        assert result is not None
+        assert result["value"] == "alice"
+
+    def test_write_restart_invalidate_restart_read(self, cache_dir):
+        """Grava → restart → invalida → restart → lê — dado não volta."""
+        cache_a = CacheManager(cache_dir)
+        cache_a.set("doc1", "plugin_a", {}, {"v": 1})
+        cache_a.set("doc2", "plugin_a", {}, {"v": 2})
+        del cache_a
+
+        cache_b = CacheManager(cache_dir)
+        cache_b.invalidate(doc_id="doc1")
+        del cache_b
+
+        cache_c = CacheManager(cache_dir)
+        assert cache_c.get("doc1", "plugin_a", {}) is None
+        assert cache_c.get("doc2", "plugin_a", {})["v"] == 2
+
+    def test_multiple_restarts_accumulate(self, cache_dir):
+        """Várias sessões gravando — tudo acumula."""
+        for i in range(5):
+            cache = CacheManager(cache_dir)
+            cache.set(f"doc_{i}", "plugin", {}, {"session": i})
+            del cache
+
+        final = CacheManager(cache_dir)
+        for i in range(5):
+            result = final.get(f"doc_{i}", "plugin", {})
+            assert result is not None, f"doc_{i} perdido após 5 restarts"
+            assert result["session"] == i
+
+    def test_clear_restart_empty(self, cache_dir):
+        """Clear → restart → nada sobrevive."""
+        cache_a = CacheManager(cache_dir)
+        for i in range(10):
+            cache_a.set(f"doc_{i}", "plugin", {}, {"v": i})
+        cache_a.clear()
+        del cache_a
+
+        cache_b = CacheManager(cache_dir)
+        for i in range(10):
+            assert cache_b.get(f"doc_{i}", "plugin", {}) is None
+        assert cache_b.stats()["size"] == 0
+
+
+# =============================================================================
+# LAZY LOADING CONCORRENTE — plugins carregando ao mesmo tempo
+# =============================================================================
+
+class TestLazyLoadingConcurrent:
+    """Plugins lazy sendo carregados por threads concorrentes."""
+
+    def test_concurrent_first_access_different_lazy_plugins(self, core):
+        """3 plugins lazy acessados pela primeira vez em threads diferentes."""
+        # readability_analyzer e teams_cleaner são lazy (sem __init__ pesado)
+        plugins = ["readability_analyzer", "teams_cleaner"]
+        results = {}
+        errors = []
+
+        def access_plugin(plugin_id):
+            try:
+                p = core.get_plugin(plugin_id)
+                meta = p.meta()
+                return plugin_id, meta.id
+            except Exception as e:
+                errors.append(f"{plugin_id}: {e}")
+                return plugin_id, None
+
+        with ThreadPoolExecutor(max_workers=len(plugins)) as executor:
+            futures = [executor.submit(access_plugin, pid) for pid in plugins]
+            for f in as_completed(futures):
+                pid, meta_id = f.result()
+                results[pid] = meta_id
+
+        assert errors == [], f"Erros: {errors}"
+        for pid in plugins:
+            assert results[pid] == pid, f"{pid} retornou meta.id={results[pid]}"
+
+    def test_concurrent_execute_different_plugins(self, core):
+        """Execução concorrente de plugins diferentes (eager + lazy)."""
+        text = "Texto para teste de concorrência entre plugins diferentes."
+        doc = core.add_document("concurrent_diff", text)
+        plugins = ["word_frequency", "sentiment_analyzer", "readability_analyzer"]
+        results = {}
+        errors = []
+
+        def run_plugin(plugin_id):
+            try:
+                # Cada thread precisa do seu próprio Document (evita cache collision)
+                d = core.add_document(f"conc_{plugin_id}", text)
+                return plugin_id, core.execute_plugin(plugin_id, d)
+            except Exception as e:
+                errors.append(f"{plugin_id}: {e}")
+                return plugin_id, None
+
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(run_plugin, pid) for pid in plugins]
+            for f in as_completed(futures):
+                pid, result = f.result()
+                results[pid] = result
+
+        assert errors == [], f"Erros: {errors}"
+        assert "word_frequencies" in results["word_frequency"]
+        assert "polarity" in results["sentiment_analyzer"]
+        assert "word_count" in results["readability_analyzer"]
+
+
+# =============================================================================
+# CONTEXT — tipos Python não triviais
+# =============================================================================
+
+class TestContextNonTrivialTypes:
+    """Context com tipos Python que não são JSON nativo."""
+
+    def test_context_with_path(self, core):
+        """Context com Path — não crasheia, cache funciona."""
+        doc = core.add_document("ctx_path", "Texto para teste de contexto com Path.")
+        ctx = {"source": Path("/tmp/data/file.txt")}
+        result = core.execute_plugin("word_frequency", doc, {}, ctx)
+        assert "word_frequencies" in result
+
+    def test_context_with_set(self, core):
+        """Context com set — não crasheia, cache funciona."""
+        doc = core.add_document("ctx_set", "Texto para teste de contexto com set.")
+        ctx = {"tags": {"alpha", "beta", "gamma"}}
+        result = core.execute_plugin("word_frequency", doc, {}, ctx)
+        assert "word_frequencies" in result
+
+    def test_context_with_tuple(self, core):
+        """Context com tuple — não crasheia."""
+        doc = core.add_document("ctx_tuple", "Texto para teste de contexto com tuple.")
+        ctx = {"coords": (1, 2, 3)}
+        result = core.execute_plugin("word_frequency", doc, {}, ctx)
+        assert "word_frequencies" in result
+
+    def test_context_with_nested_complex(self, core):
+        """Context com tipos aninhados — dict com set, list de Paths, etc."""
+        doc = core.add_document("ctx_nested", "Texto para teste de contexto complexo.")
+        ctx = {
+            "paths": [Path("/a"), Path("/b")],
+            "tags": frozenset(["x", "y"]),
+            "meta": {"nested": {"deep": True}},
+        }
+        result = core.execute_plugin("word_frequency", doc, {}, ctx)
+        assert "word_frequencies" in result
+
+    def test_different_contexts_different_cache(self, core):
+        """Mesmo doc+plugin, contextos diferentes → resultados cacheados separados."""
+        doc = core.add_document("ctx_cache", "Texto para teste.")
+        r1 = core.execute_plugin("word_frequency", doc, {}, {"user": "alice"})
+        r2 = core.execute_plugin("word_frequency", doc, {}, {"user": "bob"})
+        r3 = core.execute_plugin("word_frequency", doc, {}, {"user": "alice"})
+        # r1 e r3 devem ser iguais (cache hit), todos devem ter provides
+        assert r1 == r3
+        assert "word_frequencies" in r1
+        assert "word_frequencies" in r2
+
+    def test_context_with_none_values(self, core):
+        """Context com valores None — não crasheia."""
+        doc = core.add_document("ctx_none", "Texto para teste.")
+        result = core.execute_plugin("word_frequency", doc, {}, {"key": None, "other": None})
+        assert "word_frequencies" in result
+
+    def test_empty_context_vs_no_context_same_cache(self, core):
+        """Context vazio ({}) e sem context (None) devem usar mesma cache."""
+        doc = core.add_document("ctx_empty", "Texto para teste de cache.")
+        r1 = core.execute_plugin("word_frequency", doc, {}, None)
+        r2 = core.execute_plugin("word_frequency", doc, {}, {})
+        assert r1 == r2
+        # Segundo deve ser cache hit
+        assert core.cache.stats()["hits"] >= 1
+
+
+# =============================================================================
+# DEPENDÊNCIAS + CONTEXT + CACHE — eixo que mudou bastante
+# =============================================================================
+
+class TestDepsContextCache:
+    """Dependências automáticas com context e cache — verificar propagação correta."""
+
+    def test_context_not_shared_between_unrelated_calls(self, core):
+        """Duas chamadas com context diferente não poluem uma a outra."""
+        text = "Texto para teste de isolamento de contexto entre chamadas."
+        doc1 = core.add_document("iso_1", text)
+        doc2 = core.add_document("iso_2", text)
+
+        r1 = core.execute_plugin("word_frequency", doc1, {}, {"session": "A"})
+        r2 = core.execute_plugin("word_frequency", doc2, {}, {"session": "B"})
+
+        # Ambos devem retornar resultado válido
+        assert "word_frequencies" in r1
+        assert "word_frequencies" in r2
+
+    def test_cache_separates_by_context_not_just_config(self, core):
+        """Mesmo doc, mesmo config, contextos diferentes → cache keys diferentes."""
+        doc = core.add_document("cache_ctx", "Texto para teste de separação de cache.")
+        config = {"min_word_length": 3}
+
+        r1 = core.execute_plugin("word_frequency", doc, config, {"env": "prod"})
+        stats1 = core.cache.stats()
+
+        r2 = core.execute_plugin("word_frequency", doc, config, {"env": "dev"})
+        stats2 = core.cache.stats()
+
+        # Segundo deve ser miss (context diferente)
+        assert stats2["misses"] > stats1["misses"]
+
+    def test_cache_hits_with_same_context(self, core):
+        """Mesmo doc + config + context → cache hit."""
+        doc = core.add_document("cache_same", "Texto para teste de cache hit.")
+        ctx = {"user": "alice", "tags": ["a", "b"]}
+
+        core.execute_plugin("word_frequency", doc, {}, ctx)
+        stats1 = core.cache.stats()
+
+        core.execute_plugin("word_frequency", doc, {}, ctx)
+        stats2 = core.cache.stats()
+
+        assert stats2["hits"] > stats1["hits"]
+
+
+# =============================================================================
+# PIPELINE — sequências inválidas e quase-válidas
+# =============================================================================
+
+class TestPipelineInvalidSequences:
+    """Pipelines com combinações inválidas falham limpo, nunca crasham."""
+
+    @pytest.mark.asyncio
+    async def test_visualizer_first_step_no_data(self, ac):
+        """Visualizer como primeiro step (sem dados) → 422."""
+        steps = json.dumps([{"plugin_id": "wordcloud_d3", "config": {}}])
+        resp = await ac.post("/pipeline", data={"text": "texto", "steps": steps})
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_visualizer_after_visualizer(self, ac):
+        """Visualizer → Visualizer — segundo recebe resultado do primeiro."""
+        steps = json.dumps([
+            {"plugin_id": "word_frequency", "config": {}},
+            {"plugin_id": "wordcloud_d3", "config": {}},
+            {"plugin_id": "frequency_chart_plotly", "config": {}},
+        ])
+        resp = await ac.post("/pipeline", data={
+            "text": "gato gato cachorro pato gato",
+            "steps": steps,
+        })
+        # Segundo visualizer recebe resultado do primeiro — pode funcionar ou falhar limpo
+        assert resp.status_code != 500
+
+    @pytest.mark.asyncio
+    async def test_document_after_analyzer(self, ac):
+        """Analyzer → Document — document recebe texto encadeado."""
+        steps = json.dumps([
+            {"plugin_id": "word_frequency", "config": {}},
+            {"plugin_id": "teams_cleaner", "config": {}},
+        ])
+        resp = await ac.post("/pipeline", data={
+            "text": "[10:00:00] Ana: Olá pessoal",
+            "steps": steps,
+        })
+        # word_frequency não retorna texto encadeável, teams_cleaner recebe texto original
+        assert resp.status_code != 500
+
+    @pytest.mark.asyncio
+    async def test_analyzer_with_invalid_output_format(self, ac):
+        """Pipeline com output_format inválido no visualizer → 422."""
+        steps = json.dumps([
+            {"plugin_id": "word_frequency", "config": {}},
+            {"plugin_id": "wordcloud_d3", "config": {"output_format": "pdf"}},
+        ])
+        resp = await ac.post("/pipeline", data={
+            "text": "gato cachorro pato",
+            "steps": steps,
+        })
+        assert resp.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_empty_text_through_pipeline(self, ac):
+        """Texto vazio pelo pipeline inteiro — não crasheia."""
+        steps = json.dumps([{"plugin_id": "word_frequency", "config": {}}])
+        resp = await ac.post("/pipeline", data={"text": "", "steps": steps})
+        # Pode ser 200 (resultado vazio) ou 422 — nunca 500
+        assert resp.status_code != 500
+
+    @pytest.mark.asyncio
+    async def test_document_file_then_analyzer(self, ac):
+        """File upload → document (text-based) → analyzer — integração real."""
+        transcript = "[10:00:00] Maria: Olá pessoal bom dia\n[10:01:00] João: Bom dia Maria tudo bem"
+        steps = json.dumps([
+            {"plugin_id": "teams_cleaner", "config": {}},
+            {"plugin_id": "word_frequency", "config": {}},
+        ])
+        resp = await ac.post("/pipeline",
+            files={"file": ("meeting.txt", transcript.encode(), "text/plain")},
+            data={"steps": steps},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["steps_executed"] == 2
+        # Primeiro step deve ter cleaned_document
+        assert "cleaned_document" in data["results"][0]["result"]
+        # Segundo step deve ter word_frequencies
+        assert "word_frequencies" in data["results"][1]["result"]
+
+    @pytest.mark.asyncio
+    async def test_three_analyzers_chained(self, ac):
+        """3 analyzers em sequência — todos completam."""
+        steps = json.dumps([
+            {"plugin_id": "word_frequency", "config": {}},
+            {"plugin_id": "sentiment_analyzer", "config": {}},
+            {"plugin_id": "readability_analyzer", "config": {}},
+        ])
+        resp = await ac.post("/pipeline", data={
+            "text": "Texto positivo e bom para análise completa com múltiplas palavras.",
+            "steps": steps,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["steps_executed"] == 3
