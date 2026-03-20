@@ -161,7 +161,7 @@ Levantamento completo em `memory/project_plugin_types_brainstorm.md`. Checklist 
 
 ### Coverage
 
-858 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 857 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos. Saldo líquido do code review #2: -466 linhas (mais remoção que adição).
+851 testes (Python 3.13, kaleido funcional), ~90% coverage. Ambientes sem kaleido funcional: 850 passed, 1 skipped (PNG/SVG). Módulos API (config, health, process, transcribe, analyze) em 100%. Core engine em 96%. Linhas residuais são abstract methods, entry points, e exemplos. Saldo líquido do code review #2: -580 linhas (mais remoção que adição). Contagem menor que 858 porque testes de `parse_plugin_list` (removido) e presets hardcoded foram eliminados.
 
 ---
 
