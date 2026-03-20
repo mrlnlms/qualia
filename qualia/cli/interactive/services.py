@@ -29,9 +29,9 @@ def show_config():
     console.print(f"Python: {sys.version}")
     console.print(f"Diretório: {Path.cwd()}")
 
-    from qualia.core import QualiaCore
     try:
-        core = QualiaCore()
+        from qualia.cli.commands.utils import get_core
+        core = get_core()
         plugin_count = len(core.registry)
     except Exception:
         plugin_count = 0
