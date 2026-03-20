@@ -1,6 +1,6 @@
 # Qualia Core — Estado Técnico
 
-Última atualização: 2026-03-19
+Última atualização: 2026-03-20
 
 ## Plugins (8)
 

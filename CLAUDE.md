@@ -122,6 +122,9 @@ O core descobre plugins automaticamente em qualquer profundidade dentro de `plug
 5. **Três tipos de plugin, ponto.** ANALYZER, DOCUMENT, VISUALIZER. IFilterPlugin e IComposerPlugin foram removidos. Não reintroduzir.
 6. **ConfigRegistry rejeita tipos desconhecidos.** `_validate_type` retorna erro para tipos fora do mapa (int, float, bool, str, list, dict).
 7. **API bind 127.0.0.1.** Docker usa 0.0.0.0 no CMD. O `__main__.py` usa 127.0.0.1. Intencional.
+8. **Upload 500MB engine-level.** Plugins com limites menores (ex: Groq 25MB) tratam internamente. Engine não se acopla a provider.
+9. **Tempfile no timeout não é deletado.** Thread órfã de `asyncio.to_thread` pode estar lendo. SO limpa via tmpwatch.
+10. **Visualizers geram HTML com scripts.** By design — D3, Plotly precisam de JS. Iframe sandbox restringe. API local-first, user controla plugins.
 
 ## Ecossistema
 

@@ -1,12 +1,29 @@
 # Backlog — Qualia Core
 
-Última atualização: 2026-03-19
+Última atualização: 2026-03-20
 
 ## Pendente
 
 Nenhum item pendente.
 
 ---
+
+### ~~Hardening beta (2026-03-19/20) — reviews #3 a #7, ~30 commits~~ Concluído
+
+Análise completa (4 agentes paralelos) + 4 code reviews Codex + fixes.
+
+- README: Python >=3.13, status Beta v0.2.0, READMEs stale deletados
+- .env.example limpo, frontend version alinhado, CORS configurável via env var
+- Monitor: race conditions corrigidas (asyncio.Lock em active_streams e métricas)
+- CacheManager.set() atômico (lock único cobre eviction + write + tracking)
+- ConfigRegistry rejeita tipos desconhecidos
+- Document stateful removido (dead code, decisão settled: Qualia é stateless)
+- XSS wordcloud tooltip (.html→.text), provides valida dict vazio
+- Pipeline: 404 antes de tipo, steps validados upfront (plugin_id obrigatório, config dict)
+- Loader: lazy plugins sem __init__ via object.__new__()
+- Upload: 500MB engine-level, streaming 64KB, tempfile preservado no timeout
+- Config non-dict → 422 em analyze/transcribe/pipeline
+- Último review Codex: zero achados funcionais
 
 ### ~~Code review completo #2 (2026-03-19) — 36 achados, 20 fixes~~ Concluído
 
