@@ -79,12 +79,29 @@ class CacheManager:
         data = {k: list(v) for k, v in self._key_metadata.items()}
         self._index_file.write_text(json.dumps(data))
 
+    @staticmethod
+    def _canonicalize(obj: Any) -> Any:
+        """Converte recursivamente para forma canônica JSON-serializável.
+
+        set/frozenset → sorted list, Path → str, dict → sorted keys,
+        demais → repr como fallback leaf.
+        """
+        if obj is None or isinstance(obj, (bool, int, float, str)):
+            return obj
+        if isinstance(obj, dict):
+            return {str(k): CacheManager._canonicalize(v) for k, v in sorted(obj.items())}
+        if isinstance(obj, (set, frozenset)):
+            return sorted(CacheManager._canonicalize(x) for x in obj)
+        if isinstance(obj, (list, tuple)):
+            return [CacheManager._canonicalize(x) for x in obj]
+        if isinstance(obj, Path):
+            return str(obj)
+        return f"{type(obj).__name__}:{obj!r}"
+
     def _get_cache_key(self, doc_id: str, plugin_id: str, config: Dict[str, Any]) -> str:
-        """Gera chave única para cache. Tolerante a tipos não-JSON (Path, set, etc)."""
-        try:
-            config_str = json.dumps(config, sort_keys=True)
-        except (TypeError, ValueError):
-            config_str = repr(sorted(config.items()) if isinstance(config, dict) else config)
+        """Gera chave única para cache. Canônica para tipos Python comuns."""
+        canonical = self._canonicalize(config)
+        config_str = json.dumps(canonical, sort_keys=True)
         content = f"{doc_id}:{plugin_id}:{config_str}"
         return hashlib.sha256(content.encode()).hexdigest()
 
