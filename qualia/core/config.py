@@ -183,8 +183,7 @@ class ConfigurationRegistry:
 
         expected_types = type_map.get(expected)
         if expected_types is None:
-            logger.warning("Tipo desconhecido '%s' para parâmetro '%s'", expected, key)
-            return None  # aceita mas avisa
+            return f"'{key}': tipo desconhecido '{expected}'"
 
         # bool é subclasse de int em Python — tratar separadamente
         if expected == "int" and isinstance(value, bool):

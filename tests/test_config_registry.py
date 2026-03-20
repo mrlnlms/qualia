@@ -362,3 +362,12 @@ class TestConsolidatedView:
         view = reg.get_consolidated_view()
         assert view["summary"]["plugins_with_text_size"] == 1
 
+
+class TestValidationUnknownType:
+    def test_unknown_type_rejected(self):
+        """Tipo desconhecido no schema deve gerar erro de validação."""
+        reg = _registry_with_plugins({"p": {"x": {"type": "custom_type", "default": "a"}}})
+        ok, errors = reg.validate_config("p", {"x": "anything"})
+        assert not ok
+        assert any("tipo desconhecido" in e.lower() or "custom_type" in e for e in errors)
+
