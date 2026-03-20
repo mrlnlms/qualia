@@ -96,8 +96,9 @@ class QualiaCore:
         if not valid:
             raise ValueError(f"Configuração inválida: {error}")
 
-        # Verifica cache
-        cached = self.cache.get(document.id, plugin_id, config)
+        # Verifica cache — context entra na chave quando não vazio
+        cache_config = {**config, "__context__": context} if context else config
+        cached = self.cache.get(document.id, plugin_id, cache_config)
         if cached is not None:
             return cached
 
@@ -145,9 +146,9 @@ class QualiaCore:
                     f"mas resultado não contém: {missing}"
                 )
 
-        # Armazena no cache
+        # Armazena no cache (mesma chave com context)
         if result is not None:
-            self.cache.set(document.id, plugin_id, config, result)
+            self.cache.set(document.id, plugin_id, cache_config, result)
 
         if result is None:
             logger.warning("Plugin '%s' retornou None", plugin_id)
