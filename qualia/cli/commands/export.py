@@ -6,6 +6,7 @@ Comando para exportar resultados em diferentes formatos
 import click
 import json
 import yaml
+from html import escape
 from pathlib import Path
 from typing import Dict, Any, List
 from rich.table import Table as RichTable
@@ -214,7 +215,7 @@ def export_to_html(data: Dict[str, Any], output_path: Path):
     if isinstance(data, dict) and 'metadata' in data:
         meta_html = "<div class='metadata'><h2>Metadata</h2><ul>"
         for key, value in data['metadata'].items():
-            meta_html += f"<li><strong>{key}:</strong> {value}</li>"
+            meta_html += f"<li><strong>{escape(str(key))}:</strong> {escape(str(value))}</li>"
         meta_html += "</ul></div>"
         content_parts.append(meta_html)
     
@@ -225,20 +226,20 @@ def export_to_html(data: Dict[str, Any], output_path: Path):
     # Converter dados
     if isinstance(data, dict):
         for key, value in data.items():
-            content_parts.append(f"<h2>{key}</h2>")
+            content_parts.append(f"<h2>{escape(str(key))}</h2>")
             
             if isinstance(value, list) and value and isinstance(value[0], dict):
                 # Criar tabela
                 headers = list(value[0].keys())
                 table_html = "<table><thead><tr>"
                 for h in headers:
-                    table_html += f"<th>{h}</th>"
+                    table_html += f"<th>{escape(str(h))}</th>"
                 table_html += "</tr></thead><tbody>"
                 
                 for row in value:
                     table_html += "<tr>"
                     for h in headers:
-                        table_html += f"<td>{row.get(h, '')}</td>"
+                        table_html += f"<td>{escape(str(row.get(h, '')))}</td>"
                     table_html += "</tr>"
                 
                 table_html += "</tbody></table>"
@@ -246,11 +247,11 @@ def export_to_html(data: Dict[str, Any], output_path: Path):
                 
             else:
                 # Mostrar como JSON formatado
-                json_html = f"<div class='json-data'><pre>{json.dumps(value, indent=2)}</pre></div>"
+                json_html = f"<div class='json-data'><pre>{escape(json.dumps(value, indent=2))}</pre></div>"
                 content_parts.append(json_html)
     else:
         # Fallback para JSON
-        json_html = f"<div class='json-data'><pre>{json.dumps(data, indent=2)}</pre></div>"
+        json_html = f"<div class='json-data'><pre>{escape(json.dumps(data, indent=2))}</pre></div>"
         content_parts.append(json_html)
     
     html = html_template.format(content="\n".join(content_parts))
