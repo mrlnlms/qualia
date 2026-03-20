@@ -146,7 +146,7 @@ class QualiaCore:
 
         if result is None:
             logger.warning("Plugin '%s' retornou None", plugin_id)
-        return result or {}
+        return result if result is not None else {}
 
     def execute_pipeline(self,
                         pipeline_config: PipelineConfig,
