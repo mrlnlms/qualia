@@ -114,8 +114,8 @@ class SentimentAnalyzer(BaseAnalyzerPlugin):
         if self._langdetect_available:
             try:
                 return self.langdetect.detect(text)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("Language detection failed, using heuristic: %s", e)
         
         # Fallback: detectar por palavras comuns
         pt_words = ['de', 'que', 'o', 'a', 'e', 'do', 'da', 'em', 'um', 'para', 'é', 'com']

@@ -48,6 +48,8 @@ class WordCloudD3(BaseVisualizerPlugin):
     def _render_impl(self, data, config):
         """Gera HTML com D3.js word cloud."""
         frequencies = data["word_frequencies"]
+        if not isinstance(frequencies, dict):
+            raise ValueError(f"word_frequencies deve ser dict, recebeu {type(frequencies).__name__}")
         max_words = config.get("max_words", 100)
         width = config.get("width", 800)
         height = config.get("height", 400)

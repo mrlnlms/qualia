@@ -269,11 +269,15 @@ class TestExtremeInputs:
 
     @pytest.mark.parametrize("name,text", EXTREME_TEXTS)
     def test_readability_provides_contract(self, core, name, text):
-        """readability cumpre provides com qualquer texto."""
+        """readability cumpre provides ou rejeita texto vazio com ValueError."""
         doc = core.add_document(f"extreme_read_{name}", text)
-        result = core.execute_plugin("readability_analyzer", doc)
-        assert "word_count" in result
-        assert isinstance(result["word_count"], int)
+        try:
+            result = core.execute_plugin("readability_analyzer", doc)
+            assert "word_count" in result
+            assert isinstance(result["word_count"], int)
+        except ValueError:
+            # Texto vazio/whitespace → ValueError esperado
+            assert not text.strip()
 
     def test_sentiment_with_extreme_texts(self, core):
         """sentiment com textos extremos — nunca crash."""

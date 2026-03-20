@@ -169,7 +169,7 @@ async def custom_webhook(request: Request):
     """
     try:
         payload = await request.json()
-    except Exception:
+    except (json.JSONDecodeError, ValueError):
         raise HTTPException(status_code=422, detail="Payload JSON inválido")
 
     if not isinstance(payload, dict):

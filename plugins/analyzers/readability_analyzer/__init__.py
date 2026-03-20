@@ -72,6 +72,9 @@ class ReadabilityAnalyzer(BaseAnalyzerPlugin):
                       context: Dict[str, Any]) -> Dict[str, Any]:
         text = document.content
 
+        if not text.strip():
+            raise ValueError("Texto vazio — impossível calcular legibilidade")
+
         # --- Extrair estrutura do texto ---
         paragraphs = [p.strip() for p in text.split('\n') if p.strip()]
         sentences = self._split_sentences(text)

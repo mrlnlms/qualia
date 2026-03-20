@@ -107,20 +107,22 @@ class DependencyResolver:
         visited = set()
         stack = []
 
-        def visit(plugin: str, path: Set[str]) -> None:
-            if plugin in path:
-                raise ValueError(f"Dependência circular detectada: {' -> '.join(path)} -> {plugin}")
+        def visit(plugin: str, path: list) -> None:
+            if plugin in set(path):
+                cycle_start = path.index(plugin)
+                cycle = path[cycle_start:] + [plugin]
+                raise ValueError(f"Dependência circular detectada: {' -> '.join(cycle)}")
 
             if plugin not in visited:
-                path.add(plugin)
+                path.append(plugin)
                 for dep in self.graph.get(plugin, []):
                     if dep in all_plugins:
-                        visit(dep, path.copy())
+                        visit(dep, list(path))
                 visited.add(plugin)
                 stack.append(plugin)
 
         for plugin in all_plugins:
             if plugin not in visited:
-                visit(plugin, set())
+                visit(plugin, [])
 
         return stack

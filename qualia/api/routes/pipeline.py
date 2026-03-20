@@ -3,7 +3,10 @@
 import json
 import hashlib
 import asyncio
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 
@@ -109,6 +112,9 @@ async def execute_pipeline(
                 raise HTTPException(status_code=504, detail=f"Plugin '{plugin_id}' timed out (60s)")
             all_results.append({"plugin_id": plugin_id, "result": result})
             if isinstance(result, dict):
+                overlap = set(accumulated_data) & set(result)
+                if overlap:
+                    logger.warning("Pipeline step '%s' sobrescreveu campos: %s", plugin_id, overlap)
                 accumulated_data.update(result)
 
             next_text = _extract_text_result(result)
@@ -200,6 +206,9 @@ async def execute_pipeline(
 
             all_results.append({"plugin_id": plugin_id, "result": result})
             if isinstance(result, dict):
+                overlap = set(accumulated_data) & set(result)
+                if overlap:
+                    logger.warning("Pipeline step '%s' sobrescreveu campos: %s", plugin_id, overlap)
                 accumulated_data.update(result)
             last_result = result
 
