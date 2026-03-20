@@ -179,12 +179,7 @@ class SentimentVizPlotly(BaseVisualizerPlugin):
             labels = list(sentiment_stats.keys())
             values = list(sentiment_stats.values())
         else:
-            if polarity > 0.1:
-                labels, values = ["Positivo", "Neutro"], [70, 30]
-            elif polarity < -0.1:
-                labels, values = ["Negativo", "Neutro"], [70, 30]
-            else:
-                labels, values = ["Neutro", "Positivo", "Negativo"], [60, 20, 20]
+            labels, values = ["Sem dados"], [1]
 
         colors = [self._get_sentiment_color(1 if "pos" in l.lower() else -1 if "neg" in l.lower() else 0) for l in labels]
         fig.add_trace(go.Pie(labels=labels, values=values, marker=dict(colors=colors)), row=1, col=1)
