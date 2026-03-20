@@ -3,8 +3,9 @@ const BASE = '';
 async function request(url, options = {}) {
   const res = await fetch(`${BASE}${url}`, options);
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ message: res.statusText }));
-    throw err;
+    const err = await res.json().catch(() => ({ detail: res.statusText }));
+    const message = err.detail || err.message || res.statusText;
+    throw { message: typeof message === 'string' ? message : JSON.stringify(message) };
   }
   return res.json();
 }
