@@ -49,7 +49,7 @@
       {/each}
     </ul>
     <div class="sidebar-footer">
-      <span class="version">v0.1</span>
+      <span class="version">v0.2.0-beta</span>
       <button class="theme-toggle" onclick={toggleTheme} title={darkMode ? 'Light mode' : 'Dark mode'}>
         {darkMode ? 'light' : 'dark'}
       </button>
