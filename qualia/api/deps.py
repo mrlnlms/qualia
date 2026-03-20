@@ -9,8 +9,8 @@ from qualia.core import QualiaCore
 _core: Optional[QualiaCore] = None
 HAS_EXTENSIONS: bool = False
 
-# Limite de upload (25MB — alinhado com Groq API limit)
-MAX_UPLOAD_SIZE = 25 * 1024 * 1024
+# Limite de upload do engine (500MB — plugins com limites menores tratam internamente)
+MAX_UPLOAD_SIZE = 500 * 1024 * 1024
 
 
 def set_core(core: QualiaCore):
