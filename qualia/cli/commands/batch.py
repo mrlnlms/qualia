@@ -31,16 +31,17 @@ def process_file(file_path: Path, plugin_id: str, config: Dict[str, Any],
         result = core.execute_plugin(plugin_id, doc, config)
         
         # Salvar se output_dir especificado
+        output_file = None
         if output_dir:
             # Incluir nome do diretório pai para evitar colisão de nomes
             safe_name = f"{file_path.parent.name}_{file_path.stem}" if file_path.parent.name != "." else file_path.stem
-            output_path = output_dir / f"{safe_name}_result.json"
-            output_path.write_text(json.dumps(result, indent=2))
-        
+            output_file = output_dir / f"{safe_name}_result.json"
+            output_file.write_text(json.dumps(result, indent=2))
+
         return {
             "file": file_path.name,
             "status": "success",
-            "output": str(output_path) if output_dir else None,
+            "output": str(output_file) if output_file else None,
             "result": result
         }
         
